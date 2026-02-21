@@ -1,0 +1,53 @@
+/* /static/css/cadastro-torneio.css */
+
+/* Aplica a imagem do Torneio Neon como fundo da PÁGINA INTEIRA */
+body {
+    /* Aponta para o arquivo que você salvou manualmente */
+    background-image: url('../images/futebolTournoment.png') !important;
+    
+    /* Configurações para a imagem cobrir a tela e ficar fixa */
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    /* Cor de fundo de segurança quase preta */
+    background-color: #050510 !important;
+}
+
+/* Remove os fundos antigos do carrossel para não conflitar */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Ajusta o cartão do formulário para um vidro mais escuro e elegante */
+.glass-card {
+    /* Fundo azulado muito escuro e transparente */
+    background: rgba(10, 15, 30, 0.9) !important; 
+    backdrop-filter: blur(12px) !important;
+    /* Borda sutil ciano/azul para combinar com o neon do estádio */
+    border: 1px solid rgba(0, 234, 255, 0.25) !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Estilização dos inputs para o tema dark */
+.input-wrapper, .color-picker-group {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+/* Efeito de foco nos inputs com brilho neon */
+.input-wrapper:focus-within {
+    border-color: var(--neon-blue) !important;
+    box-shadow: 0 0 15px rgba(0, 234, 255, 0.3);
+}
+
+/* Título da página com brilho */
+.logo-text h2 {
+    text-shadow: 0 0 15px rgba(0, 234, 255, 0.7);
+}
+
+/* Ajuste específico para o ícone do troféu no preview */
+.trophy-preview i {
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); /* Brilho dourado */
+}

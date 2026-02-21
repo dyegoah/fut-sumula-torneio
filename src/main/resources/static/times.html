@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<script>
+	        (function() {
+	            const token = localStorage.getItem('futSumulaToken');
+	            if (!token) { window.location.href = 'login.html'; return; }
+	            const originalFetch = window.fetch;
+	            window.fetch = function() {
+	                let args = Array.from(arguments);
+	                let url = args[0];
+	                let options = args[1] || {};
+	                if (url.includes('/api/') && !url.includes('/auth/')) {
+	                    options.headers = options.headers || {};
+	                    options.headers['Authorization'] = 'Bearer ' + token;
+	                }
+	                args[1] = options;
+	                return originalFetch.apply(this, args).then(response => {
+	                    if (response.status === 403 || response.status === 401) {
+	                        localStorage.removeItem('futSumulaToken');
+	                        window.location.href = 'login.html';
+	                    }
+	                    return response;
+	                }).catch(err => { throw err; });
+	            };
+	        })();
+	    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clubes | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/times.css">
+	
+    <style>
+        .modal-sidebar {
+            position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh;
+            background: #111; border-left: 1px solid var(--primary-neon);
+            transition: right 0.3s ease; z-index: 20001;
+            display: flex; flex-direction: column;
+            box-shadow: -10px 0 50px rgba(0,0,0,0.8);
+        }
+        .modal-sidebar.active { right: 0; }
+        
+        .sidebar-header {
+            padding: 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
+        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: #000; }
+
+        .sidebar-search {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px; border-radius: 8px; display: flex; align-items: center; margin-bottom: 15px;
+        }
+        .sidebar-search input {
+            background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px;
+        }
+
+        .close-sidebar { cursor: pointer; color: #aaa; font-size: 1.2rem; transition: 0.2s; }
+        .close-sidebar:hover { color: #fff; }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
+            z-index: 20000; display: none;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        .btn-delete-modal {
+            width: 100%; margin-top: 25px; padding: 14px;
+            background: linear-gradient(90deg, rgba(255, 68, 68, 0.05), rgba(255, 0, 0, 0.1));
+            border: 1px solid rgba(255, 68, 68, 0.4); color: #ff4444;
+            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.85rem;
+            text-transform: uppercase; letter-spacing: 1px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-delete-modal:hover { background: #ff4444; color: #fff; border-color: #ff4444; }
+        .select-player-item {
+            display: flex; align-items: center; gap: 10px; padding: 12px;
+            background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;
+        }
+        .select-player-item:hover { background: rgba(255,255,255,0.08); }
+        .select-player-item.selected { border-left: 3px solid var(--success-color); background: rgba(0,255,136,0.1); }
+        .select-player-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+    </style>    
+</head>
+<body>
+
+	<div class="bg-carousel-container">
+	    <div class="bg-overlay"></div>
+	    <div class="bg-image bg-fans-flags"></div> 
+	</div>
+
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+        </div>
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+             <div class="logo-text" style="text-align: center;">
+                <h2 style="color: #fff;">LIGA DE CLUBES</h2>
+                <span id="total-times" style="font-size: 0.7rem; color: var(--primary-neon);">Carregando...</span>
+             </div>
+        </div>
+        <div class="brand-area" onclick="window.location.href='cadastro-time.html'">
+            <i class="fas fa-plus-circle" style="color: var(--success-color); font-size: 1.2rem;"></i>
+        </div>
+    </header>
+
+    <main class="main-content" style="padding-bottom: 90px;">
+        <div class="search-container">
+            <input type="text" id="search-times" class="search-input" placeholder="Buscar clube..." oninput="filtrarTimes()">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+
+        <div id="teams-grid" class="squad-grid">
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
+                <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary-neon);"></i>
+                <p style="margin-top: 15px; color: var(--text-gray);">Buscando agremiações...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="rosterModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px; text-align: center;">
+            <div class="close-btn-header" onclick="fecharRoster()" style="position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;">
+                <i class="fas fa-times" style="font-size: 0.8rem;"></i>
+            </div>
+
+            <div id="modal-crest-container" class="team-crest-area" style="margin: 0 auto 10px; width: 100px; height: 100px;"></div>
+            <h3 id="modal-team-name" class="modal-title" style="font-size: 1.5rem; margin-bottom: 5px;">NOME DO TIME</h3>
+            <p style="color: var(--text-gray); font-size: 0.8rem;">GESTÃO DE ELENCO</p>
+            
+            <input type="hidden" id="current-time-id">
+
+            <div id="modal-roster-list" class="roster-list"></div>
+
+            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="modal-btn" style="background: rgba(255,255,255,0.1); font-size: 0.8rem;" onclick="abrirBuscaJogadores()">
+                    <i class="fas fa-search-plus"></i> BUSCAR EXISTENTE
+                </button>
+                <button class="modal-btn btn-success" style="font-size: 0.8rem;" onclick="irParaNovoJogador()">
+                    <i class="fas fa-user-plus"></i> CRIAR JOGADOR
+                </button>
+            </div>
+            
+            <button class="btn-delete-modal" onclick="iniciarExclusaoTimeAtual()">
+                <i class="fas fa-trash-alt"></i> EXCLUIR CLUBE
+            </button>
+        </div>
+    </div>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharSidebar()"></div>
+    <div id="sidebarMercado" class="modal-sidebar">
+        <div class="sidebar-header">
+            <h3 style="color: var(--primary-neon); margin: 0; font-size: 1rem;"><i class="fas fa-exchange-alt"></i> MERCADO DA BOLA</h3>
+            <i class="fas fa-times close-sidebar" onclick="fecharSidebar()"></i>
+        </div>
+        
+        <div style="padding: 15px 15px 0;">
+             <div class="sidebar-search">
+                <i class="fas fa-search" style="color: #888;"></i>
+                <input type="text" id="search-mercado" placeholder="Buscar por nome..." oninput="filtrarMercado()">
+            </div>
+        </div>
+
+        <div id="free-agents-list" class="sidebar-content">
+            <div style="text-align:center; margin-top:50px; color:#666;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <button class="modal-btn btn-success" style="width: 100%;" onclick="confirmarContratacoes()">
+                CONFIRMAR CONTRATAÇÕES <i class="fas fa-check"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="delModal1" class="modal-overlay">
+        <div class="modal-box">
+            <i class="fas fa-exclamation-triangle icon-warning modal-icon"></i>
+            <h3>Tem certeza?</h3>
+            <p>Você quer realmente excluir este clube?</p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="modal-btn" onclick="document.getElementById('delModal1').classList.remove('active')">Cancelar</button>
+                <button class="modal-btn btn-warning-act" onclick="abrirConfirmacao2()">SIM, EXCLUIR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delModal2" class="modal-overlay">
+        <div class="modal-box">
+            <i class="fas fa-skull-crossbones modal-icon icon-danger"></i>
+            <h3 style="color: #ff4444;">ÚLTIMA CHANCE!</h3>
+            <p>Esta ação é irreversível. O time será apagado e os jogadores ficarão sem clube.</p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="modal-btn" onclick="document.getElementById('delModal2').classList.remove('active')">NÃO, VOLTAR</button>
+                <button class="modal-btn btn-danger-act" onclick="executarExclusao()">APAGAR DEFINITIVAMENTE</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="footbar-container"></div>
+
+    <script src="js/images.js"></script>
+    <script src="js/mascotes.js"></script>
+
+    <script>
+        // LÓGICA DO FOOTBAR
+        fetch('footbar.html').then(r => r.text()).then(d => { 
+            document.getElementById('footbar-container').innerHTML = d; 
+            const scripts = document.getElementById('footbar-container').querySelectorAll("script"); 
+            scripts.forEach(s => eval(s.innerHTML)); 
+        });
+
+        let mascotsMap = { 'lion': 'fa-paw', 'eagle': 'fa-feather-alt', 'shark': 'fa-fish', 'wolf': 'fa-dog', 'dragon': 'fa-dragon', 'bull': 'fa-bullhorn', 'horse': 'fa-horse', 'spider': 'fa-spider', 'cat': 'fa-cat', 'crow': 'fa-crow', 'frog': 'fa-frog', 'hippo': 'fa-hippo', 'otter': 'fa-otter', 'dove': 'fa-dove', 'kiwi': 'fa-kiwi-bird', 'worm': 'fa-worm', 'skull': 'fa-skull', 'bolt': 'fa-bolt', 'star': 'fa-star', 'anchor': 'fa-anchor', 'poo': 'fa-poop', 'restroom': 'fa-restroom', 'leaf': 'fa-leaf', 'cannabis': 'fa-cannabis', 'ghost': 'fa-ghost', 'alien': 'fa-pastafarianism', 'robot': 'fa-robot', 'bomb': 'fa-bomb', 'fire': 'fa-fire', 'crown': 'fa-crown' };
+
+        if(window.ExtendedMascots) {
+            mascotsMap = { ...mascotsMap, ...window.ExtendedMascots };
+        }
+
+        let allTimes = [];
+        let marketPlayers = []; 
+        let selectedPlayersIds = [];
+
+        document.addEventListener('DOMContentLoaded', carregarTimes);
+
+        async function carregarTimes() {
+            try {
+                const response = await fetch('/api/times');
+                allTimes = await response.json();
+                document.getElementById('total-times').innerText = `${allTimes.length} CLUBES REGISTRADOS`;
+                renderizarGrid(allTimes);
+            } catch (error) { console.error(error); }
+        }
+
+        function renderizarGrid(lista) {
+            const grid = document.getElementById('teams-grid');
+            grid.innerHTML = '';
+            if (lista.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; background: rgba(0,0,0,0.5); border-radius: 15px;"><i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--text-gray); margin-bottom: 15px;"></i><h3>Nenhum clube encontrado</h3><br><button class="modal-btn btn-success" onclick="window.location.href='cadastro-time.html'">CRIAR PRIMEIRO CLUBE</button></div>`;
+                return;
+            }
+            lista.forEach(time => grid.innerHTML += criarCardTime(time));
+        }
+
+        function filtrarTimes() {
+            const termo = document.getElementById('search-times').value.toLowerCase();
+            const filtrados = allTimes.filter(time => time.nome.toLowerCase().includes(termo));
+            renderizarGrid(filtrados);
+        }
+
+        function buildCrestHTML(time) {
+            if (time.tipoEscudo === 'UPLOAD' && time.escudoUrl) {
+                return `<img src="${time.escudoUrl}" class="team-crest-img">`;
+            } else {
+                const icon = mascotsMap[time.customMascot] || 'fa-shield-alt';
+                const grad = `linear-gradient(135deg, ${time.corPrimaria}, ${time.corSecundaria})`;
+                const border = time.corTerciaria || '#fff';
+                const color = (time.corTerciaria === '#ffffff') ? '#fff' : time.corTerciaria;
+                const emerg = ['dragon', 'eagle', 'horse', 'poo'].includes(time.customMascot) ? 'transform: scale(1.2) translateY(-5px);' : '';
+                return `<div class="mini-crest-shape shape-${time.customShape}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} mini-crest-mascot" style="color: ${color}; ${emerg}"></i>`;
+            }
+        }
+
+        function criarCardTime(time) {
+            const count = time.jogadores ? time.jogadores.length : 0;
+            return `
+                <div class="fut-card team-card" style="border-color: rgba(255,255,255,0.1); --bg-color-1: ${time.corPrimaria};" onclick="abrirRoster(${time.id})">
+                    <div class="team-card-bg"></div>
+                    <div class="team-player-count"><i class="fas fa-users"></i> ${count}</div>
+                    <div class="team-crest-area">${buildCrestHTML(time)}</div>
+                    <div class="team-name">${time.nome}</div>
+                    <div style="display:flex; gap:5px; margin-top:10px; opacity:0.8;"><div style="width:20px; height:6px; background:${time.corPrimaria}; border-radius:2px;"></div><div style="width:20px; height:6px; background:${time.corSecundaria}; border-radius:2px;"></div></div>
+                </div>
+            `;
+        }
+
+        function abrirRoster(timeId) {
+            const time = allTimes.find(t => t.id === timeId);
+            if(!time) return;
+            document.getElementById('current-time-id').value = timeId;
+            document.getElementById('modal-team-name').innerText = time.nome;
+            document.getElementById('modal-crest-container').innerHTML = buildCrestHTML(time);
+            renderizarListaJogadores(time);
+            document.getElementById('rosterModal').classList.add('active');
+        }
+
+        function renderizarListaJogadores(time) {
+            const list = document.getElementById('modal-roster-list');
+            list.innerHTML = '';
+            if(!time.jogadores || time.jogadores.length === 0) {
+                list.innerHTML = `<div style="text-align: center; padding: 20px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 10px;"><p style="color: var(--text-gray);">Nenhum jogador no elenco.</p><small style="color: var(--primary-neon);">Use os botões abaixo para contratar.</small></div>`;
+            } else {
+                time.jogadores.sort((a, b) => {
+                    if (a.posicao === 'GOLEIRO' && b.posicao !== 'GOLEIRO') return -1;
+                    if (a.posicao !== 'GOLEIRO' && b.posicao === 'GOLEIRO') return 1;
+                    return a.nome.localeCompare(b.nome);
+                });
+                time.jogadores.forEach(jog => {
+                    const foto = jog.fotoUrl || AppImages.defaultAvatar;
+                    const pos = jog.posicao === 'GOLEIRO' ? 'GOL' : 'LIN';
+                    list.innerHTML += `
+                        <div class="roster-item" style="cursor: default;">
+                            <img src="${foto}" class="roster-img" onclick="window.location.href='cadastro-jogador.html?timeId=${time.id}'" style="cursor: pointer;">
+                            <div class="roster-info"><div class="roster-name">${jog.nome}</div><div class="roster-pos">${pos}</div></div>
+                            <div class="roster-num">${jog.numeroCamisa}</div>
+                            <div class="remove-btn" onclick="dispensarJogador(${time.id}, ${jog.id})" title="Dispensar Jogador"><i class="fas fa-times"></i></div>
+                        </div>`;
+                });
+            }
+        }
+
+        function fecharRoster() { document.getElementById('rosterModal').classList.remove('active'); carregarTimes(); }
+
+        async function dispensarJogador(timeId, jogadorId) {
+            if(!confirm("Tem certeza que deseja dispensar este jogador? Ele ficará 'Sem Clube'.")) return;
+            try {
+                const response = await fetch(`/api/times/${timeId}/remover-jogador/${jogadorId}`, { method: 'DELETE' });
+                if(response.ok) {
+                    const time = allTimes.find(t => t.id === timeId);
+                    time.jogadores = time.jogadores.filter(j => j.id !== jogadorId);
+                    renderizarListaJogadores(time);
+                } else { alert("Erro ao dispensar."); }
+            } catch(e) { alert("Erro de conexão."); }
+        }
+
+        function irParaNovoJogador() {
+            const timeId = document.getElementById('current-time-id').value;
+            window.location.href = `cadastro-jogador.html?timeId=${timeId}`;
+        }
+
+        function fecharSidebar() {
+            document.getElementById('sidebarOverlay').classList.remove('active');
+            document.getElementById('sidebarMercado').classList.remove('active');
+        }
+
+        async function abrirBuscaJogadores() {
+            document.getElementById('sidebarOverlay').classList.add('active');
+            document.getElementById('sidebarMercado').classList.add('active');
+            
+            const listContainer = document.getElementById('free-agents-list');
+            listContainer.innerHTML = '<div style="text-align:center; margin-top:50px; color:#666;"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+            document.getElementById('search-mercado').value = ''; 
+            
+            try {
+                const response = await fetch('/api/jogadores');
+                marketPlayers = await response.json(); 
+                renderizarMercado(marketPlayers);
+            } catch(e) { 
+                console.error(e);
+                listContainer.innerHTML = '<p style="text-align:center; color:#ff4444;">Erro ao carregar dados.</p>'; 
+            }
+        }
+
+        function renderizarMercado(jogadores) {
+            const listContainer = document.getElementById('free-agents-list');
+            listContainer.innerHTML = '';
+            selectedPlayersIds = []; 
+
+            const timeIdAtual = document.getElementById('current-time-id').value;
+
+            if(jogadores.length === 0) {
+                listContainer.innerHTML = '<p style="padding:20px; color:#aaa; text-align:center;">Nenhum jogador encontrado.</p>';
+                return;
+            }
+
+            jogadores.sort((a, b) => {
+                const aSemTime = !a.time;
+                const bSemTime = !b.time;
+                if (aSemTime && !bSemTime) return -1;
+                if (!aSemTime && bSemTime) return 1;
+                return a.nome.localeCompare(b.nome);
+            });
+
+            jogadores.forEach(jog => {
+                if (jog.time && jog.time.id == timeIdAtual) return;
+
+                const foto = jog.fotoUrl || AppImages.defaultAvatar;
+                let statusTime, statusClass;
+
+                if (jog.time) {
+                    statusTime = `<i class="fas fa-shield-alt"></i> ${jog.time.nome}`;
+                    statusClass = 'color: #ffcc00; font-size: 0.7rem;'; 
+                } else {
+                    statusTime = `<i class="fas fa-check-circle"></i> LIVRE`;
+                    statusClass = 'color: #00ff88; font-size: 0.7rem; font-weight: bold;';
+                }
+
+                const item = document.createElement('div');
+                item.className = 'select-player-item';
+                item.dataset.id = jog.id; 
+                item.innerHTML = `
+                    <img src="${foto}"> 
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${jog.nome}</div> 
+                        <div style="${statusClass}">${statusTime}</div>
+                    </div>
+                    <div style="font-size:0.8rem; color:#aaa; font-weight:bold;">${jog.numeroCamisa}</div>
+                `;
+                
+                item.onclick = () => {
+                    item.classList.toggle('selected');
+                    if(item.classList.contains('selected')) selectedPlayersIds.push(jog.id);
+                    else selectedPlayersIds = selectedPlayersIds.filter(id => id !== jog.id);
+                };
+                
+                listContainer.appendChild(item);
+            });
+
+            if(listContainer.children.length === 0) {
+                 listContainer.innerHTML = '<p style="padding:20px; color:#aaa; text-align:center;">Todos os seus jogadores já estão neste time.</p>';
+            }
+        }
+
+        function filtrarMercado() {
+            const termo = document.getElementById('search-mercado').value.toLowerCase();
+            const filtrados = marketPlayers.filter(j => 
+                j.nome.toLowerCase().includes(termo) || 
+                j.numeroCamisa.includes(termo)
+            );
+            renderizarMercado(filtrados);
+        }
+
+        async function confirmarContratacoes() {
+            const timeId = document.getElementById('current-time-id').value;
+            if(selectedPlayersIds.length === 0) { alert("Selecione alguém para contratar."); return; }
+            try {
+                const response = await fetch(`/api/times/${timeId}/adicionar-jogadores`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(selectedPlayersIds)
+                });
+                if(response.ok) {
+                    fecharSidebar();
+                    const res = await fetch('/api/times');
+                    allTimes = await res.json();
+                    abrirRoster(parseInt(timeId));
+                } else throw new Error();
+            } catch(e) { alert("Erro na contratação."); }
+        }
+        
+        let timeIdToDelete = null;
+        function iniciarExclusaoTimeAtual() {
+            const id = document.getElementById('current-time-id').value;
+            timeIdToDelete = id;
+            document.getElementById('rosterModal').classList.remove('active');
+            document.getElementById('delModal1').classList.add('active');
+        }
+        function abrirConfirmacao2() {
+            document.getElementById('delModal1').classList.remove('active');
+            document.getElementById('delModal2').classList.add('active');
+        }
+        async function executarExclusao() {
+            if(!timeIdToDelete) return;
+            try {
+                const response = await fetch(`/api/times/${timeIdToDelete}`, { method: 'DELETE' });
+                if(response.ok) {
+                    document.getElementById('delModal2').classList.remove('active');
+                    carregarTimes(); 
+                } else if (response.status === 404) {
+                    alert("O time não foi encontrado (provavelmente já excluído). Atualizando lista...");
+                    document.getElementById('delModal2').classList.remove('active');
+                    carregarTimes();
+                } else {
+                    const msg = await response.text();
+                    alert("Erro ao excluir: " + (msg || "Verifique se o time está em um torneio ativo."));
+                }
+            } catch(e) { alert("Erro de conexão com o servidor."); }
+        }
+    </script>
+</body>
+</html>

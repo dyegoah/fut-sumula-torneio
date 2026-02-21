@@ -1,0 +1,72 @@
+/* /static/css/iniciojogo.css */
+
+body {
+    /* Caminho para a imagem da bola rolando no gramado */
+    background-image: url('../images/iniciojogo.png') !important;
+    background-size: cover !important;
+    /* Foca na parte inferior/central para pegar bem a bola e a chuteira */
+    background-position: center bottom !important; 
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+    min-height: 100vh;
+    overflow: hidden; /* Evita barras de rolagem desnecessárias na tela de jogo */
+}
+
+/* Remove os fundos antigos */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* PLACAR (Topo) - Fundo semi-transparente escuro */
+.scoreboard-container {
+    background: rgba(0, 0, 0, 0.85) !important;
+    backdrop-filter: blur(10px); /* Desfoque forte para destacar o placar */
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ÁREA DE JOGO (Grid Central) */
+.match-grid {
+    padding: 20px;
+    column-gap: 20px; /* Espaço entre as colunas para ver o gramado */
+}
+
+/* Colunas dos Times (Laterais) */
+.team-column {
+    /* Fundo bem transparente para ver a grama */
+    background: rgba(10, 10, 10, 0.3) !important; 
+    border-radius: 15px;
+    padding: 10px;
+}
+
+/* Coluna Central (Feed do Jogo) */
+.feed-column {
+    background: rgba(0, 0, 0, 0.6) !important; /* Mais escuro para ler o texto dos eventos */
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 15px;
+}
+
+/* Cards dos Jogadores (Tiras) */
+.player-strip {
+    background: rgba(20, 20, 20, 0.75) !important; /* Contraste para ler o nome */
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.player-strip:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: var(--primary-neon) !important;
+    transform: translateX(5px);
+}
+
+/* Botão de Encerrar Partida (Fundo) */
+.end-match-btn {
+    background: rgba(10, 10, 10, 0.9) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid #ff4444 !important;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}

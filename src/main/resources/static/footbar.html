@@ -1,0 +1,112 @@
+<style>
+    /* Garante que o menu fique no topo */
+    .float-menu { z-index: 1100 !important; }
+</style>
+
+<div id="menu-ver" class="float-menu">
+    <div class="float-header">Visualizar</div>
+    <div class="menu-grid">
+        <a href="times.html" class="menu-option">
+            <i class="fas fa-users"></i>
+            <span>Times</span>
+        </a>
+        <a href="jogadores.html" class="menu-option">
+            <i class="fas fa-user-friends"></i>
+            <span>Jogadores</span>
+        </a>
+        <a href="torneios.html" class="menu-option">
+            <i class="fas fa-trophy"></i>
+            <span>Galeria</span>
+        </a>
+		<a href="historico.html" class="menu-option"><i class="fas fa-history"></i><span>Histórico</span></a>
+		    </div>
+    </div>
+</div>
+
+<div id="menu-cadastrar" class="float-menu">
+    <div class="float-header">Gerenciar & Criar</div>
+    <div class="menu-grid">
+        <a href="cadastro-time.html" class="menu-option">
+            <i class="fas fa-shield-alt"></i>
+            <span>Novo Time</span>
+        </a>
+        <a href="cadastro-jogador.html" class="menu-option">
+            <i class="fas fa-user-plus"></i>
+            <span>Novo Jogador</span>
+        </a>
+        <a href="cadastro-torneio.html" class="menu-option">
+            <i class="fas fa-plus-circle"></i>
+            <span>Criar Torneio</span>
+        </a>
+        <a href="#" class="menu-option">
+            <i class="fas fa-cog"></i>
+            <span>Configurações</span>
+        </a>
+    </div>
+</div>
+
+<nav class="app-footbar">
+    <a href="index.html" class="nav-item" id="nav-home">
+        <i class="fas fa-gamepad"></i>
+        <span>HOME</span>
+    </a>
+
+    <a href="stats.html" class="nav-item">
+        <i class="fas fa-chart-bar"></i>
+        <span>Stats</span>
+    </a>
+
+    <div class="nav-item" onclick="window.toggleMenu('menu-ver', this)">
+        <i class="fas fa-eye"></i>
+        <span>Ver</span>
+    </div>
+
+    <div class="nav-item" onclick="window.toggleMenu('menu-cadastrar', this)">
+        <i class="fas fa-plus-circle"></i>
+        <span>Criar</span>
+    </div>
+</nav>
+
+<script>
+    // Função Global para abrir menus
+    window.toggleMenu = function(menuId, btnElement) {
+        const allMenus = document.querySelectorAll('.float-menu');
+        const allBtns = document.querySelectorAll('.nav-item');
+        const menu = document.getElementById(menuId);
+        
+        if (!menu) return;
+
+        const isOpen = menu.classList.contains('show');
+
+        allMenus.forEach(m => m.classList.remove('show'));
+        allBtns.forEach(b => b.classList.remove('active'));
+
+        if (!isOpen) {
+            menu.classList.add('show');
+            btnElement.classList.add('active');
+        } else {
+            window.highlightCurrentPage();
+        }
+    };
+
+    // Destaca a página atual
+    window.highlightCurrentPage = function() {
+        const path = window.location.pathname;
+        const homeBtn = document.getElementById('nav-home');
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+
+        if (path.includes("index") || path === "/") {
+            if(homeBtn) homeBtn.classList.add('active');
+        }
+    };
+
+    window.highlightCurrentPage();
+
+    // Fecha ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.app-footbar') && !e.target.closest('.float-menu')) {
+            document.querySelectorAll('.float-menu').forEach(m => m.classList.remove('show'));
+            window.highlightCurrentPage();
+        }
+    });
+</script>

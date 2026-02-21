@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Master | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --dev-color: #00ff88; --bg-dark: #0a0a0a; --panel-bg: rgba(20, 20, 20, 0.95); --border-color: rgba(255, 255, 255, 0.1); }
+        body { margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; background-color: var(--bg-dark); color: #fff; background-image: radial-gradient(circle at 10% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 20%); }
+        
+        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .brand-dev { font-size: 1.5rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .brand-dev span { color: var(--dev-color); }
+        .admin-actions { display: flex; gap: 15px; }
+        .btn-dev { padding: 10px 20px; border-radius: 6px; border: 1px solid var(--dev-color); background: rgba(0, 255, 136, 0.1); color: var(--dev-color); font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .btn-dev:hover { background: var(--dev-color); color: #000; box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
+        .btn-logout { border-color: #ff4444; color: #ff4444; background: rgba(255, 68, 68, 0.1); }
+        .btn-logout:hover { background: #ff4444; color: #fff; }
+
+        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 40px; }
+        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+        .stat-value { font-size: 2.5rem; font-weight: 900; color: #fff; margin: 10px 0; }
+        .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+        .table-section { padding: 0 40px 40px; }
+        .panel-box { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+        .panel-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .search-box { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 20px; color: #fff; display: flex; align-items: center; width: 350px; }
+        .search-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        th { color: #888; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .st-ativo { background: rgba(0, 255, 136, 0.15); color: #00ff88; border: 1px solid #00ff88; }
+        .st-inativo { background: rgba(255, 68, 68, 0.15); color: #ff4444; border: 1px solid #ff4444; }
+        .origin-tag { font-size: 0.6rem; padding: 2px 4px; border-radius: 3px; margin-left: 5px; font-weight: bold; }
+        .og-torneio { background: #00eaff; color: #000; }
+        .og-racha { background: #bc13fe; color: #fff; }
+
+        .action-btn { background: transparent; border: 1px solid var(--border-color); color: #ccc; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: 0.2s; margin-right: 5px; }
+        .action-btn:hover { background: #fff; color: #000; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-overlay.active { display: flex; }
+        .config-panel { width: 650px; background: #111; border: 1px solid var(--dev-color); border-radius: 12px; padding: 30px; max-height: 90vh; overflow-y: auto; }
+        
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .config-group label { display: block; color: #888; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; }
+        .config-group input, .config-group select, .config-group textarea { width: 100%; padding: 10px; background: #222; border: 1px solid #333; color: #fff; border-radius: 6px; outline: none; box-sizing: border-box; }
+        .config-group input:focus, .config-group textarea:focus { border-color: var(--dev-color); }
+        
+        .time-box { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--dev-color); padding: 10px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+        .time-box h4 { margin: 0; color: var(--dev-color); font-size: 1.2rem; }
+        .time-box small { color: #ccc; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <script>
+        (function() {
+            const perfil = JSON.parse(localStorage.getItem('futSumulaPerfil'));
+            if (!perfil || perfil.email !== 'admin@futsumula.com') { window.location.href = 'index.html'; }
+            const token = localStorage.getItem('futSumulaToken');
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+                if (url.includes('/api/')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+                return originalFetch.apply(this, args);
+            };
+        })();
+    </script>
+
+    <header class="admin-header">
+        <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
+        <div class="admin-actions">
+            <button class="btn-dev" onclick="abrirConfigGlobal()"><i class="fas fa-cogs"></i> CONFIGURAÇÕES</button>
+            <button class="btn-dev btn-logout" onclick="window.location.href='index.html'"><i class="fas fa-sign-out-alt"></i> SAIR</button>
+        </div>
+    </header>
+
+    <div class="stats-container">
+        <div class="stat-card"><div class="stat-label">Total Cadastrados</div><div class="stat-value" id="total-users">--</div></div>
+        <div class="stat-card"><div class="stat-label">Ativos</div><div class="stat-value" id="active-users" style="color: #00ff88;">--</div></div>
+        <div class="stat-card"><div class="stat-label">Origem</div><div class="stat-value" id="origin-stats" style="font-size:1.2rem; margin-top:15px;">--</div></div>
+        <div class="stat-card"><div class="stat-label">Top Localização</div><div class="stat-value" id="top-location" style="font-size:1.5rem; margin-top:15px;">--</div></div>
+    </div>
+
+    <div class="table-section">
+        <div class="panel-box">
+            <div class="panel-header">
+                <h3 style="margin:0; font-size:1rem;">BASE DE USUÁRIOS</h3>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="filtrarTabela()">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ORGANIZADOR / LIGA</th>
+                            <th>EMAIL</th>
+                            <th>INFO</th>
+                            <th>STATUS</th>
+                            <th>PLANO</th>
+                            <th>AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="editUserModal" class="modal-overlay">
+        <div class="config-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3 style="color: var(--dev-color); margin: 0;">FICHA TÉCNICA</h3>
+                <i class="fas fa-times" onclick="document.getElementById('editUserModal').classList.remove('active')" style="cursor:pointer; color:#888;"></i>
+            </div>
+            
+            <div class="time-box">
+                <h4 id="edit-tempo-uso">0 Dias</h4>
+                <small>Tempo desde o cadastro</small>
+            </div>
+
+            <input type="hidden" id="edit-id">
+
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="edit-nome">
+                </div>
+                <div class="config-group">
+                    <label>Email (Login)</label>
+                    <input type="text" id="edit-email">
+                </div>
+            </div>
+
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Cidade</label>
+                    <input type="text" id="edit-cidade">
+                </div>
+                <div class="config-group">
+                    <label>UF</label>
+                    <input type="text" id="edit-uf" maxlength="2">
+                </div>
+            </div>
+
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Data de Nascimento</label>
+                    <input type="date" id="edit-nasc">
+                </div>
+                <div class="config-group">
+                    <label style="color:#ff4444;">Redefinir Senha (Opcional)</label>
+                    <input type="text" id="edit-senha" placeholder="Digite para alterar...">
+                </div>
+            </div>
+
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Dias Grátis (Específico para este usuário)</label>
+                    <input type="number" id="edit-trial" placeholder="Vazio = Padrão do Sistema">
+                    <small id="vip-warning" style="color:#FFD700; display:none; margin-top:5px;"><i class="fas fa-crown"></i> Usuário VIP/PREMIUM (Ignora dias de teste)</small>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-dev" onclick="salvarEdicaoUsuario()">SALVAR ALTERAÇÕES</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cortesiaModal" class="modal-overlay">
+        <div class="config-panel" style="border-color: #FFD700; width: 400px;">
+            <h3 style="color: #FFD700; margin-top: 0;">GERENCIAR CORTESIA</h3>
+            <input type="hidden" id="cortesiaUserId">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 5px;">Nota / Validade</label>
+                <input type="text" id="cortesiaNota" maxlength="20" placeholder="Ex: Vitalício" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-dev btn-logout" onclick="revogarCortesia()">REMOVER VIP</button>
+                <button class="btn-dev" onclick="salvarCortesia()" style="border-color: #FFD700; color: #FFD700;">SALVAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="globalConfigModal" class="modal-overlay">
+        <div class="config-panel" style="max-width: 550px;">
+            <h2 style="margin:0 0 20px 0; color:var(--dev-color); font-size: 1.2rem;"><i class="fas fa-cogs"></i> CONFIGURAÇÕES DO SISTEMA</h2>
+            
+            <h4 style="color:#888; margin-top:10px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">COBRANÇA & ASSINATURA</h4>
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Chave PIX</label>
+                    <input type="text" id="confPixKey">
+                </div>
+                <div class="config-group">
+                    <label>Valor Assinatura (R$)</label>
+                    <input type="text" id="confPixValue" placeholder="0.00">
+                </div>
+            </div>
+            
+            <div class="config-group" style="margin-bottom:15px;">
+                <label>QR Code PIX (Copia e Cola)</label>
+                <textarea id="confPixQr" rows="2" placeholder="Cole aqui o payload do QR Code..." style="resize: none;"></textarea>
+            </div>
+
+            <div class="config-group" style="margin-bottom:15px;">
+                <label>Padrão de Dias Grátis (Para novos usuários)</label>
+                <input type="text" id="confTrial" placeholder="Ex: 15">
+            </div>
+
+            <h4 style="color:#888; margin-top:20px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">CONTATOS & REDES SOCIAIS</h4>
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>WhatsApp (Ex: 5585999999999)</label>
+                    <input type="text" id="confWhats" placeholder="Somente números">
+                </div>
+                <div class="config-group">
+                    <label>E-mail Suporte</label>
+                    <input type="email" id="confEmailSuporte">
+                </div>
+            </div>
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Instagram (Ex: fut_sumula_pro)</label>
+                    <input type="text" id="confInsta" placeholder="Sem @">
+                </div>
+                <div class="config-group">
+                    <label>Facebook (Ex: futsumulapro)</label>
+                    <input type="text" id="confFace" placeholder="Nome de usuário da página">
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-dev btn-logout" onclick="document.getElementById('globalConfigModal').classList.remove('active')">FECHAR</button>
+                <button class="btn-dev" onclick="salvarConfigsLocais()">SALVAR CONFIGS</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allUsers = [];
+        let currentEditingId = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            carregarUsuarios();
+            carregarConfigs();
+            aplicarMascaras(); 
+        });
+
+        function aplicarMascaras() {
+            const inputPixVal = document.getElementById('confPixValue');
+            inputPixVal.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, ''); 
+                if (value !== '') value = (parseInt(value, 10) / 100).toFixed(2);
+                e.target.value = value;
+            });
+
+            const inputWhats = document.getElementById('confWhats');
+            inputWhats.addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '').substring(0, 13);
+            });
+
+            const removeCaracIndesejados = function(e) {
+                e.target.value = e.target.value.replace(/[@\s]/g, '');
+            };
+            document.getElementById('confInsta').addEventListener('input', removeCaracIndesejados);
+            document.getElementById('confFace').addEventListener('input', removeCaracIndesejados);
+
+            const inputTrial = document.getElementById('confTrial');
+            inputTrial.addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+        }
+
+        function formatarDataBR(dataString) {
+            if (!dataString) return '--/--/----';
+            const d = new Date(dataString + "T12:00:00");
+            const dia = String(d.getDate()).padStart(2, '0');
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const ano = d.getFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        async function carregarUsuarios() {
+            try {
+                const res = await fetch('/api/admin/users');
+                if (res.ok) {
+                    allUsers = await res.json();
+                    allUsers.sort((a, b) => a.id - b.id);
+                    filtrarTabela(); 
+                    renderStats(allUsers);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '';
+            
+            const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
+            const globalTrial = parseInt(cfg.trialDays) || 15;
+
+            data.forEach(u => {
+                const cidade = u.cidade ? `${u.cidade}/${u.uf || ''}` : '--';
+                const origemBadge = (u.sistemaOrigem === 'RACHA') 
+                    ? '<span class="origin-tag og-racha">RACHA</span>' 
+                    : '<span class="origin-tag og-torneio">TORNEIO</span>';
+                
+                const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : 'st-inativo';
+                const dataCadastroFormatada = formatarDataBR(u.dataCadastro);
+
+                let planoHTML = '';
+                if(u.plano === 'CORTESIA') {
+                    planoHTML = `<span style="background:rgba(255, 215, 0, 0.15); color:#FFD700; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #FFD700;"><i class="fas fa-crown"></i> VIP: ${u.notaCortesia || ''}</span>`;
+                } else if(u.plano === 'PREMIUM') {
+                    planoHTML = `<span style="background:rgba(0, 255, 136, 0.15); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #00ff88;"><i class="fas fa-star"></i> PREMIUM (PAGO)</span>`;
+                } else {
+                    let diasUso = 0;
+                    if (u.dataCadastro) {
+                        const dataCadastro = new Date(u.dataCadastro + "T12:00:00");
+                        dataCadastro.setHours(0,0,0,0);
+                        const hoje = new Date();
+                        hoje.setHours(0,0,0,0);
+                        const diffTime = hoje.getTime() - dataCadastro.getTime();
+                        diasUso = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
+                    }
+                    
+                    const userTrial = (u.trialDays !== undefined && u.trialDays !== null) ? parseInt(u.trialDays) : globalTrial;
+                    const diasRestantes = userTrial - diasUso;
+
+                    if (diasRestantes >= 0) {
+                        planoHTML = `<span style="background:rgba(0, 255, 136, 0.1); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #00ff88;">TESTE (${diasRestantes} DIAS)</span>`;
+                    } else {
+                        planoHTML = `<span style="background:rgba(255, 68, 68, 0.1); color:#ff4444; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #ff4444;">EXPIRADO</span>`;
+                    }
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${u.id}</td>
+                    <td>
+                        <div style="font-weight:bold;">${u.nome || 'Sem Nome'}</div>
+                        <div style="font-size:0.75rem; color:#888;">${u.nomeLiga || ''}</div>
+                    </td>
+                    <td>${u.login}</td>
+                    <td>
+                        ${cidade} <br> 
+                        <small style="color:#aaa;"><i class="fas fa-calendar-alt"></i> ${dataCadastroFormatada}</small> <br> 
+                        ${origemBadge}
+                    </td>
+                    <td><span class="status-badge ${statusClass}">${u.status || 'INATIVO'}</span></td>
+                    <td>${planoHTML}</td>
+                    <td>
+                        <button class="action-btn" title="Ativar/Desativar Conta (Banir)" onclick="toggleStatus(${u.id})"><i class="fas fa-power-off"></i></button>
+                        <button class="action-btn" title="Marcar como Pago (Premium)" onclick="togglePremium(${u.id})"><i class="fas fa-star" style="color:#00ff88;"></i></button>
+                        <button class="action-btn" title="Cortesia VIP" onclick="abrirCortesia(${u.id}, '${u.notaCortesia || ''}')"><i class="fas fa-crown" style="color:#FFD700;"></i></button>
+                        <button class="action-btn" title="Editar Ficha" onclick="abrirEdicao(${u.id})"><i class="fas fa-eye"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarTabela() {
+            const termo = document.getElementById('searchUser').value.toLowerCase();
+            
+            const filtrados = allUsers.filter(u => {
+                const nome = (u.nome || '').toLowerCase();
+                const liga = (u.nomeLiga || '').toLowerCase();
+                const email = (u.login || '').toLowerCase();
+                const cidadeInfo = (u.cidade ? `${u.cidade}/${u.uf || ''}` : '').toLowerCase();
+                const origem = (u.sistemaOrigem === 'RACHA') ? 'racha' : 'torneio';
+                const status = (u.status || 'inativo').toLowerCase();
+                const dataCad = formatarDataBR(u.dataCadastro);
+                
+                let plano = 'teste expirado free grátis gratis';
+                if (u.plano === 'CORTESIA') plano = `cortesia vip ${u.notaCortesia || ''}`.toLowerCase();
+                if (u.plano === 'PREMIUM') plano = `premium pago assinante`.toLowerCase();
+
+                const searchString = `${u.id} ${nome} ${liga} ${email} ${cidadeInfo} ${origem} ${status} ${plano} ${dataCad}`;
+                return searchString.includes(termo);
+            });
+            
+            renderTable(filtrados);
+        }
+
+        function renderStats(data) {
+            document.getElementById('total-users').innerText = data.length;
+            document.getElementById('active-users').innerText = data.filter(u => u.status === 'ATIVO').length;
+            const racha = data.filter(u => u.sistemaOrigem === 'RACHA').length;
+            document.getElementById('origin-stats').innerHTML = `Torneio: ${data.length - racha} | Racha: ${racha}`;
+            
+            const counts = {};
+            let maxLoc = '--', maxVal = 0;
+            data.forEach(u => { if(u.cidade){ const loc = u.cidade; counts[loc] = (counts[loc]||0)+1; if(counts[loc]>maxVal){ maxVal=counts[loc]; maxLoc=loc; } }});
+            document.getElementById('top-location').innerText = maxLoc;
+        }
+
+        async function toggleStatus(id) {
+            const index = allUsers.findIndex(u => u.id === id);
+            if (index !== -1) {
+                allUsers[index].status = allUsers[index].status === 'ATIVO' ? 'INATIVO' : 'ATIVO';
+                filtrarTabela(); 
+            }
+            await fetch(`/api/admin/users/${id}/status`, { method: 'PUT' });
+        }
+
+        // --- NOVA FUNÇÃO PARA MARCAR COMO PREMIUM (PAGO) ---
+        async function togglePremium(id) {
+            if(!confirm("Marcar usuário como ASSINANTE PAGO (Premium)? \nIsso libera o acesso completo ao sistema permanentemente.")) return;
+            
+            const index = allUsers.findIndex(u => u.id === id);
+            if (index !== -1) {
+                if (allUsers[index].plano === 'PREMIUM') {
+                    allUsers[index].plano = 'FREE';
+                } else {
+                    allUsers[index].plano = 'PREMIUM';
+                    allUsers[index].status = 'ATIVO'; // Libera a trava de status junto
+                }
+                filtrarTabela();
+            }
+            
+            await fetch(`/api/admin/users/${id}/premium`, { method: 'PUT' });
+        }
+        // ----------------------------------------------------
+
+        function abrirEdicao(id) {
+            const user = allUsers.find(u => u.id === id);
+            if(!user) return;
+
+            currentEditingId = id; 
+            
+            document.getElementById('edit-id').value = user.id;
+            document.getElementById('edit-nome').value = user.nome || '';
+            document.getElementById('edit-email').value = user.login || '';
+            document.getElementById('edit-cidade').value = user.cidade || '';
+            document.getElementById('edit-uf').value = user.uf || '';
+            document.getElementById('edit-nasc').value = user.dataNascimento || '';
+            document.getElementById('edit-senha').value = ''; 
+
+            const editTrialInput = document.getElementById('edit-trial');
+            const vipWarning = document.getElementById('vip-warning');
+            
+            editTrialInput.value = (user.trialDays !== undefined && user.trialDays !== null) ? user.trialDays : '';
+            
+            if (user.plano === 'CORTESIA' || user.plano === 'PREMIUM') {
+                editTrialInput.disabled = true;
+                editTrialInput.style.opacity = '0.5';
+                vipWarning.style.display = 'block';
+            } else {
+                editTrialInput.disabled = false;
+                editTrialInput.style.opacity = '1';
+                vipWarning.style.display = 'none';
+            }
+
+            if (user.dataCadastro) {
+                const dataCadastro = new Date(user.dataCadastro + "T12:00:00");
+                dataCadastro.setHours(0,0,0,0);
+                const hoje = new Date();
+                hoje.setHours(0,0,0,0);
+                const diffTime = hoje.getTime() - dataCadastro.getTime();
+                const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
+                document.getElementById('edit-tempo-uso').innerText = `${diffDays} Dias`;
+            } else {
+                document.getElementById('edit-tempo-uso').innerText = "Recente";
+            }
+
+            document.getElementById('editUserModal').classList.add('active');
+        }
+
+        async function salvarEdicaoUsuario() {
+            if(!currentEditingId) return;
+            
+            const trialVal = document.getElementById('edit-trial').value;
+            const parsedTrial = trialVal ? parseInt(trialVal) : null;
+
+            const payload = {
+                nome: document.getElementById('edit-nome').value,
+                login: document.getElementById('edit-email').value,
+                cidade: document.getElementById('edit-cidade').value,
+                uf: document.getElementById('edit-uf').value,
+                dataNascimento: document.getElementById('edit-nasc').value,
+                novaSenha: document.getElementById('edit-senha').value,
+                trialDays: parsedTrial 
+            };
+
+            const index = allUsers.findIndex(u => u.id === currentEditingId);
+            if (index !== -1) {
+                allUsers[index].nome = payload.nome;
+                allUsers[index].login = payload.login;
+                allUsers[index].cidade = payload.cidade;
+                allUsers[index].uf = payload.uf;
+                allUsers[index].trialDays = payload.trialDays;
+                filtrarTabela();
+            }
+
+            document.getElementById('editUserModal').classList.remove('active');
+
+            try {
+                await fetch(`/api/admin/users/${currentEditingId}/update`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+            } catch(e) { console.log(e); }
+        }
+
+        function abrirCortesia(id, nota) {
+            currentEditingId = id;
+            document.getElementById('cortesiaUserId').value = id;
+            document.getElementById('cortesiaNota').value = nota || '';
+            document.getElementById('cortesiaModal').classList.add('active');
+        }
+
+        async function salvarCortesia() {
+            const nota = document.getElementById('cortesiaNota').value;
+            
+            const index = allUsers.findIndex(u => u.id === currentEditingId);
+            if (index !== -1) {
+                allUsers[index].plano = 'CORTESIA';
+                allUsers[index].notaCortesia = nota;
+                allUsers[index].status = 'ATIVO';
+                filtrarTabela();
+            }
+            document.getElementById('cortesiaModal').classList.remove('active');
+
+            await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ acao: 'CONCEDER', nota: nota })
+            });
+        }
+
+        async function revogarCortesia() {
+            if(!confirm("Remover cortesia?")) return;
+            
+            const index = allUsers.findIndex(u => u.id === currentEditingId);
+            if (index !== -1) {
+                allUsers[index].plano = 'FREE';
+                allUsers[index].notaCortesia = null;
+                filtrarTabela();
+            }
+            document.getElementById('cortesiaModal').classList.remove('active');
+
+            await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ acao: 'REVOGAR' })
+            });
+        }
+
+        function abrirConfigGlobal() {
+            carregarConfigs();
+            document.getElementById('globalConfigModal').classList.add('active');
+        }
+
+        function carregarConfigs() {
+            const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
+            document.getElementById('confPixKey').value = cfg.pixKey || 'admin@futsumula.com';
+            document.getElementById('confPixValue').value = cfg.pixValue || '20.00';
+            document.getElementById('confPixQr').value = cfg.pixQr || '';
+            document.getElementById('confTrial').value = cfg.trialDays || '15';
+            
+            document.getElementById('confWhats').value = cfg.whatsApp || '5585999999999';
+            document.getElementById('confInsta').value = cfg.instagram || 'fut_sumula_pro';
+            document.getElementById('confFace').value = cfg.facebook || 'futsumulapro';
+            document.getElementById('confEmailSuporte').value = cfg.emailSuporte || 'suporte@futsumula.com';
+        }
+
+        function salvarConfigsLocais() {
+            const cfg = {
+                pixKey: document.getElementById('confPixKey').value,
+                pixValue: document.getElementById('confPixValue').value,
+                pixQr: document.getElementById('confPixQr').value,
+                trialDays: document.getElementById('confTrial').value,
+                whatsApp: document.getElementById('confWhats').value,
+                instagram: document.getElementById('confInsta').value,
+                facebook: document.getElementById('confFace').value,
+                emailSuporte: document.getElementById('confEmailSuporte').value
+            };
+            localStorage.setItem('futSumulaSysConfig', JSON.stringify(cfg));
+            alert("Configurações salvas!");
+            document.getElementById('globalConfigModal').classList.remove('active');
+            filtrarTabela(); 
+        }
+    </script>
+</body>
+</html>

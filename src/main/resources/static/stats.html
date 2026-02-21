@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<script>
+	        (function() {
+	            const token = localStorage.getItem('futSumulaToken');
+	            if (!token) {
+	                window.location.href = 'login.html';
+	                return; 
+	            }
+	            const originalFetch = window.fetch;
+	            window.fetch = function() {
+	                let args = Array.from(arguments);
+	                let url = args[0];
+	                let options = args[1] || {};
+	                if (url.includes('/api/') && !url.includes('/auth/')) {
+	                    options.headers = options.headers || {};
+	                    options.headers['Authorization'] = 'Bearer ' + token;
+	                }
+	                args[1] = options;
+	                return originalFetch.apply(this, args).then(response => {
+	                    if (response.status === 403 || response.status === 401) {
+	                        alert("Sessão expirada. Por favor, faça login novamente.");
+	                        localStorage.removeItem('futSumulaToken');
+	                        window.location.href = 'login.html';
+	                    }
+	                    return response;
+	                }).catch(err => {
+	                    console.error("Erro na requisição segura:", err);
+	                    throw err;
+	                });
+	            };
+	        })();
+	    </script>
+	
+	<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estatísticas | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+	<link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/estatisticas-futebol.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+	<style>
+	        /* ESTILOS EXCLUSIVOS DE STATS */
+	        .podium-container { 
+	            display: flex; align-items: flex-end; justify-content: center; gap: 15px; 
+	            margin: 30px 0 50px 0; height: 260px; 
+	        }
+
+	        .podium-card { 
+	            background: rgba(255, 255, 255, 0.05);
+	            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+	            border: 1px solid rgba(255, 255, 255, 0.1);
+	            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+	            border-radius: 15px 15px 0 0; 
+	            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
+	            padding: 15px; position: relative; transition: 0.3s; 
+	        }
+
+	        .podium-card.rank-1 { 
+	            height: 100%; width: 140px; 
+	            border-top: 1px solid rgba(255, 215, 0, 0.5); border-bottom: 4px solid #FFD700; 
+	            background: linear-gradient(to top, rgba(255, 215, 0, 0.15), rgba(255,255,255,0.05)); 
+	        }
+	        .podium-card.rank-2 { height: 80%; width: 110px; border-bottom: 4px solid #C0C0C0; }
+	        .podium-card.rank-3 { height: 70%; width: 110px; border-bottom: 4px solid #CD7F32; }
+	        
+	        .podium-img { 
+	            width: 60px; height: 60px; border-radius: 50%; object-fit: cover; 
+	            border: 2px solid rgba(255,255,255,0.2); margin-bottom: 10px; 
+	            box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+	        }
+	        .rank-1 .podium-img { width: 80px; height: 80px; border-color: #FFD700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+	        
+	        .podium-name { font-weight: 800; font-size: 0.8rem; text-align: center; color: #fff; margin-bottom: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+	        .podium-team { font-size: 0.7rem; color: #ccc; text-transform: uppercase; margin-bottom: 5px; }
+	        .podium-value { font-size: 1.5rem; font-weight: 900; color: var(--primary-neon); line-height: 1; text-shadow: 0 0 10px rgba(0, 255, 136, 0.3); }
+	        
+	        .rank-badge { 
+	            position: absolute; top: -12px; background: #222; color: #fff; width: 30px; height: 30px; 
+	            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+	            font-weight: 900; font-size: 0.9rem; border: 2px solid rgba(255,255,255,0.2); 
+	            z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+	        }
+	        .rank-1 .rank-badge { background: #FFD700; color: #000; border-color: #fff; box-shadow: 0 0 15px #FFD700; }
+	        .rank-2 .rank-badge { background: #C0C0C0; color: #000; border-color: #fff; }
+	        .rank-3 .rank-badge { background: #CD7F32; color: #000; border-color: #fff; }
+
+	        .stats-list { display: flex; flex-direction: column; gap: 10px; }
+	        .stat-row { 
+	            display: flex; align-items: center; padding: 12px 20px; 
+	            background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); 
+	            transition: 0.2s; backdrop-filter: blur(5px);
+	        }
+	        .stat-row:hover { background: rgba(255,255,255,0.1); border-color: var(--primary-neon); transform: translateX(5px); box-shadow: 0 0 15px rgba(0, 255, 136, 0.1); }
+	        .sr-rank { font-weight: 900; color: var(--text-gray); width: 30px; }
+	        .sr-info { flex: 1; display: flex; align-items: center; gap: 15px; }
+	        .sr-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+	        .sr-name { font-weight: 700; color: #fff; font-size: 0.9rem; }
+	        .sr-team { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-left: 5px; }
+	        .sr-value { font-size: 1.2rem; font-weight: 900; color: #fff; width: 50px; text-align: right; }
+
+	        .stats-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+	        .stat-tab { padding: 10px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; transition: 0.3s; font-weight: 700; font-size: 0.8rem; border: 1px solid transparent; }
+	        .stat-tab:hover { color: #fff; background: rgba(255,255,255,0.1); }
+	        .stat-tab.active { background: var(--primary-neon); color: #000; box-shadow: 0 0 15px var(--primary-neon-dim); }
+
+            #share-template-container {
+                position: fixed; left: -9999px; top: 0; 
+                width: 1080px; height: 1920px;
+                background: linear-gradient(135deg, #050505 0%, #1a1a1a 100%);
+                font-family: 'Montserrat', sans-serif;
+                display: flex; flex-direction: column; align-items: center;
+                padding: 80px 50px; color: #fff; box-sizing: border-box;
+            }
+            .share-header { text-align: center; margin-bottom: 50px; width: 100%; display:flex; flex-direction:column; align-items:center;}
+            .share-logo { font-size: 3rem; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }
+            .share-logo span { color: var(--primary-neon); }
+            
+            .share-tournament { font-size: 2.2rem; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+            .share-title { font-size: 4rem; font-weight: 900; text-transform: uppercase; padding: 10px 40px; border: 4px solid var(--primary-neon); display: inline-block; border-radius: 20px; box-shadow: 0 0 30px var(--primary-neon-dim); background: rgba(0,0,0,0.5); }
+            
+            .share-podium { display: flex; align-items: flex-end; justify-content: center; gap: 40px; width: 100%; height: 600px; margin-bottom: 80px; }
+            .share-card { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 30px; width: 280px; position: relative; }
+            .share-card.p-1 { height: 100%; width: 340px; border-color: #FFD700; background: linear-gradient(to top, rgba(255, 215, 0, 0.2), transparent); }
+            .share-card.p-2 { height: 80%; border-color: #C0C0C0; }
+            .share-card.p-3 { height: 70%; border-color: #CD7F32; }
+            
+            .share-badge { position: absolute; top: -30px; width: 70px; height: 70px; border-radius: 50%; background: #000; border: 4px solid #fff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 900; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+            .p-1 .share-badge { background: #FFD700; color: #000; border-color: #fff; box-shadow: 0 0 30px #FFD700; width: 90px; height: 90px; font-size: 3.5rem; top: -45px; }
+            .p-2 .share-badge { background: #C0C0C0; color: #000; }
+            .p-3 .share-badge { background: #CD7F32; color: #000; }
+
+            .share-img { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 5px solid rgba(255,255,255,0.2); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+            .p-1 .share-img { width: 220px; height: 220px; border-color: #FFD700; }
+
+            .share-name { font-size: 1.8rem; font-weight: 800; text-align: center; line-height: 1.1; margin-bottom: 10px; }
+            .share-team { font-size: 1.2rem; color: #ccc; text-transform: uppercase; font-weight: 600; margin-bottom: 15px; }
+            .share-value { font-size: 4rem; font-weight: 900; color: #fff; text-shadow: 0 0 20px currentColor; }
+
+            .share-list { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+            .share-row { display: flex; align-items: center; padding: 25px 40px; background: rgba(255,255,255,0.05); border-radius: 20px; border: 2px solid rgba(255,255,255,0.1); }
+            .share-row-rank { font-size: 2.5rem; font-weight: 900; color: #888; width: 80px; }
+            .share-row-img { width: 80px; height: 80px; border-radius: 50%; margin-right: 30px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3); }
+            .share-row-info { flex: 1; }
+            .share-row-name { font-size: 2rem; font-weight: 700; }
+            .share-row-team { font-size: 1.4rem; color: #aaa; text-transform: uppercase; }
+            .share-row-val { font-size: 3rem; font-weight: 900; color: #fff; }
+
+            .share-footer { margin-top: auto; text-align: center; color: #666; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; border-top: 2px solid #333; width: 100%; padding-top: 30px; }
+            
+            .float-share-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary-neon); color: #000; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; z-index: 100; box-shadow: 0 0 20px var(--primary-neon-dim); transition: 0.3s; }
+            .float-share-btn:hover { transform: scale(1.1); color: #fff; }
+
+            #preview-img-container { margin-bottom: 20px; border: 2px solid #333; border-radius: 10px; overflow-y: auto; max-height: 55vh; display: block; }
+            #preview-img-container canvas { width: 100% !important; height: auto !important; display: block; }
+            #preview-img-container::-webkit-scrollbar { width: 8px; }
+            #preview-img-container::-webkit-scrollbar-track { background: #222; }
+            #preview-img-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
+            .share-actions-grid { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+            .btn-social { flex: 1; padding: 12px; border-radius: 8px; border: none; color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-size: 0.8rem; text-decoration: none; }
+            .btn-wa { background: #25D366; }
+            .btn-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+            .btn-fb { background: #1877F2; }
+            .btn-social:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+	    </style>
+</head>
+<body>
+
+	<div class="bg-carousel-container">
+	    <div class="bg-overlay"></div>
+	    <div class="bg-image bg-tactics-board"></div> 
+	</div>
+
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='index.html'"><i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i></div>
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);"><div class="logo-text" style="text-align: center;"><h2 style="color: #fff;">ESTATÍSTICAS</h2><span style="font-size: 0.7rem; color: var(--primary-neon);">DATA CENTER</span></div></div>
+        <div class="brand-area"><i class="fas fa-chart-pie" style="color: var(--primary-neon); font-size: 1rem;"></i></div>
+    </header>
+
+    <main class="main-content">
+        <div class="search-container" style="max-width: 600px;">
+            <input type="text" id="search-ph" class="search-input" placeholder="Selecione o Torneio..." oninput="filterTournaments()">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+        <div id="tournaments-grid" class="dashboard-grid">
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;"><i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary-neon);"></i></div>
+        </div>
+    </main>
+
+    <div id="statsModal" class="modal-overlay">
+        <div class="modal-box modal-full">
+            <div class="close-btn-fixed" onclick="document.getElementById('statsModal').classList.remove('active')"><i class="fas fa-times"></i></div>
+            <div id="stats-header" class="tournament-header-big" style="flex-shrink:0;"></div>
+            <div class="modal-content-pad">
+                <div class="stats-tabs">
+                    <div class="stat-tab active" onclick="loadStats('gols')"><i class="fas fa-futbol"></i> ARTILHARIA</div>
+                    <div class="stat-tab" onclick="loadStats('amarelos')"><i class="fas fa-square" style="color:#FFD700;"></i> AMARELOS</div>
+                    <div class="stat-tab" onclick="loadStats('vermelhos')"><i class="fas fa-square" style="color:#ff4444;"></i> VERMELHOS</div>
+                    <div class="stat-tab" onclick="loadStats('faltas')"><i class="fas fa-exclamation-circle" style="color:#FF8C00;"></i> FALTAS</div>
+                </div>
+                <div id="stats-content"><div style="text-align:center; padding:30px; color:#777;">Selecione uma categoria...</div></div>
+            </div>
+            
+            <div class="float-share-btn" onclick="openSharePreview()" title="Compartilhar Top 5">
+                <i class="fas fa-share-alt"></i>
+            </div>
+        </div>
+    </div>
+
+    <div id="sharePreviewModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px; text-align: center;">
+            <div class="close-btn-header" onclick="document.getElementById('sharePreviewModal').classList.remove('active')" style="position:absolute; top:10px; right:10px;"><i class="fas fa-times"></i></div>
+            <h3 style="color:var(--primary-neon); margin-bottom:5px;">CARD PRONTO!</h3>
+            <p style="color:#ccc; font-size:0.8rem; margin-bottom:15px;">Escolha onde postar ou baixe a imagem:</p>
+            
+            <div id="preview-img-container">
+                </div>
+            
+            <div class="share-actions-grid">
+                <button class="btn-social btn-wa" onclick="shareImage('WhatsApp')">
+                    <i class="fab fa-whatsapp"></i> Zap
+                </button>
+                <button class="btn-social btn-ig" onclick="shareImage('Instagram')">
+                    <i class="fab fa-instagram"></i> Stories
+                </button>
+                <button class="btn-social btn-fb" onclick="shareImage('Facebook')">
+                    <i class="fab fa-facebook-f"></i> Face
+                </button>
+            </div>
+
+            <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                <a id="download-link" class="modal-btn" style="background:transparent; border:1px solid #555; width:100%; display:block; text-decoration:none; color:#ccc;">
+                    <i class="fas fa-download"></i> BAIXAR NA GALERIA
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="share-template-container">
+        <div class="share-header">
+            <div class="share-logo">FUT<span style="color:var(--primary-neon);">SÚMULA</span></div>
+            <div class="share-tournament" id="share-tourney-name">TORNEIO OFICIAL</div>
+            <div class="share-title" id="share-title-text" style="color:var(--primary-neon); border-color:var(--primary-neon);">ARTILHARIA</div>
+        </div>
+        <div class="share-podium" id="share-podium-area"></div>
+        <div class="share-list" id="share-list-area"></div>
+        <div class="share-footer">DADOS OFICIAIS • GERADO POR FUTSÚMULA</div>
+    </div>
+
+    <div id="footbar-container"></div>
+
+    <script src="js/images.js"></script>
+    <script>
+        fetch('footbar.html').then(r => r.text()).then(d => { document.getElementById('footbar-container').innerHTML = d; const scripts = document.getElementById('footbar-container').querySelectorAll("script"); scripts.forEach(s => eval(s.innerHTML)); });
+        if (typeof AppImages === 'undefined') { var AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
+        const trophyIcons = ['fa-trophy', 'fa-award', 'fa-medal', 'fa-crown', 'fa-star'];
+        
+        let allTournaments = [];
+        let currentTourneyId = null;
+        let currentStatsData = []; 
+        let currentStatsType = '';
+
+        document.addEventListener('DOMContentLoaded', loadTournaments);
+
+        async function loadTournaments() {
+            try {
+                const response = await fetch('/api/torneios');
+                allTournaments = await response.json();
+                renderTournaments(allTournaments);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderTournaments(list) {
+            const grid = document.getElementById('tournaments-grid');
+            grid.innerHTML = '';
+            if(list.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#777;">Nenhum torneio encontrado.</div>'; return; }
+            list.forEach(t => {
+                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
+                const color = t.corTrofeu || '#FFD700';
+                grid.innerHTML += `
+                    <div class="tournament-card" onclick="openStatsModal(${t.id})">
+                        <div class="t-card-header" style="background-image: var(--img-stadium);">
+                            <div class="t-card-overlay"></div>
+                            <div class="t-type-badge">${t.tipo.replace('_',' ')}</div>
+                            <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
+                        </div>
+                        <div class="t-card-body">
+                            <div class="t-title">${t.nome}</div>
+                            <div class="t-info"><span style="color:var(--primary-neon);">VER ESTATÍSTICAS <i class="fas fa-chart-bar"></i></span></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function filterTournaments() {
+            const term = document.getElementById('search-ph').value.toLowerCase();
+            renderTournaments(allTournaments.filter(t => t.nome.toLowerCase().includes(term)));
+        }
+
+        function openStatsModal(id) {
+            currentTourneyId = id;
+            const t = allTournaments.find(x => x.id === id);
+            const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
+            const color = t.corTrofeu || '#FFD700';
+            
+            document.getElementById('stats-header').innerHTML = `
+                <i class="fas ${iconClass}" style="font-size: 3rem; color: ${color}; display: block; margin: 0 auto 10px;"></i>
+                <h2 class="th-title">${t.nome}</h2>
+            `;
+            
+            document.getElementById('statsModal').classList.add('active');
+            loadStats('gols');
+        }
+
+        // --- NOVO MOTOR DE ESTATÍSTICAS LOCAIS ---
+        // Ele lê os dados salvos pelo "Encerrar Partida" em tempo real
+        function loadStats(type) {
+            currentStatsType = type;
+            document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
+            const tabs = document.querySelectorAll('.stat-tab');
+            if(type==='gols') tabs[0].classList.add('active');
+            if(type==='amarelos') tabs[1].classList.add('active');
+            if(type==='vermelhos') tabs[2].classList.add('active');
+            if(type==='faltas') tabs[3].classList.add('active');
+
+            const container = document.getElementById('stats-content');
+            container.innerHTML = '<div style="text-align:center; padding:30px;"><i class="fas fa-circle-notch fa-spin"></i> Processando súmulas...</div>';
+
+            setTimeout(() => {
+                let playerStats = {};
+                const prefix = `match_result_${currentTourneyId}_`;
+                
+                // Varre o localStorage em busca de todas as partidas finalizadas desse torneio
+                for(let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if(key.startsWith(prefix)) {
+                        const match = JSON.parse(localStorage.getItem(key));
+                        if(match.eventos && Array.isArray(match.eventos)) {
+                            match.eventos.forEach(ev => {
+                                let isValid = false;
+                                if(type === 'gols' && ev.type === 'GOAL') isValid = true;
+                                if(type === 'amarelos' && ev.type === 'YELLOW') isValid = true;
+                                if(type === 'vermelhos' && ev.type === 'RED') isValid = true;
+                                if(type === 'faltas' && ev.type === 'FOUL') isValid = true;
+
+                                if(isValid) {
+                                    if(!playerStats[ev.playerId]) {
+                                        playerStats[ev.playerId] = {
+                                            nomeJogador: ev.playerName || 'Jogador Desconhecido',
+                                            fotoUrl: ev.fotoUrl || AppImages.defaultAvatar,
+                                            nomeTime: ev.teamName || 'Time',
+                                            quantidade: 0
+                                        };
+                                    }
+                                    playerStats[ev.playerId].quantidade++;
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // Transforma em array e ordena do maior para o menor
+                currentStatsData = Object.values(playerStats).sort((a,b) => b.quantidade - a.quantidade);
+
+                let color = "var(--primary-neon)";
+                if(type === 'amarelos') color = "#FFD700";
+                if(type === 'vermelhos') color = "#ff4444";
+                if(type === 'faltas') color = "#FF8C00";
+
+                renderContent(currentStatsData, color);
+            }, 300); // pequeno delay para animação de loading
+        }
+
+        function renderContent(list, valueColor) {
+            const container = document.getElementById('stats-content');
+            container.innerHTML = '';
+
+            if (list.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:50px; color:#888;">Nenhum registro encontrado nesta categoria. <br><small>Jogue as partidas e encerre a súmula para gerar dados.</small></div>`;
+                return;
+            }
+
+            let podiumHTML = '<div class="podium-container">';
+            if(list[1]) podiumHTML += createPodiumCard(list[1], 2, valueColor);
+            if(list[0]) podiumHTML += createPodiumCard(list[0], 1, valueColor);
+            if(list[2]) podiumHTML += createPodiumCard(list[2], 3, valueColor);
+            podiumHTML += '</div>';
+
+            container.innerHTML += podiumHTML;
+
+            let listHTML = '<div class="stats-list">';
+            for(let i = 3; i < list.length; i++) {
+                const p = list[i];
+                listHTML += `
+                    <div class="stat-row">
+                        <div class="sr-rank">${i+1}</div>
+                        <div class="sr-info">
+                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="sr-img">
+                            <div>
+                                <div class="sr-name">${p.nomeJogador}</div>
+                                <div class="sr-team">${p.nomeTime}</div>
+                            </div>
+                        </div>
+                        <div class="sr-value" style="color:${valueColor}">${p.quantidade}</div>
+                    </div>`;
+            }
+            listHTML += '</div>';
+            container.innerHTML += listHTML;
+        }
+
+        function createPodiumCard(p, rank, color) {
+            return `
+                <div class="podium-card rank-${rank}">
+                    <div class="rank-badge">${rank}</div>
+                    <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="podium-img">
+                    <div class="podium-name">${p.nomeJogador}</div>
+                    <div class="podium-team">${p.nomeTime}</div>
+                    <div class="podium-value" style="color:${color}">${p.quantidade}</div>
+                </div>`;
+        }
+
+        function openSharePreview() {
+            if(!currentStatsData || currentStatsData.length === 0) {
+                alert("Não há dados para compartilhar."); return;
+            }
+
+            const titles = { 'gols': 'ARTILHARIA', 'amarelos': 'CARTÕES AMARELOS', 'vermelhos': 'CARTÕES VERMELHOS', 'faltas': 'RANKING DE FALTAS' };
+            const colors = { 'gols': '#00ff88', 'amarelos': '#FFD700', 'vermelhos': '#ff4444', 'faltas': '#FF8C00' };
+            
+            const t = allTournaments.find(x => x.id === currentTourneyId);
+            const tourneyName = t ? t.nome : 'TORNEIO';
+            document.getElementById('share-tourney-name').innerText = tourneyName;
+
+            const titleEl = document.getElementById('share-title-text');
+            const mainColor = colors[currentStatsType] || '#00ff88';
+            titleEl.innerText = titles[currentStatsType] || 'ESTATÍSTICAS';
+            titleEl.style.color = mainColor;
+            titleEl.style.borderColor = mainColor;
+            titleEl.style.boxShadow = `0 0 30px ${mainColor}40`; 
+
+            const podiumArea = document.getElementById('share-podium-area');
+            podiumArea.innerHTML = '';
+            
+            const order = [1, 0, 2];
+            order.forEach(idx => {
+                if(currentStatsData[idx]) {
+                    const p = currentStatsData[idx];
+                    const rank = idx + 1;
+                    const html = `
+                        <div class="share-card p-${rank}">
+                            <div class="share-badge">${rank}</div>
+                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="share-img">
+                            <div class="share-name">${p.nomeJogador}</div>
+                            <div class="share-team">${p.nomeTime}</div>
+                            <div class="share-value" style="color:${mainColor}; text-shadow: 0 0 20px ${mainColor};">${p.quantidade}</div>
+                        </div>
+                    `;
+                    podiumArea.innerHTML += html;
+                }
+            });
+
+            const listArea = document.getElementById('share-list-area');
+            listArea.innerHTML = '';
+            for(let i=3; i<5; i++) {
+                if(currentStatsData[i]) {
+                    const p = currentStatsData[i];
+                    listArea.innerHTML += `
+                        <div class="share-row" style="border-color:${mainColor}80;">
+                            <div class="share-row-rank">${i+1}</div>
+                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="share-row-img">
+                            <div class="share-row-info">
+                                <div class="share-row-name">${p.nomeJogador}</div>
+                                <div class="share-row-team">${p.nomeTime}</div>
+                            </div>
+                            <div class="share-row-val" style="color:${mainColor};">${p.quantidade}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            document.getElementById('sharePreviewModal').classList.add('active');
+            const previewContainer = document.getElementById('preview-img-container');
+            previewContainer.innerHTML = '<div style="padding:20px; color:#fff;">Gerando card... <i class="fas fa-spinner fa-spin"></i></div>';
+
+            const element = document.getElementById('share-template-container');
+            
+            html2canvas(element, {
+                scale: 1, backgroundColor: null, useCORS: true, logging: false
+            }).then(canvas => {
+                previewContainer.innerHTML = '';
+                canvas.style.width = '100%'; canvas.style.height = 'auto'; 
+                previewContainer.appendChild(canvas);
+
+                const link = document.getElementById('download-link');
+                link.href = canvas.toDataURL("image/png");
+                link.download = `futsumula-stats-${currentStatsType}.png`;
+            });
+        }
+
+        function shareImage(platform) {
+            const canvas = document.querySelector('#preview-img-container canvas');
+            if(!canvas) return;
+
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], `futsumula-stats.png`, { type: 'image/png' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Estatísticas Fut-Súmula',
+                            text: 'Confira as estatísticas do torneio!'
+                        });
+                    } catch (err) { console.log('Compartilhamento cancelado'); }
+                } else {
+                    const url = canvas.toDataURL("image/png");
+                    const link = document.createElement('a');
+                    link.download = 'futsumula-stats.png';
+                    link.href = url;
+                    link.click();
+                    alert(`Imagem salva! Agora abra o ${platform} e poste a foto da sua galeria/downloads.`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

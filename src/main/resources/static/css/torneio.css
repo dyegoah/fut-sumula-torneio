@@ -1,0 +1,50 @@
+/* /static/css/torneio.css */
+
+body {
+    /* Caminho para a imagem da taça e times perfilados */
+    background-image: url('../images/torneio.png') !important;
+    background-size: cover !important;
+    background-position: center center !important; /* Centraliza a taça e os times */
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+    min-height: 100vh;
+}
+
+/* Remove os fundos antigos do sistema */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Container Principal com efeito Glassmorphism */
+/* Garante legibilidade sobre a imagem detalhada da final */
+.main-content {
+    background: rgba(15, 15, 15, 0.75) !important; /* Fundo escuro semi-transparente */
+    backdrop-filter: blur(8px) !important; /* Desfoque suave para destacar o conteúdo */
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 215, 0, 0.15) !important; /* Borda dourada sutil */
+    border-radius: 20px;
+    margin-top: 30px !important;
+    padding: 30px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Ajuste nos Cards de Torneio para integrar com o fundo épico */
+.tournament-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease;
+}
+
+.tournament-card:hover {
+    background: rgba(255, 215, 0, 0.08) !important;
+    border-color: var(--primary-neon) !important;
+    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+/* Modal de Mapa/Detalhes do Torneio (Full Screen) */
+.modal-box.modal-full {
+    background: rgba(10, 10, 10, 0.95) !important; /* Quase opaco para focar nos dados */
+    backdrop-filter: blur(15px);
+}

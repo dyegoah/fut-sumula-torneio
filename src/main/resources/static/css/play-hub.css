@@ -1,0 +1,57 @@
+/* /static/css/play-hub.css */
+
+body {
+    /* Caminho para a imagem de "Início de Partida" */
+    background-image: url('../images/inicio.png') !important;
+    background-size: cover !important;
+    /* Centraliza a imagem na parte inferior para focar na bola e nas chuteiras */
+    background-position: center bottom !important; 
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+    min-height: 100vh;
+}
+
+/* Remove os fundos antigos do sistema (Arena Night, etc) */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Container Principal com efeito Glassmorphism "Live" */
+.main-content {
+    background: rgba(10, 10, 10, 0.7) !important; /* Fundo escuro semi-transparente */
+    backdrop-filter: blur(5px) !important; /* Desfoque leve para manter a imersão do campo */
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(0, 255, 136, 0.2) !important; /* Borda verde neon (cor de "Live") */
+    border-radius: 20px;
+    margin-top: 30px !important;
+    padding: 30px !important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+/* Ajustes Específicos para a Área de Filtros */
+.filters-area {
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-radius: 30px;
+    padding: 10px 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Ajuste nos Cards de Torneio "Live" */
+.tournament-card {
+    background: rgba(20, 20, 20, 0.85) !important; /* Mais opaco para leitura rápida */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease;
+}
+
+.tournament-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--success-color) !important; /* Verde ao passar o mouse */
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+/* Ajuste do Modal Full Screen (Dashboard da Partida) */
+.modal-box.modal-full {
+    background: rgba(10, 10, 10, 0.96) !important;
+    /* Fundo quase sólido para foco total nos dados do jogo */
+}

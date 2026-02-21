@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<script>
+	        (function() {
+	            const token = localStorage.getItem('futSumulaToken');
+	            if (!token) { window.location.href = 'login.html'; return; }
+	            const originalFetch = window.fetch;
+	            window.fetch = function() {
+	                let args = Array.from(arguments);
+	                let url = args[0];
+	                let options = args[1] || {};
+	                if (url.includes('/api/') && !url.includes('/auth/')) {
+	                    options.headers = options.headers || {};
+	                    options.headers['Authorization'] = 'Bearer ' + token;
+	                }
+	                args[1] = options;
+	                return originalFetch.apply(this, args).then(response => {
+	                    if (response.status === 403 || response.status === 401) {
+	                        alert("Sessão expirada. Por favor, faça login novamente.");
+	                        localStorage.removeItem('futSumulaToken');
+	                        window.location.href = 'login.html';
+	                    }
+	                    return response;
+	                }).catch(err => { throw err; });
+	            };
+	        })();
+	    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneios | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/torneio.css">
+    <style>
+        .tiny-crest { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; margin-right: 5px; }
+        .tiny-crest img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+        .tiny-custom-shape { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+        .tiny-custom-mascot { font-size: 14px; color: #fff; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); }
+        .shape-round { border-radius: 50%; } .shape-shield { border-radius: 0 0 50% 50%; clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%); } 
+
+        .filters-area { display: flex; gap: 15px; justify-content: center; align-items: center; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .search-box-ph { flex: 2; position: relative; }
+        .search-input-ph { width: 100%; padding: 12px 15px 12px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; transition: 0.3s; }
+        .search-input-ph:focus { border-color: var(--primary-neon); background: rgba(0,0,0,0.5); }
+        .search-icon-ph { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-gray); }
+        .status-select-ph { flex: 1; padding: 12px 15px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; font-weight: 700; }
+        .status-select-ph option { background: #111; color: #fff; }
+
+        .tournament-card.finished { filter: grayscale(0.8); opacity: 0.8; border-color: #444; }
+        .tournament-card.finished:hover { filter: grayscale(0); opacity: 1; transform: translateY(-5px); }
+        .champion-banner { background: linear-gradient(90deg, #FFD700, #FFA500); color: #000; font-weight: 900; text-align: center; padding: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 0 0 15px 15px; margin-top: -15px; position: relative; z-index: 1;}
+
+        .tv-section-title { font-size: 1rem; color: var(--primary-neon); text-transform: uppercase; margin: 25px 0 15px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .tv-count-badge { background: rgba(255,255,255,0.1); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; letter-spacing: 1px; font-weight: 800; }
+        .tv-broadcast-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 400px; overflow-y: auto; padding-right: 5px; }
+        .tv-broadcast-container::-webkit-scrollbar { width: 6px; }
+        .tv-broadcast-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
+        .tv-broadcast-container::-webkit-scrollbar-thumb { background: var(--primary-neon); border-radius: 3px; }
+        
+        /* NOTE QUE O CARD AQUI NÃO TEM HOVER DE CLIQUE */
+        .tv-match-card { background: linear-gradient(90deg, #151515, #222); border-left: 4px solid var(--primary-neon); border-radius: 6px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.5); flex-shrink: 0; }
+        
+        .tv-match-id { position: absolute; top: -8px; left: 10px; background: var(--primary-neon); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 2px; letter-spacing: 1px; }
+        .tv-team { display: flex; align-items: center; gap: 15px; width: 40%; }
+        .tv-team.home { justify-content: flex-end; text-align: right; }
+        .tv-team.away { justify-content: flex-start; text-align: left; }
+        .tv-team span { font-weight: 700; color: #fff; font-size: 0.9rem; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tv-crest-wrapper { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .tv-vs { font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 1.2rem; color: #555; text-shadow: 0 1px 1px rgba(255,255,255,0.1); width: 10%; text-align: center; }
+        #tv-structure-area { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .big-table td.td-left { display: flex; align-items: center; font-weight: 600; padding-left: 15px; }
+        .tournament-header-big { position: relative; padding: 30px 20px; text-align: center; background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.6)); border-bottom: 2px solid var(--primary-neon); flex-shrink: 0; }
+        .close-btn-fixed { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: rgba(255, 68, 68, 0.2); border: 1px solid #ff4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ff4444; cursor: pointer; z-index: 200; }
+        .rules-trigger { position: absolute; top: 20px; left: 20px; width: 40px; height: 40px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; z-index: 200; }
+        .rules-popover { display: none; position: absolute; top: 70px; left: 20px; width: 280px; background: rgba(10,10,10,0.98); border: 1px solid var(--primary-neon); padding: 20px; border-radius: 10px; font-size: 0.85rem; color: #ccc; text-align: left; z-index: 300; backdrop-filter: blur(10px); }
+        .rules-popover.active { display: block; }
+        .modal-box.modal-full { max-width: 950px; width: 95%; height: 90vh; padding: 0; background: rgba(15, 15, 15, 0.98); display: flex; flex-direction: column; overflow: hidden; }
+        .modal-content-pad { padding: 20px; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--primary-neon) #222; }
+    </style>
+</head>
+<body>
+
+	<div class="bg-carousel-container">
+	    <div class="bg-overlay"></div>
+	    <div class="bg-image bg-trophy-room"></div> 
+	</div>
+
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+        </div>
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+             <div class="logo-text" style="text-align: center;">
+                <h2 style="color: #fff;">GALERIA DE TROFÉUS</h2>
+                <span id="total-tournaments" style="font-size: 0.7rem; color: var(--primary-neon);">Carregando...</span>
+             </div>
+        </div>
+        <div class="brand-area" onclick="window.location.href='cadastro-torneio.html'">
+            <i class="fas fa-plus-circle" style="color: var(--success-color); font-size: 1.2rem;"></i>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="filters-area">
+            <div class="search-box-ph">
+                <i class="fas fa-search search-icon-ph"></i>
+                <input type="text" id="search-tourney" class="search-input-ph" placeholder="Buscar competição..." oninput="filtrarTorneios()">
+            </div>
+            <select id="filter-status-tourney" class="status-select-ph" onchange="filtrarTorneios()">
+                <option value="ACTIVE" selected>Em Andamento</option>
+                <option value="FINISHED">Finalizados</option>
+                <option value="ALL">Todos</option>
+            </select>
+        </div>
+
+        <div id="tournaments-grid" class="dashboard-grid">
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
+                <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary-neon);"></i>
+                <p style="margin-top: 15px; color: var(--text-gray);">Buscando agremiações...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="mapModal" class="modal-overlay">
+        <div class="modal-box modal-full">
+            <div class="close-btn-fixed" onclick="document.getElementById('mapModal').classList.remove('active')"><i class="fas fa-times"></i></div>
+            <div id="modal-header-area"></div>
+            <div class="modal-content-pad">
+                <div class="tv-section-title" id="tv-matches-title"><span><i class="fas fa-tv"></i> CALENDÁRIO DE JOGOS</span></div>
+                <div id="tv-broadcast-area" class="tv-broadcast-container"></div>
+                <div class="tv-section-title"><i class="fas fa-list-ol"></i> TABELA DE CLASSIFICAÇÃO</div>
+                <div id="tv-structure-area"></div>
+                <div style="text-align: right; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: flex-end; gap: 15px;">
+                    <button class="modal-btn" style="background: transparent; color: #ff4444; font-size: 0.8rem; opacity: 0.8; border: 1px solid rgba(255, 68, 68, 0.3);" onclick="confirmarExclusao1()">
+                        <i class="fas fa-trash"></i> EXCLUIR TORNEIO
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="delModal1" class="modal-overlay"><div class="modal-box"><i class="fas fa-exclamation-triangle icon-warning modal-icon"></i><h3>Tem certeza?</h3><p>Você quer realmente excluir este torneio?</p><div style="display:flex; gap:10px; justify-content:center;"><button class="modal-btn" onclick="document.getElementById('delModal1').classList.remove('active')">Cancelar</button><button class="modal-btn btn-warning" onclick="confirmarExclusao2()">SIM, EXCLUIR</button></div></div></div>
+    <div id="delModal2" class="modal-overlay"><div class="modal-box"><i class="fas fa-skull-crossbones modal-icon" style="color: #ff4444;"></i><h3 style="color: #ff4444;">ÚLTIMA CHANCE!</h3><p>Isso apagará todo o histórico de jogos. Não há volta.</p><div style="display:flex; gap:10px; justify-content:center;"><button class="modal-btn" onclick="document.getElementById('delModal2').classList.remove('active')">NÃO, VOLTAR</button><button class="modal-btn" style="background: #ff4444; color: #fff;" onclick="executarExclusao()">APAGAR TUDO</button></div></div></div>
+
+    <div id="footbar-container"></div>
+
+    <script src="js/images.js"></script>
+    <script>
+        // Carregador do Footbar
+        fetch('footbar.html').then(r => r.text()).then(d => {
+            document.getElementById('footbar-container').innerHTML = d;
+            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
+            scripts.forEach(s => eval(s.innerHTML));
+        });
+
+        if (typeof AppImages === 'undefined') { var AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
+        const trophyIcons = ['fa-trophy', 'fa-award', 'fa-medal', 'fa-crown', 'fa-star', 'fa-shield-alt', 'fa-wine-glass', 'fa-gem', 'fa-ribbon', 'fa-certificate'];
+        const mascotsMap = { 'lion': 'fa-paw', 'eagle': 'fa-feather-alt', 'shark': 'fa-fish', 'wolf': 'fa-dog', 'dragon': 'fa-dragon', 'bull': 'fa-bullhorn', 'horse': 'fa-horse', 'spider': 'fa-spider', 'cat': 'fa-cat', 'crow': 'fa-crow', 'frog': 'fa-frog', 'hippo': 'fa-hippo', 'otter': 'fa-otter', 'dove': 'fa-dove', 'kiwi': 'fa-kiwi-bird', 'worm': 'fa-worm', 'skull': 'fa-skull', 'bolt': 'fa-bolt', 'star': 'fa-star', 'anchor': 'fa-anchor', 'poo': 'fa-poop', 'restroom': 'fa-restroom', 'leaf': 'fa-leaf', 'cannabis': 'fa-cannabis', 'ghost': 'fa-ghost', 'alien': 'fa-pastafarianism', 'robot': 'fa-robot', 'bomb': 'fa-bomb', 'fire': 'fa-fire', 'crown': 'fa-crown' };
+
+        let allTournaments = [];
+        let processedTournaments = [];
+        let currentTourneyId = null;
+
+        document.addEventListener('DOMContentLoaded', loadTournaments);
+
+        async function loadTournaments() {
+            try {
+                const response = await fetch('/api/torneios');
+                if(!response.ok) throw new Error("Erro API");
+                allTournaments = await response.json();
+                
+                processedTournaments = allTournaments.map(t => {
+                    let matches = getMatches(t);
+                    let completed = 0;
+                    matches.forEach(m => { if(localStorage.getItem(`match_result_${t.id}_${m.id}`)) completed++; });
+                    
+                    const isFinished = (completed === matches.length && matches.length > 0);
+                    let champion = null;
+
+                    if(isFinished) {
+                        if(t.tipo === 'MATA_MATA' || t.tipo === 'COPA') {
+                            const finalMatch = matches.find(m => m.label === "GRANDE FINAL") || matches[matches.length-1];
+                            if(finalMatch) {
+                                const res = JSON.parse(localStorage.getItem(`match_result_${t.id}_${finalMatch.id}`));
+                                if(res) champion = res.scoreHome > res.scoreAway ? (finalMatch.t1.nome || 'Vencedor') : (res.scoreAway > res.scoreHome ? (finalMatch.t2.nome || 'Vencedor') : 'Empate');
+                            }
+                        } else {
+                            const ranking = calculateStandings(t, matches);
+                            champion = ranking[0] ? ranking[0].nome : 'Indefinido';
+                        }
+                    }
+                    return { ...t, isFinished, champion, completedMatches: completed, totalMatches: matches.length };
+                });
+
+                const totalEl = document.getElementById('total-tournaments');
+                if (totalEl) totalEl.innerText = `${processedTournaments.length} TORNEIOS`;
+                
+                filtrarTorneios();
+            } catch(e) { console.error(e); }
+        }
+
+        function getMatches(t) {
+            const storageKey = `tourney_matches_${t.id}`;
+            const stored = localStorage.getItem(storageKey);
+            if(stored) return JSON.parse(stored);
+
+            if (t.tipo !== 'LIGA') return [];
+
+            let matches = [];
+            let globalMatchIdCounter = 1;
+            let groups = [t.times || []];
+
+            groups.forEach((groupTimes, gIdx) => {
+                const groupLabel = 'LIGA';
+                const localTimes = [...groupTimes];
+                if (localTimes.length % 2 !== 0) localTimes.push({ id: -1, nome: "BYE" });
+                const numRounds = localTimes.length - 1;
+                const half = localTimes.length / 2;
+
+                for (let r = 0; r < numRounds; r++) {
+                    for (let i = 0; i < half; i++) {
+                        const t1 = localTimes[i];
+                        const t2 = localTimes[localTimes.length - 1 - i];
+                        if (t1 && t1.id !== -1 && t2 && t2.id !== -1) {
+                            matches.push({ id: globalMatchIdCounter++, t1: t1, t2: t2, round: r + 1, label: groupLabel });
+                        }
+                    }
+                    localTimes.splice(1, 0, localTimes.pop());
+                }
+                if (t.idaEVolta) {
+                    const matchesIda = matches.filter(m => m.label.includes(groupLabel) && m.round <= numRounds);
+                    matchesIda.forEach(m => {
+                        matches.push({ id: globalMatchIdCounter++, t1: m.t2, t2: m.t1, round: m.round + numRounds, label: groupLabel });
+                    });
+                }
+            });
+            if (matches.length > 0) localStorage.setItem(storageKey, JSON.stringify(matches));
+            return matches;
+        }
+
+        function calculateStandings(tournament, matches) {
+            let stats = {};
+            (tournament.times || []).forEach(t => { stats[t.id] = { ...t, P:0, J:0, V:0, E:0, D:0, GP:0, GC:0, SG:0, YC:0, RC:0 }; });
+
+            matches.forEach(m => {
+                const resKey = `match_result_${tournament.id}_${m.id}`;
+                const r = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
+                if (r && m.t1 && m.t2 && m.t1.id && m.t2.id && stats[m.t1.id] && stats[m.t2.id]) {
+                    const home = stats[m.t1.id]; const away = stats[m.t2.id];
+                    home.J++; away.J++;
+                    home.GP += r.scoreHome; home.GC += r.scoreAway;
+                    away.GP += r.scoreAway; away.GC += r.scoreHome;
+                    home.SG = home.GP - home.GC; away.SG = away.GP - away.GC;
+                    if (r.scoreHome > r.scoreAway) { home.V++; home.P += 3; away.D++; }
+                    else if (r.scoreHome < r.scoreAway) { away.V++; away.P += 3; home.D++; }
+                    else { home.E++; away.E++; home.P += 1; away.P += 1; }
+                }
+            });
+
+            return Object.values(stats).sort((a, b) => {
+                if (b.P !== a.P) return b.P - a.P;
+                if (b.V !== a.V) return b.V - a.V;
+                if (b.SG !== a.SG) return b.SG - a.SG;
+                return b.GP - a.GP;
+            });
+        }
+
+        function filtrarTorneios() {
+            const termo = document.getElementById('search-tourney').value.toLowerCase();
+            const status = document.getElementById('filter-status-tourney').value;
+            
+            const filtrados = processedTournaments.filter(t => {
+                const nameMatch = t.nome.toLowerCase().includes(termo);
+                let statusMatch = true;
+                if(status === 'ACTIVE') statusMatch = !t.isFinished;
+                if(status === 'FINISHED') statusMatch = t.isFinished;
+                return nameMatch && statusMatch;
+            });
+            renderGrid(filtrados);
+        }
+
+        function renderGrid(list) {
+            const grid = document.getElementById('tournaments-grid');
+            grid.innerHTML = '';
+            if(list.length === 0) { grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-gray);">Nenhum torneio encontrado.</div>`; return; }
+            
+            list.forEach(t => {
+                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
+                const color = t.corTrofeu || '#FFD700';
+                
+                let footerHTML = '';
+                let statusClass = '';
+                let statusText = `<span class="t-status" style="color:var(--success-color);">EM ANDAMENTO (${t.completedMatches}/${t.totalMatches})</span>`;
+
+                if(t.isFinished) {
+                    statusClass = 'finished';
+                    statusText = `<span class="t-status" style="color:#aaa;">FINALIZADO</span>`;
+                    footerHTML = `<div class="champion-banner"><i class="fas fa-crown"></i> CAMPEÃO: ${t.champion}</div>`;
+                }
+
+                grid.innerHTML += `
+                    <div class="tournament-card ${statusClass}" onclick="abrirMapa(${t.id})">
+                        <div class="t-card-header" style="background-image: var(--img-stadium);">
+                            <div class="t-card-overlay"></div>
+                            <div class="t-type-badge">${t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO'}</div>
+                            <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
+                        </div>
+                        <div class="t-card-body">
+                            <div class="t-title">${t.nome}</div>
+                            <div class="t-info">
+                                <span><i class="fas fa-users"></i> ${t.quantidadeTimes} Times</span>
+                                ${statusText}
+                            </div>
+                        </div>
+                        ${footerHTML}
+                    </div>`;
+            });
+        }
+
+        function getTeamIconHTML(team) {
+            if (!team) return '';
+            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${team.escudoUrl}"></div>`;
+            const icon = mascotsMap[team.customMascot] || 'fa-shield-alt';
+            const grad = `linear-gradient(135deg, ${team.corPrimaria || '#333'}, ${team.corSecundaria || '#000'})`;
+            const border = team.corTerciaria || '#fff';
+            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${team.customShape || 'shield'}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${border};"></i></div>`;
+        }
+
+        // ROTEADOR QUE ENVIA A FLAG "source=torneios"
+        function abrirMapa(id) {
+            currentTourneyId = id;
+            const t = processedTournaments.find(x => x.id === id);
+
+            // Redireciona com o parâmetro indicando que veio da Galeria
+            if (t.tipo === 'COPA') {
+                window.location.href = `copadomundo.html?id=${t.id}&source=torneios`;
+                return;
+            } else if (t.tipo === 'MATA_MATA') {
+                window.location.href = `matamata.html?id=${t.id}&source=torneios`;
+                return;
+            }
+
+            // SE FOR LIGA (Modo Visual apenas)
+            const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
+            const color = t.corTrofeu || '#FFD700';
+            let matches = getMatches(t);
+
+            document.getElementById('modal-header-area').innerHTML = `
+                <div class="tournament-header-big" style="border-bottom-color: ${color};">
+                    <div class="rules-trigger" onclick="toggleRules(this)"><i class="fas fa-question"></i></div>
+                    <div class="rules-popover" id="rulesPopover"><strong>Regulamento:</strong> LIGA - Pontos Corridos</div>
+                    <i class="fas ${iconClass} th-trophy-icon" style="color: ${color}; filter: drop-shadow(0 0 10px ${color});"></i>
+                    <h2 class="th-title">${t.nome}</h2>
+                    <div class="th-subtitle">${t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO'} • ${t.quantidadeTimes} TIMES</div>
+                </div>`;
+
+            renderTVView(t, matches);
+            const containerStructure = document.getElementById('tv-structure-area');
+            containerStructure.innerHTML = gerarTabelaPontosCorridos(t, matches);
+            document.getElementById('mapModal').classList.add('active');
+        }
+
+        function renderTVView(tournament, matches) {
+            const container = document.getElementById('tv-broadcast-area');
+            container.innerHTML = '';
+
+            document.getElementById('tv-matches-title').innerHTML = `<span><i class="fas fa-tv"></i> CALENDÁRIO DE JOGOS</span> <span class="tv-count-badge">${matches.length} CONFRONTOS</span>`;
+            if(matches.length === 0) { container.innerHTML = '<p style="text-align:center; color:#888;">Sem confrontos gerados.</p>'; return; }
+
+            matches.forEach((m, idx) => {
+                const icon1 = `<div class="tv-crest-wrapper">${getTeamIconHTML(m.t1)}</div>`;
+                const icon2 = `<div class="tv-crest-wrapper">${getTeamIconHTML(m.t2)}</div>`;
+                
+                const resKey = `match_result_${tournament.id}_${m.id}`;
+                const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
+
+                // NOTA: Aqui NÃO existe função onclick, os cards são apenas visuais
+                if(result) {
+                    container.innerHTML += `
+                        <div class="tv-match-card" style="opacity: 0.8; cursor: default;">
+                            <div class="tv-match-id" style="background:#555; color:#fff;">FIM</div>
+                            <div class="tv-team home"><span>${m.t1.nome}</span> ${icon1}</div>
+                            <div class="tv-vs" style="color:var(--primary-neon);">${result.scoreHome} - ${result.scoreAway}</div>
+                            <div class="tv-team away">${icon2} <span>${m.t2.nome}</span></div>
+                        </div>`;
+                } else {
+                    container.innerHTML += `
+                        <div class="tv-match-card" style="cursor: default;">
+                            <div class="tv-match-id">${m.label}</div>
+                            <div class="tv-team home"><span>${m.t1.nome}</span> ${icon1}</div>
+                            <div class="tv-vs">VS</div>
+                            <div class="tv-team away">${icon2} <span>${m.t2.nome}</span></div>
+                        </div>`;
+                }
+            });
+        }
+
+        function gerarTabelaPontosCorridos(tournament, matches) {
+            const sortedStats = calculateStandings(tournament, matches);
+            let rows = '';
+            sortedStats.forEach((t, i) => {
+                const icon = getTeamIconHTML(t);
+                let rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : ''));
+                rows += `<tr><td><span class="pos-rank ${rankClass}">${i+1}</span></td><td class="td-left" style="display:flex; align-items:center;">${icon} <span style="margin-left:5px;">${t.nome}</span></td><td class="val-pts" style="color:var(--primary-neon); font-weight:900;">${t.P}</td><td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td><td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td><td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td></tr>`;
+            });
+            return `<div class="responsive-table-wrapper" style="overflow-x:auto;"><table class="big-table" style="width:100%; text-align:center; color:#fff;"><thead><tr><th style="text-align:center;">#</th><th style="text-align:left;">CLUBE</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th><i class="fas fa-square val-warn"></i></th><th><i class="fas fa-square val-bad"></i></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        }
+
+        function toggleRules(btn) { btn.nextElementSibling.classList.toggle('active'); }
+        function confirmarExclusao1() { document.getElementById('mapModal').classList.remove('active'); document.getElementById('delModal1').classList.add('active'); }
+        function confirmarExclusao2() { document.getElementById('delModal1').classList.remove('active'); document.getElementById('delModal2').classList.add('active'); }
+        
+        async function executarExclusao() {
+            try {
+                const response = await fetch(`/api/torneios/${currentTourneyId}`, { method: 'DELETE' });
+                if(response.ok) { 
+                    localStorage.removeItem(`tourney_matches_${currentTourneyId}`);
+                    document.getElementById('delModal2').classList.remove('active'); 
+                    loadTournaments(); 
+                }
+                else { alert("Erro ao excluir."); }
+            } catch(e) { alert("Erro de conexão."); }
+        }
+    </script>
+</body>
+</html>

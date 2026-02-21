@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <script>
+        (function() {
+            const token = localStorage.getItem('futSumulaToken');
+            if (!token) { window.location.href = 'login.html'; return; }
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+                if (url.includes('/api/') && !url.includes('/auth/')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        localStorage.removeItem('futSumulaToken');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => { throw err; });
+            };
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hall da Fama | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* ESTILO EXCLUSIVO DO HALL DA FAMA */
+        body { background-color: #050505; color: #fff; }
+        
+        /* Fundo escuro com textura/brilho */
+        .bg-hall { background-image: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.15) grayscale(0.8); }
+        
+        .history-header { text-align: center; padding: 30px 20px 25px; border-bottom: 2px solid #FFD700; background: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(15,15,15,0.8)); position: relative; }
+        .history-title { font-size: 2.2rem; font-weight: 900; color: #FFD700; margin: 0; text-shadow: 0 0 30px rgba(255, 215, 0, 0.5); text-transform: uppercase; letter-spacing: 3px; }
+        .history-subtitle { font-size: 0.8rem; color: #aaa; letter-spacing: 4px; margin-top: 5px; font-weight: 600; }
+        
+        /* NOVA DESCRIÇÃO DA TELA */
+        .history-desc { font-size: 0.85rem; color: #ccc; max-width: 600px; margin: 15px auto 0; line-height: 1.5; font-weight: 500; }
+        .history-desc strong { color: #FFD700; font-weight: 800; }
+
+        .tabs-history { display: flex; justify-content: center; gap: 10px; padding: 25px 15px; flex-wrap: wrap; position: sticky; top: 60px; background: rgba(5,5,5,0.9); z-index: 10; backdrop-filter: blur(10px); }
+        .tab-btn { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 10px 18px; border-radius: 30px; font-weight: 800; cursor: pointer; transition: 0.3s; font-size: 0.75rem; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .tab-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .tab-btn.active { background: linear-gradient(135deg, #FFD700, #FDB931); color: #000; border-color: #FFD700; box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4); transform: scale(1.05); }
+
+        .hof-container { max-width: 800px; margin: 0 auto; padding: 0 20px 100px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .hof-card { background: rgba(20, 20, 20, 0.8); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px 20px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .hof-card:hover { transform: translateY(-3px); border-color: #FFD700; background: rgba(30, 30, 30, 0.9); box-shadow: 0 8px 25px rgba(255,215,0,0.15); }
+        
+        .hof-rank { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; border-radius: 50%; background: rgba(255,255,255,0.05); color: #fff; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); }
+        .rank-1 { background: linear-gradient(135deg, #FFD700, #FDB931); color: #000; border: none; box-shadow: 0 0 20px rgba(255,215,0,0.6); transform: scale(1.1); }
+        .rank-2 { background: linear-gradient(135deg, #E0E0E0, #999999); color: #000; border: none; box-shadow: 0 0 15px rgba(192,192,192,0.5); }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32, #8B4513); color: #000; border: none; box-shadow: 0 0 15px rgba(205,127,50,0.5); }
+        
+        .hof-photo { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); }
+        .rank-1 + .hof-photo { border-color: #FFD700; }
+
+        .hof-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .hof-name { font-size: 1.1rem; font-weight: 900; color: #fff; text-transform: uppercase; }
+        .hof-tourneys { font-size: 0.75rem; color: #888; margin-top: 4px; font-weight: 600; }
+        
+        .hof-stat { text-align: right; }
+        .stat-num { font-size: 2rem; font-weight: 900; color: #FFD700; line-height: 1; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
+        .stat-label { font-size: 0.65rem; color: #aaa; font-weight: 800; letter-spacing: 1px; margin-top: 2px; }
+
+        /* MODAL DO JOGADOR - ESTATÍSTICA COMPLETA */
+        .history-modal { max-width: 500px; padding: 0; background: #0a0a0a; overflow: hidden; border: 1px solid #FFD700; border-radius: 15px; }
+        .hm-header { padding: 40px 20px 25px; text-align: center; background: radial-gradient(circle at top, rgba(255,215,0,0.15) 0%, transparent 70%); border-bottom: 1px solid rgba(255,215,0,0.2); position: relative; }
+        .hm-photo { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #FFD700; box-shadow: 0 0 30px rgba(255,215,0,0.4); margin-bottom: 15px; object-fit: cover; }
+        .hm-name { font-size: 1.6rem; font-weight: 900; color: #fff; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
+        
+        .hm-badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 25px 15px 10px; }
+        .badge-box { background: rgba(255,255,255,0.03); padding: 15px 10px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .badge-val { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 5px; }
+        
+        .hm-body { padding: 25px; }
+        .clubes-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+        .clube-tag { background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; color: #ccc; border: 1px solid rgba(255,255,255,0.2); }
+        
+        .loading-area { text-align: center; padding: 50px 20px; color: #FFD700; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-carousel-container">
+        <div class="bg-overlay"></div>
+        <div class="bg-image bg-hall"></div> 
+    </div>
+
+    <header class="app-topbar" style="border-bottom: none; background: transparent;">
+        <div class="brand-area" onclick="window.location.href='index.html'" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer;">
+            <i class="fas fa-arrow-left" style="color: #fff; font-size: 1.2rem;"></i>
+        </div>
+    </header>
+
+    <div class="history-header">
+        <i class="fas fa-award" style="font-size: 3rem; color: #FFD700; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,215,0,0.5));"></i>
+        <h1 class="history-title">HALL DA FAMA</h1>
+        <div class="history-subtitle">RECORDE ABSOLUTO DA CONTA</div>
+        
+        <p class="history-desc">
+            Aqui a memória é de elefante! 🐘 Somamos os gols, faltas e cartões de <strong>todos os torneios e rachas</strong> (ativos ou finalizados) que você já organizou.<br>Descubra quem são as verdadeiras lendas do seu sistema!
+        </p>
+    </div>
+
+    <div class="tabs-history">
+        <button class="tab-btn active" onclick="trocarAba('gols', this)"><i class="fas fa-futbol"></i> GOLS</button>
+        <button class="tab-btn" onclick="trocarAba('faltas', this)"><i class="fas fa-exclamation-circle"></i> FALTAS</button>
+        <button class="tab-btn" onclick="trocarAba('amarelos', this)"><i class="fas fa-square" style="color:#FFD700;"></i> AMARELOS</button>
+        <button class="tab-btn" onclick="trocarAba('vermelhos', this)"><i class="fas fa-square" style="color:#ff4444;"></i> VERMELHOS</button>
+    </div>
+
+    <main class="hof-container" id="ranking-list">
+        <div class="loading-area">
+            <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; margin-bottom: 15px;"></i>
+            <p style="font-weight: bold; letter-spacing: 1px;">Varrendo súmulas armazenadas...</p>
+        </div>
+    </main>
+
+    <div id="playerHistoryModal" class="modal-overlay">
+        <div class="modal-box history-modal">
+            <div class="close-btn-header" onclick="document.getElementById('playerHistoryModal').classList.remove('active')" style="position: absolute; top: 15px; right: 15px; z-index: 10; cursor: pointer; background: rgba(0,0,0,0.5); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                <i class="fas fa-times" style="font-size: 1rem; color: #fff;"></i>
+            </div>
+            
+            <div class="hm-header">
+                <img id="modal-p-photo" src="" class="hm-photo">
+                <h2 id="modal-p-name" class="hm-name">NOME DO JOGADOR</h2>
+                <div style="font-size: 0.8rem; color: #FFD700; font-weight: bold; margin-top: 5px; letter-spacing: 1px;"><i class="fas fa-running"></i> <span id="modal-p-matches">0</span> PARTIDAS REGISTRADAS</div>
+                
+                <div class="hm-badges">
+                    <div class="badge-box" style="border-color: #00ff88; background: rgba(0,255,136,0.05);"><div class="badge-val" id="badge-gols" style="color: #00ff88;">0</div><div class="stat-label">GOLS</div></div>
+                    <div class="badge-box" style="border-color: #888;"><div class="badge-val" id="badge-faltas">0</div><div class="stat-label">FALTAS</div></div>
+                    <div class="badge-box" style="border-color: #FFD700; background: rgba(255,215,0,0.05);"><div class="badge-val" id="badge-ca" style="color:#FFD700;">0</div><div class="stat-label">C.A</div></div>
+                    <div class="badge-box" style="border-color: #ff4444; background: rgba(255,68,68,0.05);"><div class="badge-val" id="badge-cv" style="color:#ff4444;">0</div><div class="stat-label">C.V</div></div>
+                </div>
+            </div>
+
+            <div class="hm-body">
+                <div style="text-align: center;">
+                    <div style="font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 2px; font-weight: 900;"><i class="fas fa-shield-alt"></i> CLUBES DEFENDIDOS</div>
+                    <div class="clubes-list" id="modal-clubes-list">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footbar-container"></div>
+
+    <script src="js/images.js"></script>
+    <script>
+        // Injeta o footbar
+        fetch('footbar.html').then(r => r.text()).then(d => {
+            document.getElementById('footbar-container').innerHTML = d;
+            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
+            scripts.forEach(s => eval(s.innerHTML));
+        });
+
+        // ESTRUTURA DO MOTOR DE HISTÓRICO
+        // Nós vamos varrer o LocalStorage inteiro em busca de todas as "súmulas" salvas.
+        let masterStats = {}; 
+        let currentTab = 'gols';
+
+        document.addEventListener('DOMContentLoaded', processarHistoricoAbsoluto);
+
+        async function processarHistoricoAbsoluto() {
+            // 1. Tenta buscar a lista de jogadores atual do banco para pegar as fotos e nomes mais recentes
+            try {
+                const res = await fetch('/api/jogadores');
+                if(res.ok) {
+                    const jogadores = await res.json();
+                    jogadores.forEach(j => {
+                        masterStats[j.id] = {
+                            id: j.id,
+                            nome: j.nome,
+                            fotoUrl: j.fotoUrl || window.AppImages?.defaultAvatar || 'https://cdn-icons-png.flaticon.com/512/21/21104.png',
+                            gols: 0, faltas: 0, amarelos: 0, vermelhos: 0,
+                            partidasJogadas: 0,
+                            clubes: new Set()
+                        };
+                    });
+                }
+            } catch(e) { console.warn("Não foi possível sincronizar fotos dos jogadores com a API."); }
+
+            // 2. A MÁGICA: Varre a memória do aparelho em busca de resultados de partidas
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                
+                // Se a chave começar com match_result_ é uma súmula salva!
+                if (key.startsWith('match_result_')) {
+                    try {
+                        const matchData = JSON.parse(localStorage.getItem(key));
+                        
+                        if (matchData && matchData.eventos) {
+                            let playersInThisMatch = new Set(); // Para contar a partida apenas 1x por jogador
+
+                            matchData.eventos.forEach(ev => {
+                                const pId = ev.playerId;
+                                if (!pId) return;
+
+                                // Se o jogador foi apagado do banco de dados, a gente recria ele no histórico! (A prova de falhas)
+                                if (!masterStats[pId]) {
+                                    masterStats[pId] = {
+                                        id: pId,
+                                        nome: ev.playerName || 'Jogador Excluído',
+                                        fotoUrl: ev.fotoUrl || window.AppImages?.defaultAvatar || 'https://cdn-icons-png.flaticon.com/512/21/21104.png',
+                                        gols: 0, faltas: 0, amarelos: 0, vermelhos: 0,
+                                        partidasJogadas: 0,
+                                        clubes: new Set()
+                                    };
+                                }
+
+                                playersInThisMatch.add(pId);
+                                
+                                // Salva os clubes que ele defendeu
+                                if(ev.teamName && ev.teamName !== 'Aguardando...') {
+                                    masterStats[pId].clubes.add(ev.teamName);
+                                }
+
+                                // Contabiliza as ações
+                                if (ev.type === 'GOAL') masterStats[pId].gols++;
+                                if (ev.type === 'FOUL') masterStats[pId].faltas++;
+                                if (ev.type === 'YELLOW') masterStats[pId].amarelos++;
+                                if (ev.type === 'RED') masterStats[pId].vermelhos++;
+                            });
+
+                            // Soma a partida para os jogadores que participaram
+                            playersInThisMatch.forEach(pId => {
+                                masterStats[pId].partidasJogadas++;
+                            });
+                        }
+                    } catch(e) { console.error("Falha ao ler súmula", key); }
+                }
+            }
+            
+            // Remove do ranking jogadores que tem a conta limpa (0 de tudo)
+            Object.keys(masterStats).forEach(key => {
+                const p = masterStats[key];
+                if(p.gols === 0 && p.faltas === 0 && p.amarelos === 0 && p.vermelhos === 0 && p.partidasJogadas === 0) {
+                    delete masterStats[key];
+                }
+            });
+
+            // Monta a tela inicial
+            renderRanking(currentTab);
+        }
+
+        function trocarAba(aba, btnElement) {
+            currentTab = aba;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderRanking(aba);
+        }
+
+        function renderRanking(sortKey) {
+            const container = document.getElementById('ranking-list');
+            container.innerHTML = '';
+
+            // Transforma o dicionário em Array e filtra quem tem mais que 0 no quesito selecionado
+            let ranking = Object.values(masterStats).filter(p => p[sortKey] > 0);
+            
+            // Ordena do maior para o menor
+            ranking.sort((a, b) => b[sortKey] - a[sortKey]);
+
+            if(ranking.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding: 50px 20px; color:#666;"><i class="fas fa-folder-open" style="font-size:3rem; margin-bottom:15px;"></i><p>Nenhum registro encontrado nesta categoria.</p></div>`;
+                return;
+            }
+
+            const labelMap = { 'gols': 'GOLS', 'faltas': 'FALTAS', 'amarelos': 'AMARELOS', 'vermelhos': 'VERMELHOS' };
+            const colorMap = { 'gols': '#FFD700', 'faltas': '#fff', 'amarelos': '#FFD700', 'vermelhos': '#ff4444' };
+
+            ranking.forEach((p, index) => {
+                let rankClass = '';
+                if(index === 0) rankClass = 'rank-1';
+                else if (index === 1) rankClass = 'rank-2';
+                else if (index === 2) rankClass = 'rank-3';
+
+                container.innerHTML += `
+                    <div class="hof-card" onclick="abrirDetalhesJogador('${p.id}')">
+                        <div class="hof-rank ${rankClass}">${index + 1}</div>
+                        <img src="${p.fotoUrl}" class="hof-photo">
+                        <div class="hof-info">
+                            <div class="hof-name">${p.nome}</div>
+                            <div class="hof-tourneys"><i class="fas fa-running" style="color:var(--primary-neon);"></i> ${p.partidasJogadas} Partidas Disputadas</div>
+                        </div>
+                        <div class="hof-stat">
+                            <div class="stat-num" style="color: ${colorMap[sortKey]};">${p[sortKey]}</div>
+                            <div class="stat-label">${labelMap[sortKey]}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function abrirDetalhesJogador(playerId) {
+            const p = masterStats[playerId];
+            if(!p) return;
+
+            document.getElementById('modal-p-photo').src = p.fotoUrl;
+            document.getElementById('modal-p-name').innerText = p.nome;
+            document.getElementById('modal-p-matches').innerText = p.partidasJogadas;
+            
+            document.getElementById('badge-gols').innerText = p.gols;
+            document.getElementById('badge-faltas').innerText = p.faltas;
+            document.getElementById('badge-ca').innerText = p.amarelos;
+            document.getElementById('badge-cv').innerText = p.vermelhos;
+
+            const clubesList = document.getElementById('modal-clubes-list');
+            clubesList.innerHTML = '';
+
+            if(p.clubes.size === 0) {
+                clubesList.innerHTML = `<span style="color:#666; font-size:0.8rem;">Nenhum clube registrado.</span>`;
+            } else {
+                p.clubes.forEach(clube => {
+                    clubesList.innerHTML += `<div class="clube-tag"><i class="fas fa-shield-alt" style="color:var(--primary-neon); margin-right:5px;"></i>${clube}</div>`;
+                });
+            }
+
+            document.getElementById('playerHistoryModal').classList.add('active');
+        }
+    </script>
+</body>
+</html>

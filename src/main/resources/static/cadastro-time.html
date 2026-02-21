@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<script>
+	        (function() {
+	            // 1. Verifica se o usuário está logado
+	            const token = localStorage.getItem('futSumulaToken');
+	            if (!token) {
+	                window.location.href = 'login.html';
+	                return; 
+	            }
+
+	            // 2. Intercepta todas as chamadas de API
+	            const originalFetch = window.fetch;
+	            window.fetch = function() {
+	                let args = Array.from(arguments);
+	                let url = args[0];
+	                let options = args[1] || {};
+
+	                if (url.includes('/api/') && !url.includes('/auth/')) {
+	                    options.headers = options.headers || {};
+	                    options.headers['Authorization'] = 'Bearer ' + token;
+	                }
+
+	                args[1] = options;
+
+	                return originalFetch.apply(this, args).then(response => {
+	                    if (response.status === 403 || response.status === 401) {
+	                        alert("Sessão expirada. Por favor, faça login novamente.");
+	                        localStorage.removeItem('futSumulaToken');
+	                        window.location.href = 'login.html';
+	                    }
+	                    return response;
+	                }).catch(err => {
+	                    console.error("Erro na requisição segura:", err);
+	                    throw err;
+	                });
+	            };
+	        })();
+	    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Clube | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/cadastro-time.css">
+    <style>
+        .select-player-list { max-height: 250px; overflow-y: auto; text-align: left; margin-bottom: 20px; }
+        .select-player-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px;
+            background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent;
+        }
+        .select-player-item:hover { background: rgba(255,255,255,0.1); }
+        .select-player-item.selected { border-color: var(--success-color); background: rgba(0,255,136,0.1); }
+        .select-player-item img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-carousel-container">
+        <div class="bg-overlay"></div>
+        <div class="bg-image bg-studio"></div> 
+    </div>
+
+	<header class="app-topbar">
+	        <div class="brand-area" onclick="window.location.href='times.html'">
+	            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+	        </div>
+	        
+	        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+	             <div class="logo-text" style="text-align: center;">
+	                <h2 style="color: #fff;">FUNDAR CLUBE</h2>
+	             </div>
+	        </div>
+	        
+	        <div class="close-btn-header" onclick="window.location.href='times.html'">
+	            <i class="fas fa-times"></i>
+	        </div>
+	    </header>
+
+    <main class="main-content" style="max-width: 600px; padding-top: 20px;">
+        
+        <div class="glass-card" style="text-align: center; margin-bottom: 20px;">
+            <div id="escudo-preview-box" class="crest-preview-container">
+                <div id="shape-el" class="crest-shape shape-shield"></div>
+                <i id="mascot-el" class="fas fa-shield-alt crest-mascot"></i>
+            </div>
+            <h3 id="preview-nome" style="text-transform: uppercase; color: var(--primary-neon);">NOME DO TIME</h3>
+        </div>
+
+        <form id="formTime" class="glass-card form-container">
+            <div class="input-game-group">
+                <label>Nome da Agremiação *</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-flag"></i>
+                    <input type="text" id="nome" maxlength="20" placeholder="EX: REAL MADRUGA" 
+                           oninput="this.value = this.value.toUpperCase(); updatePreviewName(this.value);">
+                </div>
+            </div>
+
+            <div class="input-game-group">
+                <label>Cores Oficiais</label>
+                <div class="color-picker-group">
+                    <input type="color" id="cor1" value="#ff0000" class="color-input" onchange="updateColors()" title="Cor Primária">
+                    <input type="color" id="cor2" value="#000000" class="color-input" onchange="updateColors()" title="Cor Secundária">
+                    <input type="color" id="cor3" value="#ffffff" class="color-input" onchange="updateColors()" title="Cor da Borda/Ícone">
+                </div>
+            </div>
+
+            <div class="position-toggle" style="margin-bottom: 5px;">
+                <input type="radio" name="tipoEscudo" id="opt-custom" value="CUSTOM" checked onchange="toggleTabs()">
+                <label for="opt-custom" class="toggle-btn"><i class="fas fa-paint-brush"></i> CRIAR</label>
+                <input type="radio" name="tipoEscudo" id="opt-upload" value="UPLOAD" onchange="toggleTabs()">
+                <label for="opt-upload" class="toggle-btn"><i class="fas fa-upload"></i> UPLOAD</label>
+            </div>
+
+            <div class="form-divider"></div>
+
+            <div id="tab-custom">
+                <button type="button" class="modal-btn" style="width: 100%; margin-bottom: 20px; background: rgba(255,255,255,0.1); border: 1px solid var(--text-gray);" onclick="randomizeCrest()">
+                    <i class="fas fa-random"></i> GERAR ALEATÓRIO
+                </button>
+                <div class="input-game-group">
+                    <label>Formato do Escudo</label>
+                    <div class="builder-options" id="shape-options">
+                        <div class="option-btn selected" onclick="selectShape('shield')"><i class="fas fa-shield-alt"></i></div>
+                        <div class="option-btn" onclick="selectShape('round')"><i class="fas fa-circle"></i></div>
+                        <div class="option-btn" onclick="selectShape('pentagon')" title="Pentágono"><i class="fas fa-gem"></i></div>
+                    </div>
+                </div>
+                
+                <div class="input-game-group">
+                    <label>Símbolo</label>
+                    <div class="builder-options" id="mascot-options"></div>
+                    
+                    <button type="button" onclick="abrirMascotes()" style="width: 100%; margin-top: 15px; padding: 12px; background: rgba(0,255,136,0.1); border: 1px dashed var(--primary-neon); color: var(--primary-neon); border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='var(--primary-neon)'; this.style.color='#000';" onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.color='var(--primary-neon)';">
+                        <i class="fas fa-plus"></i> MAIS SÍMBOLOS (+100)
+                    </button>
+                </div>
+            </div>
+
+            <div id="tab-upload" style="display: none;">
+                <div class="photo-upload-wrapper" onclick="document.getElementById('escudoFile').click()">
+                    <div class="photo-preview" id="uploadPreview" style="border-radius: 10px;">
+                        <i class="fas fa-image"></i>
+                        <span>Buscar Imagem</span>
+                    </div>
+                    <input type="file" id="escudoFile" accept="image/*" hidden onchange="previewUpload(event)">
+                </div>
+            </div>
+
+            <button type="button" class="btn-game-save" onclick="salvarTime()">
+                FUNDAR TIME <i class="fas fa-check-circle"></i>
+            </button>
+        </form>
+    </main>
+
+    <div id="successModal" class="modal-overlay">
+        <div class="modal-box">
+            <i id="modalIcon" class="fas fa-check-circle icon-success modal-icon"></i>
+            <h3 id="modalTitle" class="modal-title">CLUBE FUNDADO!</h3>
+            <p id="modalMsg" class="modal-msg">O que deseja fazer agora?</p>
+            <input type="hidden" id="newTimeId">
+            <div id="modalButtons" style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="modal-btn btn-success" onclick="goToCreatePlayer()">
+                    CRIAR JOGADOR PARA O TIME <i class="fas fa-user-plus"></i>
+                </button>
+                <button class="modal-btn" style="background: var(--neon-blue);" onclick="openAddExistingModal()">
+                    ADICIONAR JOGADORES EXISTENTES <i class="fas fa-users"></i>
+                </button>
+                <button class="modal-btn" style="background: transparent; border: 1px solid var(--text-gray);" onclick="window.location.href='times.html'">
+                    VER NA GALERIA DE CLUBES
+                </button>
+            </div>
+            <button id="modalBtn" class="modal-btn btn-warning" style="display:none;" onclick="document.getElementById('successModal').classList.remove('active')">OK</button>
+        </div>
+    </div>
+
+    <div id="addExistingModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+            <h3 class="modal-title">Reforçar o Time</h3>
+            <p class="modal-msg">Selecione os jogadores para transferir:</p>
+            
+            <div id="players-list-container" class="select-player-list">
+                <i class="fas fa-spinner fa-spin spin-ball"></i> Carregando jogadores...
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="modal-btn" onclick="document.getElementById('addExistingModal').classList.remove('active')">Cancelar</button>
+                <button class="modal-btn btn-success" onclick="confirmAddPlayers()">CONFIRMAR TRANSFERÊNCIA</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/images.js"></script>
+    
+    <script src="js/mascotes.js"></script>
+
+    <script>
+        const mascots = [
+            { id: 'lion', icon: 'fa-paw' }, { id: 'eagle', icon: 'fa-feather-alt' }, { id: 'shark', icon: 'fa-fish' },
+            { id: 'wolf', icon: 'fa-dog' }, { id: 'dragon', icon: 'fa-dragon' }, { id: 'bull', icon: 'fa-bullhorn' },
+            { id: 'horse', icon: 'fa-horse' }, { id: 'spider', icon: 'fa-spider' }, { id: 'cat', icon: 'fa-cat' },
+            { id: 'crow', icon: 'fa-crow' }, { id: 'frog', icon: 'fa-frog' }, { id: 'hippo', icon: 'fa-hippo' },
+            { id: 'otter', icon: 'fa-otter' }, { id: 'dove', icon: 'fa-dove' }, { id: 'kiwi', icon: 'fa-kiwi-bird' },
+            { id: 'worm', icon: 'fa-worm' }, { id: 'skull', icon: 'fa-skull' }, { id: 'bolt', icon: 'fa-bolt' },
+            { id: 'star', icon: 'fa-star' }, { id: 'anchor', icon: 'fa-anchor' }, { id: 'poo', icon: 'fa-poop' },
+            { id: 'restroom', icon: 'fa-restroom' }, { id: 'leaf', icon: 'fa-leaf' }, { id: 'cannabis', icon: 'fa-cannabis' },
+            { id: 'ghost', icon: 'fa-ghost' }, { id: 'alien', icon: 'fa-pastafarianism' }, { id: 'robot', icon: 'fa-robot' },
+            { id: 'bomb', icon: 'fa-bomb' }, { id: 'fire', icon: 'fa-fire' }, { id: 'crown', icon: 'fa-crown' }
+        ];
+
+        let currentShape = 'shield';
+        let currentMascot = 'lion';
+        let selectedPlayersIds = [];
+
+        function init() {
+            const container = document.getElementById('mascot-options');
+            mascots.forEach(m => {
+                const btn = document.createElement('div');
+                btn.className = `option-btn ${m.id === 'lion' ? 'selected' : ''}`;
+                btn.onclick = () => selectMascot(m.id, m.icon, btn);
+                btn.innerHTML = `<i class="fas ${m.icon}"></i>`;
+                container.appendChild(btn);
+            });
+            updateColors();
+        }
+
+        function updatePreviewName(val) { document.getElementById('preview-nome').innerText = val || "NOME DO TIME"; }
+        
+        function updateColors() {
+            const c1 = document.getElementById('cor1').value, c2 = document.getElementById('cor2').value, c3 = document.getElementById('cor3').value;
+            const shape = document.getElementById('shape-el');
+            shape.style.background = `linear-gradient(135deg, ${c1}, ${c2})`; shape.style.borderColor = c3;
+            document.getElementById('mascot-el').style.color = c3 === '#ffffff' ? '#fff' : c3;
+        }
+
+        function selectShape(shape) {
+            currentShape = shape; document.getElementById('shape-el').className = `crest-shape shape-${shape}`;
+            document.querySelectorAll('#shape-options .option-btn').forEach(b => b.classList.remove('selected')); event.currentTarget.classList.add('selected');
+        }
+
+        function selectMascot(id, icon, btnElement) {
+            currentMascot = id; const el = document.getElementById('mascot-el'); el.className = `fas ${icon} crest-mascot`;
+            if(['dragon', 'eagle', 'horse', 'poo'].includes(id)) el.classList.add('emerging'); else el.classList.remove('emerging');
+            document.querySelectorAll('#mascot-options .option-btn').forEach(b => b.classList.remove('selected')); 
+            if(btnElement) btnElement.classList.add('selected');
+        }
+
+        // Função do Novo Botão (+100)
+        function abrirMascotes() {
+            if(window.abrirModalMascotesExtra) {
+                window.abrirModalMascotesExtra((selectedKey) => {
+                    currentMascot = selectedKey;
+                    const iconClass = window.ExtendedMascots[selectedKey] || 'fa-shield-alt';
+                    
+                    document.querySelectorAll('#mascot-options .option-btn').forEach(b => b.classList.remove('selected'));
+                    
+                    const el = document.getElementById('mascot-el');
+                    el.className = `fas ${iconClass} crest-mascot`;
+                    if(['dragon', 'eagle', 'horse', 'poo'].includes(selectedKey)) el.classList.add('emerging'); else el.classList.remove('emerging');
+                });
+            } else {
+                alert("Módulo de mascotes extra não carregado!");
+            }
+        }
+
+        function randomizeCrest() {
+            const shapes = ['shield', 'round', 'pentagon']; const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+            document.querySelectorAll('#shape-options .option-btn')[shapes.indexOf(randomShape)].click();
+            const rndMascotIndex = Math.floor(Math.random() * mascots.length);
+            document.getElementById('mascot-options').children[rndMascotIndex].click();
+            document.getElementById('cor1').value = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            document.getElementById('cor2').value = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            updateColors();
+        }
+
+        function toggleTabs() {
+            const isUpload = document.getElementById('opt-upload').checked;
+            document.getElementById('tab-custom').style.display = isUpload ? 'none' : 'block';
+            document.getElementById('tab-upload').style.display = isUpload ? 'block' : 'none';
+            document.getElementById('escudo-preview-box').style.opacity = isUpload ? '0.3' : '1';
+        }
+
+        function previewUpload(event) {
+            const file = event.target.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e) {
+            const preview = document.getElementById('uploadPreview'); preview.style.backgroundImage = `url('${e.target.result}')`; preview.style.backgroundSize = 'cover'; preview.innerHTML = '';
+            const bigPreview = document.getElementById('escudo-preview-box'); bigPreview.style.opacity = '1'; bigPreview.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain;">`;
+            }; reader.readAsDataURL(file); }
+        }
+
+        async function salvarTime() {
+            const nome = document.getElementById('nome').value;
+            if(!nome) { alert("Nome obrigatório!"); return; }
+            
+            const btnSave = document.querySelector('.btn-game-save');
+            btnSave.innerHTML = '<i class="fas fa-spinner fa-spin"></i> FUNDANDO...';
+
+            const formData = new FormData();
+            formData.append('nome', nome);
+            formData.append('cor1', document.getElementById('cor1').value);
+            formData.append('cor2', document.getElementById('cor2').value);
+            formData.append('cor3', document.getElementById('cor3').value);
+            const isUpload = document.getElementById('opt-upload').checked;
+            formData.append('tipoEscudo', isUpload ? 'UPLOAD' : 'CUSTOM');
+            if(isUpload) {
+                const file = document.getElementById('escudoFile').files[0]; if(file) formData.append('escudoFile', file);
+            } else {
+                formData.append('customShape', currentShape); formData.append('customMascot', currentMascot);
+            }
+
+            try {
+                const response = await fetch('/api/times/criar', { method: 'POST', body: formData });
+                
+                const modal = document.getElementById('successModal');
+                const mIcon = document.getElementById('modalIcon');
+                const mTitle = document.getElementById('modalTitle');
+                const mMsg = document.getElementById('modalMsg');
+                const mBtns = document.getElementById('modalButtons');
+                const mBtn = document.getElementById('modalBtn');
+                
+                if(response.ok) {
+                    const time = await response.json();
+                    document.getElementById('newTimeId').value = time.id; 
+                    
+                    mIcon.className = "fas fa-check-circle icon-success modal-icon";
+                    mTitle.innerText = "CLUBE FUNDADO!";
+                    mMsg.innerText = "O time já está pronto.";
+                    mBtns.style.display = "flex";
+                    mBtn.style.display = "none";
+                    modal.classList.add('active');
+                } else if (response.status === 409) {
+                    mIcon.className = "fas fa-exclamation-triangle icon-warning modal-icon";
+                    mTitle.innerText = "CLUBE JÁ EXISTE!";
+                    mMsg.innerText = "Já existe um time cadastrado com este nome.";
+                    mBtns.style.display = "none";
+                    mBtn.style.display = "inline-block";
+                    modal.classList.add('active');
+                } else if (response.status === 403) {
+                    mIcon.className = "fas fa-ban icon-warning modal-icon";
+                    mTitle.innerText = "LIMITE ATINGIDO";
+                    mMsg.innerText = "A liga atingiu o limite máximo de 30 times.";
+                    mBtns.style.display = "none";
+                    mBtn.style.display = "inline-block";
+                    modal.classList.add('active');
+                } else {
+                    throw new Error("Erro API");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erro de conexão ao salvar time.");
+            } finally {
+                btnSave.innerHTML = 'FUNDAR TIME <i class="fas fa-check-circle"></i>';
+            }
+        }
+
+        function goToCreatePlayer() {
+            const timeId = document.getElementById('newTimeId').value;
+            window.location.href = `cadastro-jogador.html?timeId=${timeId}`;
+        }
+
+        async function openAddExistingModal() {
+            document.getElementById('successModal').classList.remove('active');
+            const modal = document.getElementById('addExistingModal');
+            modal.classList.add('active');
+            const listContainer = document.getElementById('players-list-container');
+            
+            try {
+                const response = await fetch('/api/jogadores');
+                const jogadores = await response.json();
+                listContainer.innerHTML = '';
+                selectedPlayersIds = [];
+
+                if(jogadores.length === 0) {
+                    listContainer.innerHTML = '<p>Nenhum jogador disponível.</p>'; return;
+                }
+
+                jogadores.sort((a, b) => {
+                    if (a.posicao === 'GOLEIRO' && b.posicao !== 'GOLEIRO') return -1;
+                    if (a.posicao !== 'GOLEIRO' && b.posicao === 'GOLEIRO') return 1;
+                    return a.nome.localeCompare(b.nome);
+                });
+                
+                jogadores.forEach(jog => {
+                    const foto = jog.fotoUrl || AppImages.defaultAvatar;
+                    const timeAtual = jog.time ? `(Atual: ${jog.time.nome})` : '(Sem Time)';
+                    const item = document.createElement('div');
+                    item.className = 'select-player-item';
+                    item.innerHTML = `<img src="${foto}"> <div><strong>${jog.nome}</strong> <small>${timeAtual}</small></div>`;
+                    item.onclick = () => {
+                        item.classList.toggle('selected');
+                        if(item.classList.contains('selected')) selectedPlayersIds.push(jog.id);
+                        else selectedPlayersIds = selectedPlayersIds.filter(id => id !== jog.id);
+                    };
+                    listContainer.appendChild(item);
+                });
+            } catch(e) { listContainer.innerHTML = '<p>Erro ao carregar jogadores.</p>'; }
+        }
+
+        async function confirmAddPlayers() {
+            const timeId = document.getElementById('newTimeId').value;
+            if(selectedPlayersIds.length === 0) { alert("Selecione pelo menos um jogador."); return; }
+
+            try {
+                const response = await fetch(`/api/times/${timeId}/adicionar-jogadores`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(selectedPlayersIds)
+                });
+                if(response.ok) {
+                    alert("Jogadores transferidos com sucesso!");
+                    window.location.href = 'times.html';
+                } else throw new Error();
+            } catch(e) { alert("Erro ao adicionar jogadores."); }
+        }
+
+        init();
+    </script>
+</body>
+</html>

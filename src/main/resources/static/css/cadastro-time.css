@@ -1,0 +1,45 @@
+/* /static/css/cadastro-time.css */
+
+/* Aplica a Sede do Clube (Leão Neon) como fundo da PÁGINA */
+body {
+    /* Aponta para o arquivo que você salvou manualmente no passo anterior */
+    background-image: url('../images/FootballClub.png') !important;
+    
+    /* Configurações para a imagem cobrir a tela e ficar fixa */
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+}
+
+/* Remove os fundos antigos do carrossel */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Ajusta o cartão do formulário para um vidro escuro que combine com o fundo noturno */
+.glass-card {
+    background: rgba(10, 10, 15, 0.9) !important; /* Fundo quase preto */
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 0, 85, 0.3) !important; /* Borda sutil avermelhada para combinar com o leão neon */
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Estilização dos inputs para o tema dark */
+.input-wrapper, .color-picker-group {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+/* Efeito de foco nos inputs */
+.input-wrapper:focus-within {
+    border-color: var(--primary-neon) !important;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+/* Título com brilho neon */
+.logo-text h2 {
+    text-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
+}

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<script>
+	        (function() {
+	            // 1. Verifica se o usuário está logado
+	            const token = localStorage.getItem('futSumulaToken');
+	            if (!token) {
+	                window.location.href = 'login.html';
+	                return; // Para a execução do restante da página
+	            }
+
+	            // 2. Intercepta todas as chamadas de API para injetar o Token
+	            const originalFetch = window.fetch;
+	            window.fetch = function() {
+	                let args = Array.from(arguments);
+	                let url = args[0];
+	                let options = args[1] || {};
+
+	                // Se for chamada para API do sistema, adiciona o cabeçalho Authorization
+	                if (url.includes('/api/') && !url.includes('/auth/')) {
+	                    options.headers = options.headers || {};
+	                    options.headers['Authorization'] = 'Bearer ' + token;
+	                }
+
+	                args[1] = options;
+
+	                return originalFetch.apply(this, args).then(response => {
+	                    // Se o servidor recusar (Token expirado ou inválido)
+	                    if (response.status === 403 || response.status === 401) {
+	                        alert("Sessão expirada. Por favor, faça login novamente.");
+	                        localStorage.removeItem('futSumulaToken');
+	                        window.location.href = 'login.html';
+	                    }
+	                    return response;
+	                }).catch(err => {
+	                    console.error("Erro na requisição segura:", err);
+	                    throw err;
+	                });
+	            };
+	        })();
+	    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plantel | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/jogador.css">
+</head>
+<body>
+
+	<div class="bg-carousel-container">
+	    <div class="bg-overlay"></div>
+	    <div class="bg-image bg-tunnel"></div> 
+	</div>
+
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+        </div>
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+             <div class="logo-text" style="text-align: center;">
+                <h2 style="color: #fff;">MEU PLANTEL</h2>
+                <span id="total-jogadores" style="font-size: 0.7rem; color: var(--primary-neon);">Carregando...</span>
+             </div>
+        </div>
+        <div class="brand-area" onclick="window.location.href='cadastro-jogador'">
+            <i class="fas fa-plus" style="color: var(--success-color); font-size: 1.2rem;"></i>
+        </div>
+    </header>
+
+    <main class="main-content" style="padding-bottom: 90px;">
+        
+        <div class="search-container">
+            <input type="text" id="search-jogadores" class="search-input" placeholder="Buscar craque (Nome ou Camisa)..." oninput="filtrarJogadores()">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+
+        <div id="players-grid" class="squad-grid">
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
+                <i class="fas fa-futbol spin-ball" style="font-size: 3rem;"></i>
+                <p style="margin-top: 15px; color: var(--text-gray);">Buscando atletas...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="close-btn-header" onclick="fecharModal()" style="position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;">
+                <i class="fas fa-times" style="font-size: 0.8rem;"></i>
+            </div>
+
+            <div class="edit-photo-wrapper" onclick="document.getElementById('edit-foto-input').click()" title="Alterar Foto">
+                <img id="edit-foto-preview" src="">
+                <div class="edit-photo-overlay">
+                    <i class="fas fa-camera"></i>
+                </div>
+            </div>
+            <input type="file" id="edit-foto-input" accept="image/*" hidden onchange="previewEditImage(event)">
+            
+            <h3 class="modal-title" style="font-size: 1.2rem;">Gerenciar Atleta</h3>
+            
+            <form id="formEdit" style="text-align: left; margin-top: 20px;">
+                <input type="hidden" id="edit-id">
+                
+                <div class="input-game-group" style="margin-bottom: 10px;">
+                    <label>Nome</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-signature"></i>
+                        <input type="text" id="edit-nome">
+                    </div>
+                </div>
+
+                <div class="row-dupla">
+                    <div class="input-game-group">
+                        <label>Camisa</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-tshirt"></i>
+                            <input type="text" id="edit-numero">
+                        </div>
+                    </div>
+                    <div class="input-game-group">
+                        <label>Posição</label>
+                        <select id="edit-posicao" style="width: 100%; padding: 15px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff;">
+                            <option value="LINHA">LINHA</option>
+                            <option value="GOLEIRO">GOLEIRO</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="edit-whatsapp">
+
+                <div class="input-game-group">
+                    <label>Nível (1-5)</label>
+                    <input type="range" id="edit-nivel" min="1" max="5" style="width: 100%; accent-color: var(--primary-neon);">
+                </div>
+            </form>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-delete" onclick="excluirJogador()">
+                    <i class="fas fa-trash"></i> Dispensar
+                </button>
+                <button type="button" id="btn-salvar-edit" class="modal-btn btn-success" onclick="salvarEdicao()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="footbar-container"></div>
+
+    <script src="js/images.js"></script>
+
+    <script>
+        // Carregador do Footbar
+        fetch('footbar.html').then(r => r.text()).then(d => {
+            document.getElementById('footbar-container').innerHTML = d;
+            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
+            scripts.forEach(s => eval(s.innerHTML));
+        });
+
+        let allJogadores = []; // Variável Global
+
+        document.addEventListener('DOMContentLoaded', carregarJogadores);
+
+        async function carregarJogadores() {
+            try {
+                const response = await fetch('/api/jogadores');
+                allJogadores = await response.json();
+                document.getElementById('total-jogadores').innerText = `${allJogadores.length} ATLETAS`;
+                renderizarGrid(allJogadores);
+            } catch (e) { console.error(e); }
+        }
+
+        function renderizarGrid(lista) {
+            const grid = document.getElementById('players-grid');
+            grid.innerHTML = '';
+            
+            if (lista.length === 0) {
+                grid.innerHTML = `<p style="color:#fff; text-align:center; grid-column:1/-1;">Nenhum jogador encontrado.</p>`;
+                return;
+            }
+            lista.forEach(j => grid.innerHTML += criarCardHTML(j));
+        }
+
+        function filtrarJogadores() {
+            const termo = document.getElementById('search-jogadores').value.toLowerCase();
+            const filtrados = allJogadores.filter(j => 
+                j.nome.toLowerCase().includes(termo) || 
+                j.numeroCamisa.includes(termo)
+            );
+            renderizarGrid(filtrados);
+        }
+
+        function criarCardHTML(j) {
+            let borderColor = '#333';
+            if(j.nivelTecnico >= 5) borderColor = 'var(--primary-neon)';
+            const foto = j.fotoUrl || AppImages.defaultAvatar;
+            const luvaIcon = j.posicao === 'GOLEIRO' ? `<i class="fas fa-mitten glove-icon"></i>` : '';
+            let estrelas = '';
+            for(let i=0; i<j.nivelTecnico; i++) { estrelas += '<i class="fas fa-star"></i>'; }
+
+            return `
+                <div class="fut-card" style="border-color: ${borderColor};" onclick="abrirEdicao(${j.id})">
+                    <div class="card-header">
+                        <span class="card-rating">${j.nivelTecnico * 10 + 40}</span>
+                        <span class="card-position" style="font-size:0.7rem; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:3px;">${j.posicao.substring(0,3)}</span>
+                    </div>
+                    <div class="card-image-container">
+                        <img src="${foto}" class="card-image">
+                    </div>
+                    <div class="card-info">
+                        <div class="card-name">${j.nome}</div>
+                        <div class="card-stars" style="font-size:0.6rem; color:var(--primary-neon);">${estrelas}</div>
+                        ${luvaIcon}
+                        <div class="card-number-big">${j.numeroCamisa}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const modal = document.getElementById('editModal');
+        let currentPhotoFile = null;
+
+        async function abrirEdicao(id) {
+            try {
+                const response = await fetch(`/api/jogadores/${id}`);
+                if(!response.ok) return;
+                const jog = await response.json();
+
+                document.getElementById('edit-id').value = jog.id;
+                document.getElementById('edit-nome').value = jog.nome;
+                document.getElementById('edit-numero').value = jog.numeroCamisa;
+                document.getElementById('edit-posicao').value = jog.posicao;
+                document.getElementById('edit-nivel').value = jog.nivelTecnico;
+                document.getElementById('edit-whatsapp').value = jog.whatsapp || '';
+                
+                document.getElementById('edit-foto-preview').src = jog.fotoUrl || AppImages.defaultAvatar;
+                document.getElementById('edit-foto-input').value = ""; 
+                currentPhotoFile = null;
+
+                modal.classList.add('active');
+            } catch (e) { console.error(e); }
+        }
+
+        function previewEditImage(event) {
+            const file = event.target.files[0];
+            if(file){
+                currentPhotoFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('edit-foto-preview').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function fecharModal() { modal.classList.remove('active'); }
+
+        async function salvarEdicao() {
+            const btn = document.getElementById('btn-salvar-edit');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            const id = document.getElementById('edit-id').value;
+            const formData = new FormData();
+            formData.append('nome', document.getElementById('edit-nome').value);
+            formData.append('numero', document.getElementById('edit-numero').value);
+            formData.append('posicao', document.getElementById('edit-posicao').value);
+            formData.append('nivel', document.getElementById('edit-nivel').value);
+            formData.append('whatsapp', document.getElementById('edit-whatsapp').value);
+            if(currentPhotoFile) {
+                formData.append('foto', currentPhotoFile);
+            }
+            try {
+                const response = await fetch(`/api/jogadores/${id}`, { method: 'PUT', body: formData });
+                if(response.ok) {
+                    fecharModal();
+                    carregarJogadores();
+                } else {
+                    alert('Erro ao atualizar.');
+                }
+            } catch (e) { console.error(e); } 
+            finally { btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
+        }
+
+        async function excluirJogador() {
+            const id = document.getElementById('edit-id').value;
+            if(!confirm("Tem certeza?")) return;
+            try {
+                const response = await fetch(`/api/jogadores/${id}`, { method: 'DELETE' });
+                if(response.ok) {
+                    fecharModal();
+                    carregarJogadores();
+                } else { alert('Erro ao excluir'); }
+            } catch (e) { alert('Erro de conexão'); }
+        }
+    </script>
+</body>
+</html>

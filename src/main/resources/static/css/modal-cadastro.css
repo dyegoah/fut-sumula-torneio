@@ -1,0 +1,29 @@
+/* /static/css/modal-cadastro.css */
+
+/* Aplica o Vestiário Neon como fundo da PÁGINA INTEIRA de cadastro */
+body {
+    background-image: url('../images/LockerRoom.png') !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+}
+
+/* Remove os fundos antigos do carrossel para não conflitar */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Ajusta o cartão do formulário para ter um vidro mais escuro e elegante sobre a imagem */
+.glass-card {
+    background: rgba(10, 15, 25, 0.85) !important; /* Azulado escuro semi-transparente */
+    backdrop-filter: blur(8px) !important; /* Desfoque para destacar o formulário */
+    border: 1px solid rgba(0, 234, 255, 0.2) !important; /* Borda neon sutil */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Título da página com brilho neon para combinar */
+#page-title {
+    text-shadow: 0 0 10px rgba(0, 234, 255, 0.6);
+}

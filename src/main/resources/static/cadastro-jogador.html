@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <script>
+        (function() {
+            const token = localStorage.getItem('futSumulaToken');
+            if (!token) { window.location.href = 'login.html'; return; }
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+                if (url.includes('/api/') && !url.includes('/auth/')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => { console.error("Erro na requisição segura:", err); throw err; });
+            };
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Jogador | Fut-Súmula</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/modal-cadastro.css">
+    
+    <style>
+        /* Estilo do Botão de Remover Foto (X) */
+        .remove-photo-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4444;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: none; /* Escondido por padrão */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            transition: transform 0.2s;
+        }
+        .remove-photo-btn:hover {
+            transform: scale(1.1);
+            background: #cc0000;
+        }
+        /* Garante que o wrapper suporte posicionamento absoluto */
+        .photo-upload-wrapper {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-carousel-container">
+        <div class="bg-overlay"></div>
+        <div class="bg-image bg-studio"></div> 
+    </div>
+
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='jogadores.html'">
+            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+        </div>
+        
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+             <div class="logo-text" style="text-align: center;">
+                <h2 style="color: #fff;" id="page-title">Novo Jogador</h2>
+             </div>
+        </div>
+
+        <div class="close-btn-header" onclick="window.location.href='jogadores.html'">
+            <i class="fas fa-times"></i>
+        </div>
+    </header>
+
+    <main class="main-content" style="max-width: 600px; padding-top: 20px;">
+        <div id="team-alert" class="glass-card" style="background: rgba(0,255,136,0.1); border-color: var(--success-color); margin-bottom: 20px; display: none; text-align: center;">
+            <p style="color: var(--success-color); font-weight: bold;"><i class="fas fa-link"></i> Vinculando ao novo time!</p>
+        </div>
+
+        <form id="formJogador" class="glass-card form-container">
+            <input type="hidden" id="timeIdVinculo">
+            
+            <div class="photo-upload-wrapper" onclick="document.getElementById('fileInput').click()">
+                <div class="photo-preview" id="photoPreview">
+                    <i class="fas fa-camera"></i>
+                    <span>Add Foto</span>
+                </div>
+                
+                <div id="btnRemovePhoto" class="remove-photo-btn" onclick="removeImage(event)" title="Remover foto">
+                    <i class="fas fa-times"></i>
+                </div>
+
+                <input type="file" id="fileInput" accept="image/*" hidden onchange="previewImage(event)">
+            </div>
+
+            <div class="input-game-group">
+                <label>Nome do Craque *</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-signature"></i>
+                    <input type="text" id="nome" maxlength="20" placeholder="Ex: Ronaldo Fenômeno">
+                </div>
+            </div>
+
+            <div class="row-dupla">
+                <div class="input-game-group">
+                    <label>Camisa *</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-tshirt"></i>
+                        <input type="text" id="numero" maxlength="3" placeholder="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                </div>
+
+                <div class="input-game-group">
+                    <label>Posição</label>
+                    <div class="position-toggle">
+                        <input type="radio" name="posicao" id="pos-linha" value="LINHA" checked>
+                        <label for="pos-linha" class="toggle-btn"><i class="fas fa-running"></i> Linha</label>
+                        
+                        <input type="radio" name="posicao" id="pos-goleiro" value="GOLEIRO">
+                        <label for="pos-goleiro" class="toggle-btn"><i class="fas fa-hand-paper"></i> Gol</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-game-group">
+                <label>WhatsApp</label>
+                <div class="input-wrapper">
+                    <i class="fab fa-whatsapp"></i>
+                    <input type="tel" id="whatsapp" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTelefone(this)">
+                </div>
+            </div>
+
+            <div class="input-game-group">
+                <label>Nível Técnico</label>
+                <div class="star-rating" onmouseleave="resetStars()">
+                    <i class="fas fa-star" data-value="1" onclick="setRating(1)" onmouseover="hoverStar(1)"></i>
+                    <i class="fas fa-star" data-value="2" onclick="setRating(2)" onmouseover="hoverStar(2)"></i>
+                    <i class="fas fa-star" data-value="3" onclick="setRating(3)" onmouseover="hoverStar(3)"></i>
+                    <i class="fas fa-star" data-value="4" onclick="setRating(4)" onmouseover="hoverStar(4)"></i>
+                    <i class="fas fa-star" data-value="5" onclick="setRating(5)" onmouseover="hoverStar(5)"></i>
+                </div>
+                <input type="hidden" id="nivelRating" value="3">
+            </div>
+
+            <button type="button" class="btn-game-save" onclick="salvarJogador()">
+                CADASTRAR JOGADOR <i class="fas fa-check-circle"></i>
+            </button>
+        </form>
+    </main>
+
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box">
+            <i id="modalIcon" class="fas fa-futbol modal-icon spin-ball"></i>
+            <h3 id="modalTitle" class="modal-title">Salvando...</h3>
+            <p id="modalMsg" class="modal-msg">Aguarde.</p>
+            
+            <div id="modalBtnGroup" style="display: none; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button id="btnPrincipal" class="modal-btn btn-success" onclick="window.location.href='jogadores.html'">
+                    VER NO PLANTEL <i class="fas fa-users"></i>
+                </button>
+                <button id="btnNovo" class="modal-btn" onclick="resetForm()">
+                    CADASTRAR OUTRO <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/images.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const timeId = urlParams.get('timeId');
+            if(timeId) {
+                document.getElementById('timeIdVinculo').value = timeId;
+                document.getElementById('team-alert').style.display = 'block';
+                document.getElementById('page-title').innerText = "Reforço para o Time";
+                document.getElementById('btnPrincipal').innerText = "VOLTAR AO TIME";
+                document.getElementById('btnPrincipal').onclick = () => window.location.href = 'times.html';
+            }
+            setRating(3);
+        });
+
+        // --- VALIDAÇÃO E PREVIEW DA IMAGEM ---
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const input = event.target;
+
+            if (!file) return;
+
+            // 1. Validação de TIPO (Apenas Imagens)
+            if (!file.type.startsWith('image/')) {
+                showModal('error', 'ARQUIVO INVÁLIDO', 'Por favor, selecione apenas arquivos de imagem (JPG, PNG, etc).');
+                input.value = ""; // Limpa o input
+                return;
+            }
+
+            // 2. Validação de TAMANHO (Max 2MB)
+            const maxSize = 2 * 1024 * 1024; // 2MB em bytes
+            if (file.size > maxSize) {
+                showModal('error', 'IMAGEM MUITO GRANDE', 'A imagem deve ter no máximo 2MB para envio rápido.');
+                input.value = ""; // Limpa o input
+                return;
+            }
+
+            // Se passou, mostra o preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('photoPreview');
+                preview.style.backgroundImage = `url('${e.target.result}')`;
+                preview.style.backgroundSize = 'cover';
+                preview.style.backgroundPosition = 'center';
+                preview.innerHTML = ''; // Remove ícone de câmera e texto
+                preview.style.border = '2px solid var(--success-color)';
+                
+                // Mostra o botão "X"
+                document.getElementById('btnRemovePhoto').style.display = 'flex';
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // --- FUNÇÃO PARA REMOVER A FOTO SELECIONADA ---
+        function removeImage(event) {
+            event.stopPropagation(); // Impede que abra a janela de seleção de arquivos novamente
+            
+            const input = document.getElementById('fileInput');
+            input.value = ""; // Limpa o input de arquivo
+            
+            const preview = document.getElementById('photoPreview');
+            preview.style.backgroundImage = 'none'; // Remove a imagem de fundo
+            preview.style.border = '2px dashed var(--text-gray)';
+            preview.innerHTML = '<i class="fas fa-camera"></i><span>Add Foto</span>'; // Restaura ícone
+            
+            // Esconde o botão "X"
+            document.getElementById('btnRemovePhoto').style.display = 'none';
+        }
+
+        function mascaraTelefone(input) {
+            let v = input.value.replace(/\D/g,"");
+            v = v.replace(/^(\d{2})(\d)/g,"($1) $2");
+            v = v.replace(/(\d)(\d{4})$/,"$1-$2");
+            input.value = v;
+        }
+
+        let currentRating = 3;
+        function hoverStar(n) {
+            document.querySelectorAll('.star-rating i').forEach(s => {
+                s.style.color = s.getAttribute('data-value') <= n ? 'var(--primary-neon)' : '#333';
+                s.style.textShadow = s.getAttribute('data-value') <= n ? '0 0 10px var(--primary-neon)' : 'none';
+            });
+        }
+        function resetStars() { hoverStar(currentRating); }
+        function setRating(n) {
+            currentRating = n;
+            document.getElementById('nivelRating').value = n;
+            hoverStar(n);
+        }
+
+        const modal = document.getElementById('customModal');
+        const mIcon = document.getElementById('modalIcon');
+        const mTitle = document.getElementById('modalTitle');
+        const mMsg = document.getElementById('modalMsg');
+        const mBtnGroup = document.getElementById('modalBtnGroup');
+
+        function showModal(type, title, msg) {
+            modal.classList.add('active');
+            mIcon.className = 'fas modal-icon';
+            mBtnGroup.style.display = 'none';
+            
+            if (type === 'loading') {
+                mIcon.classList.add('fa-futbol', 'spin-ball');
+            } else if (type === 'success') {
+                mIcon.classList.add('fa-check-circle', 'icon-success');
+                mBtnGroup.style.display = 'flex';
+                document.getElementById('btnPrincipal').style.display = 'inline-block';
+            } else if (type === 'error' || type === 'validation') {
+                mIcon.classList.add('fa-exclamation-triangle', 'icon-warning');
+                mBtnGroup.style.display = 'flex';
+                document.getElementById('btnPrincipal').style.display = 'none';
+                const btnNovo = document.getElementById('btnNovo');
+                btnNovo.innerText = "ENTENDI";
+                btnNovo.className = 'modal-btn btn-warning';
+                btnNovo.onclick = () => modal.classList.remove('active');
+            }
+            mTitle.innerText = title;
+            mMsg.innerText = msg;
+        }
+
+        function resetForm() {
+            modal.classList.remove('active');
+            
+            const btnNovo = document.getElementById('btnNovo');
+            btnNovo.innerText = "CADASTRAR OUTRO";
+            btnNovo.className = 'modal-btn';
+            btnNovo.innerHTML += ' <i class="fas fa-plus"></i>';
+            btnNovo.onclick = () => resetForm();
+
+            document.getElementById('formJogador').reset();
+            
+            // Reseta visual da imagem usando a função de remover
+            const fakeEvent = { stopPropagation: () => {} };
+            removeImage(fakeEvent);
+
+            setRating(3);
+        }
+
+        async function salvarJogador() {
+            const nome = document.getElementById('nome').value.trim();
+            const numero = document.getElementById('numero').value.trim();
+            const timeId = document.getElementById('timeIdVinculo').value;
+
+            if (!nome || !numero) {
+                showModal('validation', 'Faltam Dados!', 'Nome e Número são obrigatórios.');
+                return;
+            }
+
+            showModal('loading', 'Contratando...', 'Gerando ficha do atleta.');
+
+            const formData = new FormData();
+            formData.append('nome', nome);
+            formData.append('numero', numero);
+            formData.append('whatsapp', document.getElementById('whatsapp').value);
+            formData.append('nivel', document.getElementById('nivelRating').value);
+            formData.append('posicao', document.querySelector('input[name="posicao"]:checked').value);
+            if(timeId) formData.append('timeId', timeId);
+            
+            const fileInput = document.getElementById('fileInput');
+            if(fileInput.files[0]) formData.append('foto', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/jogadores/cadastrar', { method: 'POST', body: formData });
+                
+                if(response.ok) {
+                    showModal('success', 'CONTRATADO!', `Jogador ${nome} cadastrado com sucesso.`);
+                } else if (response.status === 409) {
+                    showModal('error', 'JOGADOR DUPLICADO!', 'Já existe um atleta com este Nome e Número.');
+                } else if (response.status === 403) {
+                    showModal('error', 'LIMITE DE JOGADORES!', 'O banco de dados atingiu o limite de 330 atletas.');
+                } else {
+                    throw new Error('Erro na API');
+                }
+            } catch (error) {
+                console.error(error);
+                showModal('error', 'Erro', 'Não foi possível salvar. Verifique a conexão.');
+            }
+        }
+    </script>
+
+    <script src="js/gender-mode.js"></script>
+
+</body>
+</html>

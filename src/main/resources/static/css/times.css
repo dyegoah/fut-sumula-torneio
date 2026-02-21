@@ -1,0 +1,37 @@
+/* /static/css/times.css */
+
+body {
+    /* Caminho para a foto oficial do time */
+    background-image: url('../images/times.png') !important;
+    background-size: cover !important;
+    /* Centraliza a imagem para focar no grupo de jogadores */
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important; /* Cor de fundo de fallback */
+    min-height: 100vh;
+}
+
+/* Remove o carrossel de fundo padrão para não sobrepor a imagem */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Container Principal com efeito Glassmorphism */
+/* Garante que o conteúdo da página seja legível sobre a foto */
+.main-content {
+    background: rgba(10, 10, 10, 0.7) !important; /* Fundo escuro semi-transparente */
+    backdrop-filter: blur(12px) !important; /* Desfoque para a imagem de fundo */
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px;
+    margin-top: 30px !important;
+    padding: 30px !important;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Ajuste para os cards de times, se necessário */
+/* Exemplo: Se os cards forem muito transparentes, você pode escurecê-los aqui */
+/* .team-card {
+    background: rgba(20, 20, 20, 0.9) !important;
+} */

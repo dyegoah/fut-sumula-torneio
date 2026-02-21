@@ -1,0 +1,66 @@
+/* /static/css/estatisticas-futebol.css */
+
+body {
+    /* Ajuste para garantir que a imagem cubra tudo sem distorcer */
+    background-image: url('../images/estatisticas-futebol.png') !important; 
+    background-size: cover !important;
+    background-position: center top !important; /* Mantém o topo da prancheta visível */
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Esconde o fundo antigo do sistema */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* CONTAINER PRINCIPAL: Efeito Gamer/Glassmorphism */
+.main-content {
+    background: rgba(10, 10, 10, 0.75) !important; /* Fundo escuro semi-transparente */
+    backdrop-filter: blur(12px) saturate(150%) !important; /* Desfoque de vidro */
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(255, 215, 0, 0.2) !important; /* Borda dourada sutil */
+    border-radius: 20px;
+    margin: 100px auto 40px auto !important; /* Espaçamento do topo e base */
+    padding: 30px !important;
+    max-width: 1100px !important;
+    width: 95% !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 
+                0 0 15px rgba(255, 215, 0, 0.1);
+    animation: slideUp 0.6s ease-out;
+}
+
+/* Ajuste nos Cards de Torneio para combinarem com o fundo */
+.tournament-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: 0.3s all ease;
+}
+
+.tournament-card:hover {
+    background: rgba(255, 215, 0, 0.1) !important;
+    border-color: var(--primary-neon) !important;
+    transform: translateY(-8px);
+}
+
+/* Título e busca */
+.logo-text h2 {
+    text-shadow: 0 0 15px var(--primary-neon-dim);
+    letter-spacing: 2px;
+}
+
+.search-input {
+    background: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid var(--primary-neon-dim) !important;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}

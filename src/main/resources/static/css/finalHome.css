@@ -1,0 +1,118 @@
+/* /static/css/finalHome.css */
+
+/* --- FUNDO DA PÁGINA (A Tensão da Final) --- */
+body {
+    /* Aponta para a imagem do estádio lotado */
+    background-image: url('../images/finalHome.png') !important;
+    
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+}
+
+/* Esconde os fundos antigos */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* --- CABEÇALHO --- */
+.app-topbar {
+    /* Fundo mais escuro para destacar o estádio atrás */
+    background: rgba(0, 0, 0, 0.85) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* --- TÍTULO DE BOAS-VINDAS --- */
+.hub-header {
+    border-left: 4px solid #ff5e00 !important; /* Laranja Fogo */
+    padding-left: 15px;
+    margin-bottom: 30px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+}
+
+.hub-header p {
+    color: #ccc !important;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.hub-header h1 {
+    font-size: 2.2rem;
+    line-height: 1.1;
+}
+
+.hub-header h1 span {
+    /* Gradiente de texto imitando fogo/neon */
+    color: #ff5e00 !important; 
+    background: -webkit-linear-gradient(#ff9d00, #ff5e00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(255, 94, 0, 0.6));
+}
+
+/* --- CARTÕES PRINCIPAIS (Iniciar Partida / Torneio) --- */
+.play-mode-card {
+    /* Vidro escuro e elegante */
+    background: rgba(20, 20, 25, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+    overflow: hidden;
+}
+
+/* Efeito Hover nos Cartões */
+.play-mode-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    border-color: #ff5e00 !important; /* Borda laranja ao passar o mouse */
+    box-shadow: 0 0 30px rgba(255, 94, 0, 0.2), 0 20px 50px rgba(0, 0, 0, 0.9) !important;
+}
+
+.pm-bg {
+    filter: grayscale(100%) brightness(0.5) !important; /* Deixa as imagens internas mais neutras */
+}
+.play-mode-card:hover .pm-bg {
+    filter: grayscale(0%) brightness(0.8) !important;
+    transform: scale(1.1);
+}
+
+.pm-title {
+    font-style: italic; /* Dinamismo */
+    text-shadow: 0 2px 4px rgba(0,0,0,1);
+}
+
+/* Ícones dos cartões */
+.pm-icon {
+    color: #fff !important;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+/* --- BOTÕES RÁPIDOS (Novo Clube / Novo Craque) --- */
+.quick-actions {
+    gap: 15px;
+}
+
+.qa-btn {
+    background: rgba(0, 0, 0, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(5px);
+    border-radius: 10px !important;
+}
+
+.qa-btn:hover {
+    background: #ff5e00 !important; /* Fundo laranja vivo */
+    border-color: #ff5e00 !important;
+    box-shadow: 0 0 20px rgba(255, 94, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.qa-btn .qa-icon {
+    color: #fff !important; /* Ícone fica branco no hover */
+}
+.qa-btn:hover .qa-text {
+    color: #000 !important; /* Texto preto para contraste no laranja */
+    font-weight: 900;
+}

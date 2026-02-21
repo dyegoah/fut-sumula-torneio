@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Organizador | Fut-Súmula Torneio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        :root { --primary-neon: #00eaff; --secondary-neon: #0088ff; --bg-dark: #050505; }
+        body {
+            background-image: url('https://images.unsplash.com/photo-1522778119026-d647f0565c6d?q=80&w=1920&auto=format&fit=crop');
+            background-size: cover; background-position: center; background-attachment: fixed;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px;
+        }
+        .overlay-bg { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: -1; }
+        .login-card { 
+            width: 100%; max-width: 500px; padding: 40px 30px; border: 1px solid rgba(0, 234, 255, 0.3); box-shadow: 0 0 60px rgba(0,0,0,0.8); 
+            background: linear-gradient(145deg, rgba(20,20,20,0.95), rgba(10,10,10,0.98)); position: relative; overflow: hidden; border-radius: 16px; animation: slideUp 0.5s ease-out;
+        }
+        .login-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--secondary-neon), var(--primary-neon)); }
+        .login-header { text-align: center; margin-bottom: 25px; }
+        .neon-text { font-size: 1.8rem; letter-spacing: 2px; font-weight: 800; margin: 0; text-transform: uppercase; color: #fff; text-shadow: 0 0 15px var(--primary-neon); }
+        .login-header p { color: #aaa; font-size: 0.8rem; margin-top: 5px; letter-spacing: 1px; }
+        .form-grid-reg { display: flex; flex-direction: column; gap: 15px; }
+        .input-game-wrapper { text-align: left; width: 100%; }
+        .input-game-wrapper.full-width { width: 100%; }
+        .input-game-wrapper label { display: block; color: var(--primary-neon); font-size: 0.7rem; font-weight: 900; margin-bottom: 5px; letter-spacing: 1px; text-transform: uppercase; padding-left: 5px; }
+        .input-box { position: relative; display: flex; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; transition: all 0.3s ease; }
+        .input-icon { position: absolute; left: 15px; font-size: 1.1rem; color: #666; transition: 0.3s; }
+        .input-box input { width: 100%; background: transparent; border: none; color: #fff; padding: 12px 15px 12px 45px; font-size: 0.9rem; font-weight: 600; outline: none; }
+        .input-box:focus-within { border-color: var(--primary-neon); background: rgba(0, 234, 255, 0.05); box-shadow: 0 0 15px rgba(0, 234, 255, 0.1); }
+        .input-box:focus-within .input-icon { color: var(--primary-neon); }
+        .switch-field-gender { display: flex; overflow: hidden; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); }
+        .switch-field-gender input { position: absolute !important; clip: rect(0, 0, 0, 0); height: 1px; width: 1px; border: 0; overflow: hidden; }
+        .switch-field-gender label { background-color: rgba(0,0,0,0.3); color: #aaa; font-size: 0.7rem; text-align: center; padding: 10px; width: 100%; cursor: pointer; transition: all 0.2s; font-weight: bold; }
+        .switch-field-gender label:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .switch-field-gender input:checked + label { background-color: var(--primary-neon); color: #000; box-shadow: 0 0 10px var(--primary-neon); }
+        .btn-neon { width: 100%; padding: 15px; border: none; border-radius: 8px; margin-top: 25px; background: transparent; border: 1px solid var(--primary-neon); color: var(--primary-neon); font-weight: 800; font-size: 1rem; text-transform: uppercase; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-neon:hover { background: var(--primary-neon); color: #000; box-shadow: 0 0 20px var(--primary-neon); transform: translateY(-2px); }
+        .login-footer { margin-top: 20px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
+        .create-link { color: #fff; font-size: 0.8rem; text-decoration: none; font-weight: bold; transition: 0.3s; }
+        .create-link:hover { color: var(--primary-neon); }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; opacity: 0.6; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="overlay-bg"></div>
+
+    <div class="login-card">
+        <div class="login-header">
+            <h2 class="neon-text">NOVO ORGANIZADOR</h2>
+            <p>Crie o perfil da sua Liga ou Torneio</p>
+        </div>
+
+        <div class="form-grid-reg">
+            
+            <div class="input-game-wrapper full-width" style="text-align: center;">
+                <label style="margin-bottom: 8px;">MODALIDADE PRINCIPAL</label>
+                <div class="switch-field-gender">
+                    <input type="radio" id="gender-male" name="generoPref" value="male" checked onclick="mudarCorPreview('male')">
+                    <label for="gender-male"><i class="fas fa-mars"></i> MASCULINO</label>
+                    <input type="radio" id="gender-female" name="generoPref" value="female" onclick="mudarCorPreview('female')">
+                    <label for="gender-female"><i class="fas fa-venus"></i> FEMININO</label>
+                </div>
+            </div>
+
+            <div class="input-game-wrapper full-width" style="text-align: center;">
+                <label style="margin-bottom: 8px;">IDIOMA</label>
+                <div class="switch-field-gender">
+                    <input type="radio" id="lang-pt" name="idiomaRacha" value="pt" checked>
+                    <label for="lang-pt">🇧🇷 PT</label>
+                    <input type="radio" id="lang-en" name="idiomaRacha" value="en">
+                    <label for="lang-en">🇺🇸 EN</label>
+                    <input type="radio" id="lang-es" name="idiomaRacha" value="es">
+                    <label for="lang-es">🇪🇸 ES</label>
+                </div>
+            </div>
+
+            <div class="input-game-wrapper full-width">
+                <label>NOME DA LIGA / ORGANIZAÇÃO</label>
+                <div class="input-box">
+                    <i class="bi bi-trophy-fill input-icon"></i>
+                    <input type="text" id="regNomeRacha" maxlength="50" placeholder="Ex: Copa das Campeãs">
+                </div>
+            </div>
+            
+            <div class="input-game-wrapper full-width">
+                <label>SEU NOME (RESPONSÁVEL)</label>
+                <div class="input-box">
+                    <i class="bi bi-person-badge-fill input-icon"></i>
+                    <input type="text" id="regNomeResp" maxlength="50" placeholder="Seu nome completo">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="input-game-wrapper" style="flex: 1;">
+                    <label>CIDADE</label>
+                    <div class="input-box">
+                        <i class="bi bi-geo-alt-fill input-icon"></i>
+                        <input type="text" id="regCidade" placeholder="Sua Cidade" maxlength="50">
+                    </div>
+                </div>
+                <div class="input-game-wrapper" style="width: 80px;">
+                    <label>UF</label>
+                    <div class="input-box">
+                        <i class="bi bi-map input-icon"></i>
+                        <input type="text" id="regEstado" placeholder="SP" maxlength="2" style="text-transform: uppercase;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-game-wrapper full-width">
+                <label>WHATSAPP (CONTATO)</label>
+                <div class="input-box">
+                    <i class="bi bi-whatsapp input-icon"></i>
+                    <input type="text" id="regContato" placeholder="(XX) 9XXXX-XXXX" maxlength="15" onkeyup="mascaraTelefone(this)">
+                </div>
+            </div>
+
+            <div class="input-game-wrapper">
+                <label>NASCIMENTO</label>
+                <div class="input-box">
+                    <i class="bi bi-calendar-event-fill input-icon"></i>
+                    <input type="date" id="regDataNasc">
+                </div>
+            </div>
+
+            <div class="input-game-wrapper full-width">
+                <label>E-MAIL (LOGIN)</label>
+                <div class="input-box">
+                    <i class="bi bi-at input-icon"></i>
+                    <input type="email" id="regEmail" maxlength="100" placeholder="admin@seutorneio.com">
+                </div>
+            </div>
+
+            <div class="input-game-wrapper full-width">
+                <label>SENHA DE ACESSO</label>
+                <div class="input-box">
+                    <i class="bi bi-key-fill input-icon"></i>
+                    <input type="password" id="regSenha" maxlength="20" placeholder="Crie uma senha segura">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-neon" onclick="registrarConta()">
+            CONFIRMAR CADASTRO <i class="bi bi-check2-circle"></i>
+        </button>
+
+        <div class="login-footer">
+            <span style="color:#888;">Já tem conta?</span>
+            <a href="login.html" class="create-link">FAZER LOGIN</a>
+        </div>
+    </div>
+
+    <script>
+        function mudarCorPreview(modo) {
+            const root = document.documentElement;
+            if(modo === 'female') {
+                root.style.setProperty('--primary-neon', '#d946ef');
+                root.style.setProperty('--secondary-neon', '#a855f7');
+            } else {
+                root.style.setProperty('--primary-neon', '#00eaff');
+                root.style.setProperty('--secondary-neon', '#0088ff');
+            }
+        }
+
+        function mascaraTelefone(i) {
+            let v = i.value;
+            v = v.replace(/\D/g, "");
+            v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+            v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+            i.value = v;
+        }
+
+        async function registrarConta() {
+            // Coletando dados (agora separados corretamente)
+            const nomeResp = document.getElementById('regNomeResp').value;
+            const nomeLiga = document.getElementById('regNomeRacha').value;
+            const email = document.getElementById('regEmail').value;
+            const senha = document.getElementById('regSenha').value;
+            
+            const contato = document.getElementById('regContato').value;
+            const cidade = document.getElementById('regCidade').value;
+            const uf = document.getElementById('regEstado').value;
+            const nasc = document.getElementById('regDataNasc').value;
+            
+            const idioma = document.querySelector('input[name="idiomaRacha"]:checked').value;
+            const genero = document.querySelector('input[name="generoPref"]:checked').value;
+
+            if(!nomeLiga || !nomeResp || !email || !senha) {
+                alert("Por favor, preencha os campos obrigatórios.");
+                return;
+            }
+
+            const btn = document.querySelector('.btn-neon');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> CRIANDO...';
+            btn.disabled = true;
+
+            // Construção do Payload CORRETO que bate com o novo DTO
+            const payload = {
+                nome: nomeResp,
+                nomeLiga: nomeLiga,
+                login: email,
+                senha: senha,
+                whatsapp: contato,
+                cidade: cidade,
+                uf: uf,
+                dataNascimento: nasc ? nasc : null,
+                idioma: idioma,
+                genero: genero,
+                sistemaOrigem: "TORNEIO"
+            };
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if(res.ok) {
+                    localStorage.setItem('futSumulaGender', genero);
+                    localStorage.setItem('futSumulaLang', idioma);
+                    alert("Sucesso! Conta criada. Faça login para começar.");
+                    window.location.href = 'login.html';
+                } else {
+                    const txt = await res.text();
+                    alert("Erro ao criar conta: " + txt);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch(e) { 
+                console.error(e);
+                alert("Erro de conexão com o servidor.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+/* /static/css/jogador.css */
+
+body {
+    /* Caminho para a imagem de pose de comemoração */
+    background-image: url('../images/jogador.png') !important;
+    background-size: cover !important;
+    /* center top foca na cabeça/tronco do jogador na pose, evitando cortar o rosto */
+    background-position: center top !important; 
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-color: #050505 !important;
+    min-height: 100vh;
+}
+
+/* Remove os fundos antigos do carrossel */
+.bg-carousel-container, .bg-overlay, .bg-image {
+    display: none !important;
+}
+
+/* Container Principal com efeito Glassmorphism Gamer */
+.main-content {
+    /* Fundo levemente mais escuro para garantir contraste com os cards */
+    background: rgba(10, 10, 10, 0.65) !important; 
+    backdrop-filter: blur(10px) !important; /* Desfoque para a imagem não brigar com o texto */
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px;
+    margin-top: 30px !important;
+    padding: 30px !important;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+/* Ajuste Especial para os Cards de Jogadores (Fut-Cards) */
+/* Garante que eles fiquem legíveis sobre o novo fundo */
+.fut-card {
+    background: linear-gradient(160deg, rgba(30,30,30,0.95) 0%, rgba(5,5,5,0.98) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.fut-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    border-color: var(--primary-neon) !important;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.9), 0 0 20px var(--primary-neon-dim) !important;
+}
+
+/* Título da página com destaque Neon */
+h2 {
+    text-shadow: 0 0 15px rgba(0,0,0,0.8);
+}

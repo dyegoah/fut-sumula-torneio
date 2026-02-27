@@ -94,4 +94,12 @@ public class TorneioController {
             return ResponseEntity.noContent().build();
         }).orElse(ResponseEntity.notFound().build());
     }
+    
+ // Adicione este método no seu TorneioController
+    @GetMapping("/{id}")
+    public ResponseEntity<Torneio> buscarPorId(@PathVariable Long id) {
+        return repository.findById(id)
+                .map(torneio -> ResponseEntity.ok(torneio))
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

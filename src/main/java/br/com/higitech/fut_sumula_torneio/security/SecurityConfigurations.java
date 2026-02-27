@@ -5,6 +5,7 @@ import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // Importação necessária para o HttpMethod.GET
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -43,11 +44,20 @@ public class SecurityConfigurations {
                     req.requestMatchers("/api/auth/**").permitAll();       // Login e Registro
                     req.requestMatchers("/api/integracao/**").permitAll(); // Integração Racha (Webhook)
                     
+                    // --- A MÁGICA ACONTECE AQUI: LIBERANDO A LEITURA PÚBLICA ---
+                    // Permite que a Página Pública busque as informações sem precisar de Token
+                    req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/estatisticas/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/times/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/jogadores/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); // Permite carregar a súmula também
+                    
                     // 2. REGRAS DE BLOQUEIO (APIs do sistema)
-                    req.requestMatchers("/api/**").authenticated();        // Todo o resto da API exige Token
+                    // Todo o resto da API (POST, PUT, DELETE) continuará exigindo Token
+                    req.requestMatchers("/api/**").authenticated();        
                     
                     // 3. REGRA FINAL (Site/Frontend) - OBRIGATORIAMENTE A ÚLTIMA LINHA
-                    req.anyRequest().permitAll();                          // Libera HTML, CSS, JS
+                    req.anyRequest().permitAll();                          // Libera HTML, CSS, JS, Imagens
                 })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
@@ -83,4 +93,5 @@ public class SecurityConfigurations {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+    
 }

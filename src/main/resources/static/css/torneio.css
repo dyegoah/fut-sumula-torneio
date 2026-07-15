@@ -2,7 +2,7 @@
 
 body {
     /* Caminho para a imagem da taça e times perfilados */
-    background-image: url('../images/torneio.png') !important;
+    background-image: url('../images/torneio.webp') !important;
     background-size: cover !important;
     background-position: center center !important; /* Centraliza a taça e os times */
     background-repeat: no-repeat !important;

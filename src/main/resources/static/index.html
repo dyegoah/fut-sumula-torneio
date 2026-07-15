@@ -1,7 +1,28 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <script>
+    
+	<script>
+	    // Lista de imagens do seu sistema
+	    const imagensFundo = [
+	        'images/bg1.png', // Ajuste conforme o caminho real das suas imagens
+	        'images/bg2.png',
+	        'images/bg3.png'
+	    ];
+
+	    // Função que força o download imediato
+	    function preCarregarImagens() {
+	        imagensFundo.forEach((src) => {
+	            const img = new Image();
+	            img.src = src;
+	        });
+	    }
+	    
+	    // Dispara assim que o documento estiver pronto
+	    document.addEventListener('DOMContentLoaded', preCarregarImagens);
+	</script>
+	
+	<script>
         (function() {
             const token = localStorage.getItem('futSumulaToken');
             if (!token) {
@@ -33,26 +54,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | Fut-Súmula</title>
 	
-	<link rel="icon" type="image/png" href="images/icon-192.png">
+	<link rel="icon" type="image/png" href="images/icon-192.webp">
 	<link rel="manifest" href="manifest.json">
-	    <meta name="theme-color" content="#00ff88">
-	    <link rel="apple-touch-icon" href="images/icon-192.png">
-	    <meta name="apple-mobile-web-app-capable" content="yes">
-	    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#00ff88">
+    <link rel="apple-touch-icon" href="images/icon-192.webp">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-	    <script>
-	        if ('serviceWorker' in navigator) {
-	            window.addEventListener('load', () => {
-	                navigator.serviceWorker.register('/sw.js')
-	                    .then(registration => {
-	                        console.log('App Fut-Súmula pronto para instalação! ', registration.scope);
-	                    })
-	                    .catch(err => {
-	                        console.log('Erro ao registrar App: ', err);
-	                    });
-	            });
-	        }
-	    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('App Fut-Súmula pronto para instalação! ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('Erro ao registrar App: ', err);
+                    });
+            });
+        }
+    </script>
     
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -125,7 +146,6 @@
     </style>
 </head>
 <body>
-
     <div class="bg-carousel-container">
         <div class="bg-overlay"></div>
         <div class="bg-image bg-stadium"></div> 
@@ -218,6 +238,19 @@
                     <div class="qa-text" data-ref="novo_craque">NOVO CRAQUE</div>
                 </div>
             </div>
+
+            <!-- NOVO: ATALHO DE COMPARTILHAMENTO PÁGINA PÚBLICA -->
+            <div class="play-mode-card" onclick="if(window.abrirShareGlobal) window.abrirShareGlobal(event);" style="height: 120px; border-color: var(--primary-neon); background: linear-gradient(160deg, rgba(0, 255, 136, 0.1) 0%, rgba(10,10,10,0.95) 100%); margin-top: 10px;">
+                <div class="pm-bg bg-fans"></div> 
+                <div class="pm-content" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div class="pm-title" style="font-size: 1.2rem; color: var(--primary-neon);">PÁGINA PÚBLICA</div>
+                        <div class="pm-desc">Compartilhe torneios, stats e súmulas.</div>
+                    </div>
+                    <i class="fas fa-share-alt pm-icon" style="color: var(--primary-neon); font-size: 2rem; margin: 0;"></i>
+                </div>
+            </div>
+            
         </div>
     </main>
 

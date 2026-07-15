@@ -2,7 +2,7 @@
 
 body {
     /* Caminho para a foto oficial do time */
-    background-image: url('../images/times.png') !important;
+    background-image: url('../images/times.webp') !important;
     background-size: cover !important;
     /* Centraliza a imagem para focar no grupo de jogadores */
     background-position: center center !important;

@@ -3,7 +3,7 @@
 /* --- FUNDO DA PÁGINA (A Tensão da Final) --- */
 body {
     /* Aponta para a imagem do estádio lotado */
-    background-image: url('../images/finalHome.png') !important;
+    background-image: url('../images/finalHome.webp') !important;
     
     background-size: cover !important;
     background-position: center center !important;

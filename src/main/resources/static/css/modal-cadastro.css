@@ -2,7 +2,7 @@
 
 /* Aplica o Vestiário Neon como fundo da PÁGINA INTEIRA de cadastro */
 body {
-    background-image: url('../images/LockerRoom.png') !important;
+    background-image: url('../images/LockerRoom.webp') !important;
     background-size: cover !important;
     background-position: center center !important;
     background-repeat: no-repeat !important;

@@ -2,7 +2,7 @@
 
 body {
     /* Caminho para a imagem de pose de comemoração */
-    background-image: url('../images/jogador.png') !important;
+    background-image: url('../images/jogador.webp') !important;
     background-size: cover !important;
     /* center top foca na cabeça/tronco do jogador na pose, evitando cortar o rosto */
     background-position: center top !important; 

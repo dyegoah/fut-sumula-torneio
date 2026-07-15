@@ -1677,3 +1677,25 @@ body {
 .bg-studio {
     background-image: url('https://images.unsplash.com/photo-1577223625816-7546f13df25d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
 }
+
+
+
+.bg-image {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    
+    /* Melhora a performance de renderização */
+    will-change: transform;
+    
+    /* Remove o efeito de "piscar" durante o carregamento */
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Oculta o fundo até que ele esteja totalmente carregado (Opcional) */
+.bg-image.loaded {
+    opacity: 1;
+}

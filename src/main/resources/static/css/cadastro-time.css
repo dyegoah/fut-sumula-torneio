@@ -3,7 +3,7 @@
 /* Aplica a Sede do Clube (Leão Neon) como fundo da PÁGINA */
 body {
     /* Aponta para o arquivo que você salvou manualmente no passo anterior */
-    background-image: url('../images/FootballClub.png') !important;
+    background-image: url('../images/FootballClub.webp') !important;
     
     /* Configurações para a imagem cobrir a tela e ficar fixa */
     background-size: cover !important;

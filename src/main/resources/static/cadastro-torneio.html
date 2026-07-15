@@ -358,47 +358,50 @@
         }
 
 		function nextStep(step) {
-		            try {
-		                if (step === 2 && !document.getElementById('tipoTorneio').value) { alert("Escolha um formato!"); return; }
-		                
-		                if (step === 3) {
-		                    if (!document.getElementById('nomeTorneio').value) { alert("Nome é obrigatório!"); return; }
-		                    
-		                    const tipo = document.getElementById('tipoTorneio').value;
-		                    const qtd = parseInt(document.getElementById('qtdTimes').value);
+				            try {
+				                if (step === 2 && !document.getElementById('tipoTorneio').value) { alert("Escolha um formato!"); return; }
+				                
+				                if (step === 3) {
+				                    if (!document.getElementById('nomeTorneio').value) { alert("Nome é obrigatório!"); return; }
+				                    
+				                    const tipo = document.getElementById('tipoTorneio').value;
+				                    const qtd = parseInt(document.getElementById('qtdTimes').value);
 
-		                    if (tipo === 'COPA') {
-		                        if (qtd < 6) {
-		                            alert("ERRO DE REGRA:\nPara o formato COPA, é necessário no mínimo 6 times.");
-		                            return;
-		                        }
-		                    }
-		                    
-		                    // NOVA TRAVA: MATA-MATA NO FRONTEND
-		                    if (tipo === 'MATA_MATA') {
-		                        if (qtd < 4) {
-		                            alert("ERRO DE REGRA:\nPara o formato MATA-MATA, é necessário no mínimo 4 times.");
-		                            return;
-		                        }
-		                    }
-		                }
-		                
-		                if (step === 3) initStructureAndSlots();
-		                
-		                if (step === 4) {
-		                    const qtd = parseInt(document.getElementById('qtdTimes').value);
-		                    const filled = selectedSlots.filter(s => s !== null && s.id !== -1).length;
-		                    if (filled < qtd) {
-		                        alert(`Você precisa preencher todos os ${qtd} times antes de continuar!`);
-		                        return;
-		                    }
-		                    generateTVView();
-		                    generateStructureView();
-		                }
+				                    // VALIDAÇÕES ATUALIZADAS
+				                    if (tipo === 'COPA') {
+				                        if (qtd < 6) {
+				                            alert("ERRO DE REGRA:\nPara o formato COPA, é necessário no mínimo 6 times.");
+				                            return;
+				                        }
+				                    } else if (tipo === 'MATA_MATA') {
+				                        if (qtd < 2) {
+				                            alert("ERRO DE REGRA:\nPara o formato MATA-MATA, é necessário no mínimo 2 times.");
+				                            return;
+				                        }
+				                    } else if (tipo === 'LIGA') {
+				                        if (qtd < 3) {
+				                            alert("ERRO DE REGRA:\nPara o formato CAMPEONATO (LIGA), é necessário no mínimo 3 times.");
+				                            return;
+				                        }
+				                    }
+				                }
+				                
+				                if (step === 3) initStructureAndSlots();
+				                
+				                if (step === 4) {
+				                    const qtd = parseInt(document.getElementById('qtdTimes').value);
+				                    const filled = selectedSlots.filter(s => s !== null && s.id !== -1).length;
+				                    if (filled < qtd) {
+				                        alert(`Você precisa preencher todos os ${qtd} times antes de continuar!`);
+				                        return;
+				                    }
+				                    generateTVView();
+				                    generateStructureView();
+				                }
 
-		                changeStep(step);
-		            } catch(e) { console.error("Erro navegação", e); }
-		        }
+				                changeStep(step);
+				            } catch(e) { console.error("Erro navegação", e); }
+				        }
 				
         function prevStep(step) { changeStep(step); }
         function changeStep(step) {

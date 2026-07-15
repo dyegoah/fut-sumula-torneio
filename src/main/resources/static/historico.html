@@ -1,7 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <script>
+	<script>
+	    // Lista de imagens do seu sistema
+	    const imagensFundo = [
+	        'images/bg1.png', // Ajuste conforme o caminho real das suas imagens
+	        'images/bg2.png',
+	        'images/bg3.png'
+	    ];
+
+	    // Função que força o download imediato
+	    function preCarregarImagens() {
+	        imagensFundo.forEach((src) => {
+	            const img = new Image();
+	            img.src = src;
+	        });
+	    }
+	    
+	    // Dispara assim que o documento estiver pronto
+	    document.addEventListener('DOMContentLoaded', preCarregarImagens);
+	</script>
+	<script>
         (function() {
             const token = localStorage.getItem('futSumulaToken');
             if (!token) { window.location.href = 'login.html'; return; }

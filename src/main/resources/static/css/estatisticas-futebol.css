@@ -2,7 +2,7 @@
 
 body {
     /* Ajuste para garantir que a imagem cubra tudo sem distorcer */
-    background-image: url('../images/estatisticas-futebol.png') !important; 
+    background-image: url('../images/estatisticas-futebol.webp') !important; 
     background-size: cover !important;
     background-position: center top !important; /* Mantém o topo da prancheta visível */
     background-repeat: no-repeat !important;

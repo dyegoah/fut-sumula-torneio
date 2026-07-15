@@ -3,7 +3,7 @@
 /* Aplica a imagem do Torneio Neon como fundo da PÁGINA INTEIRA */
 body {
     /* Aponta para o arquivo que você salvou manualmente */
-    background-image: url('../images/futebolTournoment.png') !important;
+    background-image: url('../images/futebolTournoment.webp') !important;
     
     /* Configurações para a imagem cobrir a tela e ficar fixa */
     background-size: cover !important;

@@ -2,7 +2,7 @@
 
 body {
     /* Caminho para a imagem de "Início de Partida" */
-    background-image: url('../images/inicio.png') !important;
+    background-image: url('../images/inicio.webp') !important;
     background-size: cover !important;
     /* Centraliza a imagem na parte inferior para focar na bola e nas chuteiras */
     background-position: center bottom !important; 

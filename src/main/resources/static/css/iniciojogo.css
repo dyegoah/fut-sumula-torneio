@@ -2,7 +2,7 @@
 
 body {
     /* Caminho para a imagem da bola rolando no gramado */
-    background-image: url('../images/iniciojogo.png') !important;
+    background-image: url('../images/iniciojogo.webp') !important;
     background-size: cover !important;
     /* Foca na parte inferior/central para pegar bem a bola e a chuteira */
     background-position: center bottom !important; 

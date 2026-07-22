@@ -14,13 +14,14 @@ import br.com.higitech.fut_sumula_torneio.model.Usuario;
 @CrossOrigin("*")
 public class UserController {
 
-    @GetMapping("/me")
+	@GetMapping("/me")
     public ResponseEntity<Usuario> getMyProfile() {
-        // Pega o usuário que está logado (pelo Token)
         Usuario user = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        
-        // Remove a senha antes de enviar para o site por segurança
         user.setSenha(null);
+        
+        // O Java calcula a verdade e anexa ao JSON enviado ao Frontend
+        user.setAcessoLiberado(user.isAcessoLiberado());
+        user.setDiasRestantes(user.calcularDiasRestantes());
         
         return ResponseEntity.ok(user);
     }

@@ -385,64 +385,52 @@
             } catch (e) { console.error("Erro ao buscar perfil", e); }
         }
 
-        function aplicarStatusNaInterface(user) {
-            const statusEl = document.getElementById('app-status-text');
-            const expireEl = document.getElementById('app-expire-text');
-            const ball = document.getElementById('status-ball');
+		function aplicarStatusNaInterface(user) {
+		            const statusEl = document.getElementById('app-status-text');
+		            const expireEl = document.getElementById('app-expire-text');
+		            const ball = document.getElementById('status-ball');
 
-            isAccountLocked = false;
+		            // 1. A VERDADE ABSOLUTA VEM DO BACKEND (Fim do Client-Side Trust)
+		            isAccountLocked = !user.acessoLiberado;
 
-            if (user.status === 'INATIVO') {
-                statusEl.innerText = "CONTA SUSPENSA";
-                statusEl.className = "status-late";
-                expireEl.innerText = "Contate o suporte.";
-                ball.style.background = "#ff4444";
-                isAccountLocked = true;
-                
-            } else if (user.plano === 'CORTESIA') {
-                statusEl.innerText = "VIP / CORTESIA";
-                statusEl.className = "status-active";
-                statusEl.style.color = "#FFD700"; 
-                expireEl.innerText = user.notaCortesia || "Acesso Ilimitado";
-                ball.style.background = "#FFD700";
-            
-            } else if (user.plano === 'PREMIUM') {
-                statusEl.innerText = "PREMIUM ATIVO";
-                statusEl.className = "status-active";
-                expireEl.innerText = "Renovação Mensal";
-                ball.style.background = "#00ff2a";
+		            if (user.status === 'INATIVO') {
+		                statusEl.innerText = "CONTA SUSPENSA";
+		                statusEl.className = "status-late";
+		                expireEl.innerText = "Contate o suporte.";
+		                ball.style.background = "#ff4444";
+		                
+		            } else if (user.plano === 'CORTESIA') {
+		                statusEl.innerText = "VIP / CORTESIA";
+		                statusEl.className = "status-active";
+		                statusEl.style.color = "#FFD700"; 
+		                expireEl.innerText = user.notaCortesia || "Acesso Ilimitado";
+		                ball.style.background = "#FFD700";
+		            
+		            } else if (user.plano === 'PREMIUM') {
+		                statusEl.innerText = "PREMIUM ATIVO";
+		                statusEl.className = "status-active";
+		                expireEl.innerText = "Renovação Mensal";
+		                ball.style.background = "#00ff2a";
 
-            } else {
-                const sysCfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
-                const diasTrial = parseInt(sysCfg.trialDays) || 15; 
-                
-                const dataCadastro = new Date(user.dataCadastro + "T12:00:00"); 
-                dataCadastro.setHours(0,0,0,0);
-                const hoje = new Date();
-                hoje.setHours(0,0,0,0);
-                const diffTime = hoje.getTime() - dataCadastro.getTime();
-                const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
-                
-                const trialEspecial = (user.trialDays !== undefined && user.trialDays !== null) ? parseInt(user.trialDays) : diasTrial;
-                const restantes = trialEspecial - diffDays;
+		            } else {
+		                // AVALIAÇÃO DE TESTE (TRIAL)
+		                if (isAccountLocked) {
+		                    statusEl.innerText = "PERÍODO EXPIRADO";
+		                    statusEl.className = "status-late";
+		                    expireEl.innerText = "Assine para continuar.";
+		                    ball.style.background = "#ff4444";
+		                } else {
+		                    statusEl.innerText = "PERÍODO DE TESTE";
+		                    statusEl.className = "status-trial";
+		                    // O valor vem direto da inteligência do Java!
+		                    expireEl.innerText = `Restam ${user.diasRestantes} dias gratuitos`;
+		                    ball.style.background = "#ffd700";
+		                }
+		            }
 
-                if (restantes < 0) {
-                    statusEl.innerText = "PERÍODO EXPIRADO";
-                    statusEl.className = "status-late";
-                    expireEl.innerText = "Assine para continuar.";
-                    ball.style.background = "#ff4444";
-                    isAccountLocked = true;
-                } else {
-                    statusEl.innerText = "PERÍODO DE TESTE";
-                    statusEl.className = "status-trial";
-                    expireEl.innerText = `Restam ${restantes} dias gratuitos`;
-                    ball.style.background = "#ffd700";
-                }
-            }
-
-            if (isAccountLocked) document.getElementById('locked-banner').style.display = 'block';
-            else document.getElementById('locked-banner').style.display = 'none';
-        }
+		            if (isAccountLocked) document.getElementById('locked-banner').style.display = 'block';
+		            else document.getElementById('locked-banner').style.display = 'none';
+		        }
 
         document.addEventListener('click', function(e) {
             if (isAccountLocked) {

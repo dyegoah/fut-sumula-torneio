@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Master | Fut-Súmula</title>
+    <title>Painel Master | Fut-Súmula Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -21,12 +21,12 @@
         .btn-logout:hover { background: #ff4444; color: #fff; }
 
         .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 40px; }
-        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); }
         .stat-value { font-size: 2.5rem; font-weight: 900; color: #fff; margin: 10px 0; }
         .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
 
         .table-section { padding: 0 40px 40px; }
-        .panel-box { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+        .panel-box { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; backdrop-filter: blur(10px); }
         .panel-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
         .search-box { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 20px; color: #fff; display: flex; align-items: center; width: 350px; }
         .search-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px; }
@@ -45,6 +45,13 @@
 
         .action-btn { background: transparent; border: 1px solid var(--border-color); color: #ccc; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: 0.2s; margin-right: 5px; }
         .action-btn:hover { background: #fff; color: #000; }
+        .action-btn.delete:hover { background: #ff4444; color: #fff; border-color: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+
+        /* Paginação */
+        .pagination-container { display: flex; justify-content: center; gap: 8px; padding: 20px; border-top: 1px solid var(--border-color); }
+        .page-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+        .page-btn:hover { background: rgba(0, 255, 136, 0.2); border-color: var(--dev-color); color: var(--dev-color); }
+        .page-btn.active { background: var(--dev-color); color: #000; border-color: var(--dev-color); box-shadow: 0 0 10px rgba(0, 255, 136, 0.4); }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .modal-overlay.active { display: flex; }
@@ -103,7 +110,8 @@
                 <h3 style="margin:0; font-size:1rem;">BASE DE USUÁRIOS</h3>
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="filtrarTabela()">
+                    <!-- Adicionado reset da paginação na busca -->
+                    <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="currentPage = 1; filtrarTabela()">
                 </div>
             </div>
             <div style="overflow-x: auto;">
@@ -113,7 +121,7 @@
                             <th>ID</th>
                             <th>ORGANIZADOR / LIGA</th>
                             <th>EMAIL</th>
-                            <th>INFO</th>
+                            <th>INFO (CADASTRO)</th>
                             <th>STATUS</th>
                             <th>PLANO</th>
                             <th>AÇÕES</th>
@@ -122,9 +130,12 @@
                     <tbody id="users-table-body"></tbody>
                 </table>
             </div>
+            <!-- Controles de Paginação -->
+            <div id="pagination-controls" class="pagination-container"></div>
         </div>
     </div>
 
+    <!-- Modais (EditUser, Cortesia, GlobalConfig) mantidos sem alteração -->
     <div id="editUserModal" class="modal-overlay">
         <div class="config-panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
@@ -260,6 +271,10 @@
         let allUsers = [];
         let currentEditingId = null;
 
+        // Controle de Paginação
+        let currentPage = 1;
+        const itemsPerPage = 10; // Configure a quantidade por página
+
         document.addEventListener("DOMContentLoaded", () => {
             carregarUsuarios();
             carregarConfigs();
@@ -291,13 +306,24 @@
             });
         }
 
-        function formatarDataBR(dataString) {
-            if (!dataString) return '--/--/----';
-            const d = new Date(dataString + "T12:00:00");
-            const dia = String(d.getDate()).padStart(2, '0');
-            const mes = String(d.getMonth() + 1).padStart(2, '0');
-            const ano = d.getFullYear();
-            return `${dia}/${mes}/${ano}`;
+        // Nova Formatação incluindo Hora e Minuto Exatos
+        function formatarDataHoraBR(dataString) {
+            if (!dataString) return '--/--/---- --:--';
+            try {
+                // Se vier apenas YYYY-MM-DD, a hora será 00:00
+                const d = new Date(dataString);
+                if (isNaN(d.getTime())) return '--/--/---- --:--';
+                
+                const dia = String(d.getDate()).padStart(2, '0');
+                const mes = String(d.getMonth() + 1).padStart(2, '0');
+                const ano = d.getFullYear();
+                const hora = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                
+                return `${dia}/${mes}/${ano} às ${hora}:${min}`;
+            } catch (e) {
+                return '--/--/---- --:--';
+            }
         }
 
         async function carregarUsuarios() {
@@ -305,7 +331,8 @@
                 const res = await fetch('/api/admin/users');
                 if (res.ok) {
                     allUsers = await res.json();
-                    allUsers.sort((a, b) => a.id - b.id);
+                    // DECRESCENTE: Os últimos cadastros entram primeiro no topo!
+                    allUsers.sort((a, b) => b.id - a.id);
                     filtrarTabela(); 
                     renderStats(allUsers);
                 }
@@ -319,14 +346,19 @@
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
             const globalTrial = parseInt(cfg.trialDays) || 15;
 
-            data.forEach(u => {
+            // Recorte de array (Slice) baseado na página atual
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedData = data.slice(startIndex, endIndex);
+
+            paginatedData.forEach(u => {
                 const cidade = u.cidade ? `${u.cidade}/${u.uf || ''}` : '--';
                 const origemBadge = (u.sistemaOrigem === 'RACHA') 
                     ? '<span class="origin-tag og-racha">RACHA</span>' 
                     : '<span class="origin-tag og-torneio">TORNEIO</span>';
                 
                 const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : 'st-inativo';
-                const dataCadastroFormatada = formatarDataBR(u.dataCadastro);
+                const dataCadastroFormatada = formatarDataHoraBR(u.dataCadastro);
 
                 let planoHTML = '';
                 if(u.plano === 'CORTESIA') {
@@ -336,7 +368,7 @@
                 } else {
                     let diasUso = 0;
                     if (u.dataCadastro) {
-                        const dataCadastro = new Date(u.dataCadastro + "T12:00:00");
+                        const dataCadastro = new Date(u.dataCadastro);
                         dataCadastro.setHours(0,0,0,0);
                         const hoje = new Date();
                         hoje.setHours(0,0,0,0);
@@ -374,10 +406,35 @@
                         <button class="action-btn" title="Marcar como Pago (Premium)" onclick="togglePremium(${u.id})"><i class="fas fa-star" style="color:#00ff88;"></i></button>
                         <button class="action-btn" title="Cortesia VIP" onclick="abrirCortesia(${u.id}, '${u.notaCortesia || ''}')"><i class="fas fa-crown" style="color:#FFD700;"></i></button>
                         <button class="action-btn" title="Editar Ficha" onclick="abrirEdicao(${u.id})"><i class="fas fa-eye"></i></button>
+                        <!-- Botão de Exclusão Definitiva -->
+                        <button class="action-btn delete" title="Apagar Conta Permanentemente" onclick="deletarUsuario(${u.id})"><i class="fas fa-trash-alt" style="color:#ff4444;"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            // Chama o renderizador das páginas inferiores
+            renderPagination(data.length);
+        }
+
+        // Cria os botões de controle das páginas
+        function renderPagination(totalItems) {
+            const container = document.getElementById('pagination-controls');
+            container.innerHTML = '';
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (totalPages <= 1) return;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.innerText = i;
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.onclick = () => {
+                    currentPage = i;
+                    filtrarTabela(); 
+                };
+                container.appendChild(btn);
+            }
         }
 
         function filtrarTabela() {
@@ -390,7 +447,8 @@
                 const cidadeInfo = (u.cidade ? `${u.cidade}/${u.uf || ''}` : '').toLowerCase();
                 const origem = (u.sistemaOrigem === 'RACHA') ? 'racha' : 'torneio';
                 const status = (u.status || 'inativo').toLowerCase();
-                const dataCad = formatarDataBR(u.dataCadastro);
+                // Utilizando a busca com a data formatada
+                const dataCad = formatarDataHoraBR(u.dataCadastro).toLowerCase();
                 
                 let plano = 'teste expirado free grátis gratis';
                 if (u.plano === 'CORTESIA') plano = `cortesia vip ${u.notaCortesia || ''}`.toLowerCase();
@@ -424,7 +482,6 @@
             await fetch(`/api/admin/users/${id}/status`, { method: 'PUT' });
         }
 
-        // --- NOVA FUNÇÃO PARA MARCAR COMO PREMIUM (PAGO) ---
         async function togglePremium(id) {
             if(!confirm("Marcar usuário como ASSINANTE PAGO (Premium)? \nIsso libera o acesso completo ao sistema permanentemente.")) return;
             
@@ -434,14 +491,37 @@
                     allUsers[index].plano = 'FREE';
                 } else {
                     allUsers[index].plano = 'PREMIUM';
-                    allUsers[index].status = 'ATIVO'; // Libera a trava de status junto
+                    allUsers[index].status = 'ATIVO'; 
                 }
                 filtrarTabela();
             }
             
             await fetch(`/api/admin/users/${id}/premium`, { method: 'PUT' });
         }
-        // ----------------------------------------------------
+
+        // --- NOVA FUNÇÃO DE EXCLUSÃO TOTAL ---
+        async function deletarUsuario(id) {
+            if(!confirm("⚠️ ALERTA CRÍTICO: Tem certeza que deseja APAGAR este usuário permanentemente? Isso excluirá todos os dados do banco e imagens do Cloudinary. Esta ação NÃO pode ser desfeita.")) return;
+            
+            try {
+                // Requisição DELETE para remover tudo. Certifique-se que o backend exclui Cloudinary + Banco.
+                const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    allUsers = allUsers.filter(u => u.id !== id);
+                    
+                    // Ajusta paginação se deletar o último item de uma página
+                    const totalPages = Math.ceil(allUsers.length / itemsPerPage);
+                    if (currentPage > totalPages) currentPage = totalPages || 1;
+                    
+                    filtrarTabela(); 
+                    renderStats(allUsers);
+                    alert("✅ Conta do organizador e todos os dados foram apagados com sucesso.");
+                } else {
+                    alert("❌ Erro no servidor ao excluir usuário.");
+                }
+            } catch (e) { console.error("Falha na exclusão:", e); }
+        }
+        // -------------------------------------
 
         function abrirEdicao(id) {
             const user = allUsers.find(u => u.id === id);
@@ -473,7 +553,7 @@
             }
 
             if (user.dataCadastro) {
-                const dataCadastro = new Date(user.dataCadastro + "T12:00:00");
+                const dataCadastro = new Date(user.dataCadastro);
                 dataCadastro.setHours(0,0,0,0);
                 const hoje = new Date();
                 hoje.setHours(0,0,0,0);

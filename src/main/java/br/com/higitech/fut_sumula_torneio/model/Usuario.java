@@ -57,8 +57,38 @@ public class Usuario implements UserDetails {
     // NOVO CAMPO: Dias de teste específicos do usuário
     private Integer trialDays;
 
+    
+ // --- VARIÁVEIS TRANSIENTES (Calculadas na hora, não vão para o banco) ---
+    @jakarta.persistence.Transient
+    private boolean acessoLiberado;
+    
+    @jakarta.persistence.Transient
+    private long diasRestantes;
+
+    // --- LÓGICA DEFINITIVA DE SEGURANÇA DE ACESSO ---
+    public boolean isAcessoLiberado() {
+        if ("PREMIUM".equals(this.plano) || "CORTESIA".equals(this.plano)) return true;
+        if ("INATIVO".equals(this.status)) return false;
+
+        int diasPermitidos = (this.trialDays != null) ? this.trialDays : 15;
+        long diasUso = java.time.temporal.ChronoUnit.DAYS.between(this.dataCadastro, java.time.LocalDate.now());
+        return diasUso <= diasPermitidos;
+    }
+
+    public long calcularDiasRestantes() {
+        if ("PREMIUM".equals(this.plano) || "CORTESIA".equals(this.plano)) return 9999;
+        int diasPermitidos = (this.trialDays != null) ? this.trialDays : 15;
+        long diasUso = java.time.temporal.ChronoUnit.DAYS.between(this.dataCadastro, java.time.LocalDate.now());
+        return Math.max(0, diasPermitidos - diasUso);
+    }
+  
     // --- GETTERS E SETTERS MANUAIS ---
 
+    public boolean getAcessoLiberado() { return acessoLiberado; }
+    public void setAcessoLiberado(boolean acessoLiberado) { this.acessoLiberado = acessoLiberado; }
+    public long getDiasRestantes() { return diasRestantes; }
+    public void setDiasRestantes(long diasRestantes) { this.diasRestantes = diasRestantes; }
+    
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

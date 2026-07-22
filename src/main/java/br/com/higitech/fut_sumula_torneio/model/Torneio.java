@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -41,7 +42,10 @@ public class Torneio {
     // Visual
     private Integer modeloTrofeu; // 1 a 5
     private String corTrofeu;
-
+    
+    @Column(unique = true, updatable = false)
+    private String codigoPublico = java.util.UUID.randomUUID().toString();
+ 
     @ManyToMany
     @JoinTable(
         name = "tb_torneio_times",
@@ -56,6 +60,8 @@ public class Torneio {
     @JsonIgnore // Não enviar dados do usuário no JSON do torneio
     private Usuario organizador;
 
+    
+    
 	public Long getId() {
 		return id;
 	}
@@ -128,5 +134,8 @@ public class Torneio {
 		this.organizador = organizador;
 	}
     
+
+    public String getCodigoPublico() { return codigoPublico; }
+    public void setCodigoPublico(String codigoPublico) { this.codigoPublico = codigoPublico; }
     
 }

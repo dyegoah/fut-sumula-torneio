@@ -95,11 +95,27 @@ public class TorneioController {
         }).orElse(ResponseEntity.notFound().build());
     }
     
- // Adicione este método no seu TorneioController
+ /// 1. ROTA INTERNA (SEGURA): Verifica se o ID solicitado pertence ao Usuário Logado
     @GetMapping("/{id}")
-    public ResponseEntity<Torneio> buscarPorId(@PathVariable Long id) {
-        return repository.findById(id)
-                .map(torneio -> ResponseEntity.ok(torneio))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) { // <-- MUDOU DE <Torneio> PARA <?>
+        Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        
+        return repository.findById(id).map(torneio -> {
+            // TRAVA DE PROPRIEDADE: O Torneio é meu?
+            if(!torneio.getOrganizador().getId().equals(usuarioLogado.getId())) {
+                return ResponseEntity.status(403).build(); // 403 Forbidden: É de outro usuário!
+            }
+            return ResponseEntity.ok(torneio);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // 2. NOVA ROTA PÚBLICA (ANTI-VAZAMENTO): Usa o UUID (codigoPublico) impossível de adivinhar
+    @GetMapping("/publico/{codigo}")
+    public ResponseEntity<?> buscarParaTorcedor(@PathVariable String codigo) { // <-- MUDOU DE <Torneio> PARA <?>
+        return repository.findByCodigoPublico(codigo).map(torneio -> {
+            // Oculta completamente quem é o dono por segurança antes de enviar para o torcedor
+            torneio.setOrganizador(null); 
+            return ResponseEntity.ok(torneio);
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

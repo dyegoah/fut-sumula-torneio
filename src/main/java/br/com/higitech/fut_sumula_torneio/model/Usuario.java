@@ -64,6 +64,12 @@ public class Usuario implements UserDetails {
     
     @jakarta.persistence.Transient
     private long diasRestantes;
+    
+    @Column(name = "usar_2fa")
+    private Boolean usar2fa = false; // Por padrão, usuários comuns não usam 2FA
+
+    @Column(name = "chave_2fa")
+    private String chave2fa; // Guarda o código secreto do aplicativo
 
     // --- LÓGICA DEFINITIVA DE SEGURANÇA DE ACESSO ---
     public boolean isAcessoLiberado() {
@@ -83,6 +89,12 @@ public class Usuario implements UserDetails {
     }
   
     // --- GETTERS E SETTERS MANUAIS ---
+    
+    public Boolean getUsar2fa() { return usar2fa; }
+    public void setUsar2fa(Boolean usar2fa) { this.usar2fa = usar2fa; }
+
+    public String getChave2fa() { return chave2fa; }
+    public void setChave2fa(String chave2fa) { this.chave2fa = chave2fa; }
 
     public boolean getAcessoLiberado() { return acessoLiberado; }
     public void setAcessoLiberado(boolean acessoLiberado) { this.acessoLiberado = acessoLiberado; }

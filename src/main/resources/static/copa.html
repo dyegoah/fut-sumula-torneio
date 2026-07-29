@@ -1,6 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	
+	<script>
+	    // Fiscal de Autenticação Automático
+	    async function validarAcesso() {
+	        try {
+	            const res = await fetch('/api/auth/me', { 
+	                method: 'GET',
+	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
+	            });
+	            
+	            if (!res.ok) {
+	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
+	                throw new Error("Sessão inválida ou expirada.");
+	            }
+
+	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
+	            // const user = await res.json();
+	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
+
+	        } catch (error) {
+	            console.warn(error.message);
+	            // Expulsa para a tela de login
+	            window.location.replace('login.html'); 
+	        }
+	    }
+	    
+	    // Executa imediatamente antes de renderizar o resto da página
+	    validarAcesso();
+	</script>
     <script>
         (function() {
             const token = localStorage.getItem('voleiSumulaToken');

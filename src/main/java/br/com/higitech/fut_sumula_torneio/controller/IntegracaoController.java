@@ -1,6 +1,7 @@
 package br.com.higitech.fut_sumula_torneio.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,16 +27,18 @@ public class IntegracaoController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // Chave de Segurança Simples (Pode ser melhorada depois)
-    private static final String API_KEY = "HIGTECH_SECRET_KEY_123";
+    // --- CORREÇÃO DE SEGURANÇA AQUI ---
+    // Agora o Java vai ler a chave diretamente do ambiente seguro do Render
+    @Value("${api.integracao.racha.key}")
+    private String API_KEY_SEGURA;
 
     @PostMapping("/receber-usuario")
     public ResponseEntity<?> receberUsuarioExterno(
             @RequestHeader("X-Api-Key") String apiKey, 
             @RequestBody IntegracaoDTO dados) {
 
-        // 1. Segurança: Verifica se quem chama tem a chave
-        if (!API_KEY.equals(apiKey)) {
+        // 1. Segurança: Verifica se quem chama tem a chave do ambiente
+        if (!API_KEY_SEGURA.equals(apiKey)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Chave de API inválida.");
         }
 
@@ -48,7 +51,7 @@ public class IntegracaoController {
         Usuario u = new Usuario();
         u.setNome(dados.nome());
         u.setLogin(dados.email());
-        u.setSenha(passwordEncoder.encode(dados.senha())); // Criptografa a senha para compatibilidade
+        u.setSenha(passwordEncoder.encode(dados.senha())); 
         u.setCidade(dados.cidade());
         u.setUf(dados.uf());
         u.setWhatsapp(dados.whatsapp());
@@ -56,11 +59,10 @@ public class IntegracaoController {
         u.setIdioma(dados.idioma());
         u.setDataNascimento(dados.dataNascimento());
         
-        // --- O PULO DO GATO ---
-        u.setSistemaOrigem("RACHA"); // Identifica a origem
-        u.setNomeLiga("Racha Externo"); // Placeholder
+        u.setSistemaOrigem("RACHA"); 
+        u.setNomeLiga("Racha Externo"); 
         u.setStatus("ATIVO");
-        u.setPlano("FREE"); // Ou o plano que vier do Racha
+        u.setPlano("FREE"); 
 
         repository.save(u);
 

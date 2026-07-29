@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
@@ -15,7 +16,10 @@ import br.com.higitech.fut_sumula_torneio.model.Usuario;
 
 @Service
 public class TokenService {
-    private String secret = "secreta-do-fut-sumula-pro"; // Em produção, use variavel de ambiente
+    
+    // Injeta do application.properties ou usa o padrão se não encontrar
+    @Value("${api.security.token.secret:secreta-do-fut-sumula-pro}")
+    private String secret; 
 
     public String gerarToken(Usuario usuario) {
         try {

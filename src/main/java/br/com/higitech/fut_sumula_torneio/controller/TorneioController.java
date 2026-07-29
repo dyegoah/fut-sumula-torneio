@@ -70,6 +70,10 @@ public class TorneioController {
 
         if(dados.getTimesIds() != null && !dados.getTimesIds().isEmpty()) {
             List<Time> times = timeRepository.findAllById(dados.getTimesIds());
+            
+            // TRAVA DE SEGURANÇA: Filtra a lista removendo qualquer time que seja de outro organizador
+            times.removeIf(time -> !time.getOrganizador().getId().equals(usuarioLogado.getId()));
+            
             t.setTimes(times);
         }
 

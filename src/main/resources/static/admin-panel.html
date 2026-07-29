@@ -1,6 +1,36 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
+	<script>
+		async function validarAcessoAdmin() {
+            const token = localStorage.getItem('futSumulaToken'); 
+            if (!token) { window.location.replace('login.html'); return; }
+
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token } 
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida.");
+
+                const user = await res.json();
+                if (user.nome !== 'Administrador') {
+                    alert("⛔ Acesso Negado: Área restrita.");
+                    window.location.replace('index.html'); 
+                    return;
+                }
+                
+                // MÁGICA: O admin é legítimo, pode revelar a tela
+                document.documentElement.style.display = '';
+            } catch (error) {
+                localStorage.removeItem('futSumulaToken');
+                window.location.replace('login.html'); 
+            }
+        }
+	    validarAcessoAdmin();
+	</script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Master | Fut-Súmula Pro</title>
@@ -47,7 +77,6 @@
         .action-btn:hover { background: #fff; color: #000; }
         .action-btn.delete:hover { background: #ff4444; color: #fff; border-color: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
 
-        /* Paginação */
         .pagination-container { display: flex; justify-content: center; gap: 8px; padding: 20px; border-top: 1px solid var(--border-color); }
         .page-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; }
         .page-btn:hover { background: rgba(0, 255, 136, 0.2); border-color: var(--dev-color); color: var(--dev-color); }
@@ -68,26 +97,6 @@
     </style>
 </head>
 <body>
-
-    <script>
-        (function() {
-            const perfil = JSON.parse(localStorage.getItem('futSumulaPerfil'));
-            if (!perfil || perfil.email !== 'admin@futsumula.com') { window.location.href = 'index.html'; }
-            const token = localStorage.getItem('futSumulaToken');
-            const originalFetch = window.fetch;
-            window.fetch = function() {
-                let args = Array.from(arguments);
-                let url = args[0];
-                let options = args[1] || {};
-                if (url.includes('/api/')) {
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                }
-                args[1] = options;
-                return originalFetch.apply(this, args);
-            };
-        })();
-    </script>
 
     <header class="admin-header">
         <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
@@ -110,7 +119,6 @@
                 <h3 style="margin:0; font-size:1rem;">BASE DE USUÁRIOS</h3>
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <!-- Adicionado reset da paginação na busca -->
                     <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="currentPage = 1; filtrarTabela()">
                 </div>
             </div>
@@ -130,12 +138,11 @@
                     <tbody id="users-table-body"></tbody>
                 </table>
             </div>
-            <!-- Controles de Paginação -->
             <div id="pagination-controls" class="pagination-container"></div>
         </div>
     </div>
 
-    <!-- Modais (EditUser, Cortesia, GlobalConfig) mantidos sem alteração -->
+    <!-- MODAL DE EDIÇÃO -->
     <div id="editUserModal" class="modal-overlay">
         <div class="config-panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
@@ -197,6 +204,7 @@
         </div>
     </div>
 
+    <!-- MODAL DE CORTESIA -->
     <div id="cortesiaModal" class="modal-overlay">
         <div class="config-panel" style="border-color: #FFD700; width: 400px;">
             <h3 style="color: #FFD700; margin-top: 0;">GERENCIAR CORTESIA</h3>
@@ -212,6 +220,7 @@
         </div>
     </div>
 
+    <!-- MODAL DE CONFIGURAÇÃO GLOBAL -->
     <div id="globalConfigModal" class="modal-overlay">
         <div class="config-panel" style="max-width: 550px;">
             <h2 style="margin:0 0 20px 0; color:var(--dev-color); font-size: 1.2rem;"><i class="fas fa-cogs"></i> CONFIGURAÇÕES DO SISTEMA</h2>
@@ -270,10 +279,8 @@
     <script>
         let allUsers = [];
         let currentEditingId = null;
-
-        // Controle de Paginação
         let currentPage = 1;
-        const itemsPerPage = 10; // Configure a quantidade por página
+        const itemsPerPage = 10; 
 
         document.addEventListener("DOMContentLoaded", () => {
             carregarUsuarios();
@@ -306,11 +313,9 @@
             });
         }
 
-        // Nova Formatação incluindo Hora e Minuto Exatos
         function formatarDataHoraBR(dataString) {
             if (!dataString) return '--/--/---- --:--';
             try {
-                // Se vier apenas YYYY-MM-DD, a hora será 00:00
                 const d = new Date(dataString);
                 if (isNaN(d.getTime())) return '--/--/---- --:--';
                 
@@ -321,17 +326,18 @@
                 const min = String(d.getMinutes()).padStart(2, '0');
                 
                 return `${dia}/${mes}/${ano} às ${hora}:${min}`;
-            } catch (e) {
-                return '--/--/---- --:--';
-            }
+            } catch (e) { return '--/--/---- --:--'; }
         }
 
         async function carregarUsuarios() {
             try {
-                const res = await fetch('/api/admin/users');
+                const token = localStorage.getItem('futSumulaToken');
+                const res = await fetch('/api/admin/users', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
                 if (res.ok) {
                     allUsers = await res.json();
-                    // DECRESCENTE: Os últimos cadastros entram primeiro no topo!
                     allUsers.sort((a, b) => b.id - a.id);
                     filtrarTabela(); 
                     renderStats(allUsers);
@@ -346,7 +352,6 @@
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
             const globalTrial = parseInt(cfg.trialDays) || 15;
 
-            // Recorte de array (Slice) baseado na página atual
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             const paginatedData = data.slice(startIndex, endIndex);
@@ -389,16 +394,9 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>#${u.id}</td>
-                    <td>
-                        <div style="font-weight:bold;">${u.nome || 'Sem Nome'}</div>
-                        <div style="font-size:0.75rem; color:#888;">${u.nomeLiga || ''}</div>
-                    </td>
+                    <td><div style="font-weight:bold;">${u.nome || 'Sem Nome'}</div><div style="font-size:0.75rem; color:#888;">${u.nomeLiga || ''}</div></td>
                     <td>${u.login}</td>
-                    <td>
-                        ${cidade} <br> 
-                        <small style="color:#aaa;"><i class="fas fa-calendar-alt"></i> ${dataCadastroFormatada}</small> <br> 
-                        ${origemBadge}
-                    </td>
+                    <td>${cidade} <br> <small style="color:#aaa;"><i class="fas fa-calendar-alt"></i> ${dataCadastroFormatada}</small> <br> ${origemBadge}</td>
                     <td><span class="status-badge ${statusClass}">${u.status || 'INATIVO'}</span></td>
                     <td>${planoHTML}</td>
                     <td>
@@ -406,58 +404,40 @@
                         <button class="action-btn" title="Marcar como Pago (Premium)" onclick="togglePremium(${u.id})"><i class="fas fa-star" style="color:#00ff88;"></i></button>
                         <button class="action-btn" title="Cortesia VIP" onclick="abrirCortesia(${u.id}, '${u.notaCortesia || ''}')"><i class="fas fa-crown" style="color:#FFD700;"></i></button>
                         <button class="action-btn" title="Editar Ficha" onclick="abrirEdicao(${u.id})"><i class="fas fa-eye"></i></button>
-                        <!-- Botão de Exclusão Definitiva -->
                         <button class="action-btn delete" title="Apagar Conta Permanentemente" onclick="deletarUsuario(${u.id})"><i class="fas fa-trash-alt" style="color:#ff4444;"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-
-            // Chama o renderizador das páginas inferiores
             renderPagination(data.length);
         }
 
-        // Cria os botões de controle das páginas
         function renderPagination(totalItems) {
             const container = document.getElementById('pagination-controls');
             container.innerHTML = '';
             const totalPages = Math.ceil(totalItems / itemsPerPage);
-
             if (totalPages <= 1) return;
-
             for (let i = 1; i <= totalPages; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = i;
                 btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-                btn.onclick = () => {
-                    currentPage = i;
-                    filtrarTabela(); 
-                };
+                btn.onclick = () => { currentPage = i; filtrarTabela(); };
                 container.appendChild(btn);
             }
         }
 
         function filtrarTabela() {
             const termo = document.getElementById('searchUser').value.toLowerCase();
-            
             const filtrados = allUsers.filter(u => {
-                const nome = (u.nome || '').toLowerCase();
-                const liga = (u.nomeLiga || '').toLowerCase();
-                const email = (u.login || '').toLowerCase();
-                const cidadeInfo = (u.cidade ? `${u.cidade}/${u.uf || ''}` : '').toLowerCase();
-                const origem = (u.sistemaOrigem === 'RACHA') ? 'racha' : 'torneio';
-                const status = (u.status || 'inativo').toLowerCase();
-                // Utilizando a busca com a data formatada
-                const dataCad = formatarDataHoraBR(u.dataCadastro).toLowerCase();
-                
+                const nome = (u.nome || '').toLowerCase(); const liga = (u.nomeLiga || '').toLowerCase(); const email = (u.login || '').toLowerCase();
+                const cidadeInfo = (u.cidade ? `${u.cidade}/${u.uf || ''}` : '').toLowerCase(); const origem = (u.sistemaOrigem === 'RACHA') ? 'racha' : 'torneio';
+                const status = (u.status || 'inativo').toLowerCase(); const dataCad = formatarDataHoraBR(u.dataCadastro).toLowerCase();
                 let plano = 'teste expirado free grátis gratis';
                 if (u.plano === 'CORTESIA') plano = `cortesia vip ${u.notaCortesia || ''}`.toLowerCase();
                 if (u.plano === 'PREMIUM') plano = `premium pago assinante`.toLowerCase();
-
                 const searchString = `${u.id} ${nome} ${liga} ${email} ${cidadeInfo} ${origem} ${status} ${plano} ${dataCad}`;
                 return searchString.includes(termo);
             });
-            
             renderTable(filtrados);
         }
 
@@ -466,191 +446,135 @@
             document.getElementById('active-users').innerText = data.filter(u => u.status === 'ATIVO').length;
             const racha = data.filter(u => u.sistemaOrigem === 'RACHA').length;
             document.getElementById('origin-stats').innerHTML = `Torneio: ${data.length - racha} | Racha: ${racha}`;
-            
-            const counts = {};
-            let maxLoc = '--', maxVal = 0;
+            const counts = {}; let maxLoc = '--', maxVal = 0;
             data.forEach(u => { if(u.cidade){ const loc = u.cidade; counts[loc] = (counts[loc]||0)+1; if(counts[loc]>maxVal){ maxVal=counts[loc]; maxLoc=loc; } }});
             document.getElementById('top-location').innerText = maxLoc;
         }
 
         async function toggleStatus(id) {
             const index = allUsers.findIndex(u => u.id === id);
-            if (index !== -1) {
-                allUsers[index].status = allUsers[index].status === 'ATIVO' ? 'INATIVO' : 'ATIVO';
-                filtrarTabela(); 
-            }
-            await fetch(`/api/admin/users/${id}/status`, { method: 'PUT' });
+            if (index !== -1) { allUsers[index].status = allUsers[index].status === 'ATIVO' ? 'INATIVO' : 'ATIVO'; filtrarTabela(); }
+            const token = localStorage.getItem('futSumulaToken');
+            await fetch(`/api/admin/users/${id}/status`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } });
         }
 
         async function togglePremium(id) {
             if(!confirm("Marcar usuário como ASSINANTE PAGO (Premium)? \nIsso libera o acesso completo ao sistema permanentemente.")) return;
-            
             const index = allUsers.findIndex(u => u.id === id);
             if (index !== -1) {
-                if (allUsers[index].plano === 'PREMIUM') {
-                    allUsers[index].plano = 'FREE';
-                } else {
-                    allUsers[index].plano = 'PREMIUM';
-                    allUsers[index].status = 'ATIVO'; 
-                }
+                if (allUsers[index].plano === 'PREMIUM') allUsers[index].plano = 'FREE';
+                else { allUsers[index].plano = 'PREMIUM'; allUsers[index].status = 'ATIVO'; }
                 filtrarTabela();
             }
-            
-            await fetch(`/api/admin/users/${id}/premium`, { method: 'PUT' });
+            const token = localStorage.getItem('futSumulaToken');
+            await fetch(`/api/admin/users/${id}/premium`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } });
         }
 
-        // --- NOVA FUNÇÃO DE EXCLUSÃO TOTAL ---
         async function deletarUsuario(id) {
-            if(!confirm("⚠️ ALERTA CRÍTICO: Tem certeza que deseja APAGAR este usuário permanentemente? Isso excluirá todos os dados do banco e imagens do Cloudinary. Esta ação NÃO pode ser desfeita.")) return;
-            
+            if(!confirm("⚠️ ALERTA CRÍTICO: Tem certeza que deseja APAGAR este usuário permanentemente?")) return;
             try {
-                // Requisição DELETE para remover tudo. Certifique-se que o backend exclui Cloudinary + Banco.
-                const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+                const token = localStorage.getItem('futSumulaToken');
+                const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
                 if (res.ok) {
                     allUsers = allUsers.filter(u => u.id !== id);
-                    
-                    // Ajusta paginação se deletar o último item de uma página
                     const totalPages = Math.ceil(allUsers.length / itemsPerPage);
                     if (currentPage > totalPages) currentPage = totalPages || 1;
-                    
-                    filtrarTabela(); 
-                    renderStats(allUsers);
-                    alert("✅ Conta do organizador e todos os dados foram apagados com sucesso.");
-                } else {
-                    alert("❌ Erro no servidor ao excluir usuário.");
-                }
+                    filtrarTabela(); renderStats(allUsers); alert("✅ Conta apagada com sucesso.");
+                } else alert("❌ Erro no servidor ao excluir usuário.");
             } catch (e) { console.error("Falha na exclusão:", e); }
         }
-        // -------------------------------------
 
         function abrirEdicao(id) {
             const user = allUsers.find(u => u.id === id);
             if(!user) return;
-
             currentEditingId = id; 
-            
-            document.getElementById('edit-id').value = user.id;
-            document.getElementById('edit-nome').value = user.nome || '';
-            document.getElementById('edit-email').value = user.login || '';
-            document.getElementById('edit-cidade').value = user.cidade || '';
-            document.getElementById('edit-uf').value = user.uf || '';
-            document.getElementById('edit-nasc').value = user.dataNascimento || '';
+            document.getElementById('edit-id').value = user.id; document.getElementById('edit-nome').value = user.nome || '';
+            document.getElementById('edit-email').value = user.login || ''; document.getElementById('edit-cidade').value = user.cidade || '';
+            document.getElementById('edit-uf').value = user.uf || ''; document.getElementById('edit-nasc').value = user.dataNascimento || '';
             document.getElementById('edit-senha').value = ''; 
 
-            const editTrialInput = document.getElementById('edit-trial');
-            const vipWarning = document.getElementById('vip-warning');
-            
+            const editTrialInput = document.getElementById('edit-trial'); const vipWarning = document.getElementById('vip-warning');
             editTrialInput.value = (user.trialDays !== undefined && user.trialDays !== null) ? user.trialDays : '';
             
             if (user.plano === 'CORTESIA' || user.plano === 'PREMIUM') {
-                editTrialInput.disabled = true;
-                editTrialInput.style.opacity = '0.5';
-                vipWarning.style.display = 'block';
+                editTrialInput.disabled = true; editTrialInput.style.opacity = '0.5'; vipWarning.style.display = 'block';
             } else {
-                editTrialInput.disabled = false;
-                editTrialInput.style.opacity = '1';
-                vipWarning.style.display = 'none';
+                editTrialInput.disabled = false; editTrialInput.style.opacity = '1'; vipWarning.style.display = 'none';
             }
 
             if (user.dataCadastro) {
-                const dataCadastro = new Date(user.dataCadastro);
-                dataCadastro.setHours(0,0,0,0);
-                const hoje = new Date();
-                hoje.setHours(0,0,0,0);
+                const dataCadastro = new Date(user.dataCadastro); dataCadastro.setHours(0,0,0,0);
+                const hoje = new Date(); hoje.setHours(0,0,0,0);
                 const diffTime = hoje.getTime() - dataCadastro.getTime();
                 const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
                 document.getElementById('edit-tempo-uso').innerText = `${diffDays} Dias`;
-            } else {
-                document.getElementById('edit-tempo-uso').innerText = "Recente";
-            }
+            } else document.getElementById('edit-tempo-uso').innerText = "Recente";
 
             document.getElementById('editUserModal').classList.add('active');
         }
 
         async function salvarEdicaoUsuario() {
             if(!currentEditingId) return;
-            
-            const trialVal = document.getElementById('edit-trial').value;
-            const parsedTrial = trialVal ? parseInt(trialVal) : null;
-
+            const trialVal = document.getElementById('edit-trial').value; const parsedTrial = trialVal ? parseInt(trialVal) : null;
             const payload = {
-                nome: document.getElementById('edit-nome').value,
-                login: document.getElementById('edit-email').value,
-                cidade: document.getElementById('edit-cidade').value,
-                uf: document.getElementById('edit-uf').value,
-                dataNascimento: document.getElementById('edit-nasc').value,
-                novaSenha: document.getElementById('edit-senha').value,
-                trialDays: parsedTrial 
+                nome: document.getElementById('edit-nome').value, login: document.getElementById('edit-email').value,
+                cidade: document.getElementById('edit-cidade').value, uf: document.getElementById('edit-uf').value,
+                dataNascimento: document.getElementById('edit-nasc').value, novaSenha: document.getElementById('edit-senha').value, trialDays: parsedTrial 
             };
 
             const index = allUsers.findIndex(u => u.id === currentEditingId);
             if (index !== -1) {
-                allUsers[index].nome = payload.nome;
-                allUsers[index].login = payload.login;
-                allUsers[index].cidade = payload.cidade;
-                allUsers[index].uf = payload.uf;
-                allUsers[index].trialDays = payload.trialDays;
-                filtrarTabela();
+                allUsers[index].nome = payload.nome; allUsers[index].login = payload.login; allUsers[index].cidade = payload.cidade;
+                allUsers[index].uf = payload.uf; allUsers[index].trialDays = payload.trialDays; filtrarTabela();
             }
-
             document.getElementById('editUserModal').classList.remove('active');
 
             try {
+                const token = localStorage.getItem('futSumulaToken');
                 await fetch(`/api/admin/users/${currentEditingId}/update`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
+                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify(payload)
                 });
             } catch(e) { console.log(e); }
         }
 
         function abrirCortesia(id, nota) {
-            currentEditingId = id;
-            document.getElementById('cortesiaUserId').value = id;
-            document.getElementById('cortesiaNota').value = nota || '';
-            document.getElementById('cortesiaModal').classList.add('active');
+            currentEditingId = id; document.getElementById('cortesiaUserId').value = id;
+            document.getElementById('cortesiaNota').value = nota || ''; document.getElementById('cortesiaModal').classList.add('active');
         }
 
         async function salvarCortesia() {
             const nota = document.getElementById('cortesiaNota').value;
-            
             const index = allUsers.findIndex(u => u.id === currentEditingId);
             if (index !== -1) {
-                allUsers[index].plano = 'CORTESIA';
-                allUsers[index].notaCortesia = nota;
-                allUsers[index].status = 'ATIVO';
-                filtrarTabela();
+                allUsers[index].plano = 'CORTESIA'; allUsers[index].notaCortesia = nota; allUsers[index].status = 'ATIVO'; filtrarTabela();
             }
             document.getElementById('cortesiaModal').classList.remove('active');
 
+            const token = localStorage.getItem('futSumulaToken');
             await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ acao: 'CONCEDER', nota: nota })
             });
         }
 
         async function revogarCortesia() {
             if(!confirm("Remover cortesia?")) return;
-            
             const index = allUsers.findIndex(u => u.id === currentEditingId);
             if (index !== -1) {
-                allUsers[index].plano = 'FREE';
-                allUsers[index].notaCortesia = null;
-                filtrarTabela();
+                allUsers[index].plano = 'FREE'; allUsers[index].notaCortesia = null; filtrarTabela();
             }
             document.getElementById('cortesiaModal').classList.remove('active');
 
+            const token = localStorage.getItem('futSumulaToken');
             await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ acao: 'REVOGAR' })
             });
         }
 
         function abrirConfigGlobal() {
-            carregarConfigs();
-            document.getElementById('globalConfigModal').classList.add('active');
+            carregarConfigs(); document.getElementById('globalConfigModal').classList.add('active');
         }
 
         function carregarConfigs() {
@@ -659,7 +583,6 @@
             document.getElementById('confPixValue').value = cfg.pixValue || '20.00';
             document.getElementById('confPixQr').value = cfg.pixQr || '';
             document.getElementById('confTrial').value = cfg.trialDays || '15';
-            
             document.getElementById('confWhats').value = cfg.whatsApp || '5585999999999';
             document.getElementById('confInsta').value = cfg.instagram || 'fut_sumula_pro';
             document.getElementById('confFace').value = cfg.facebook || 'futsumulapro';
@@ -668,19 +591,13 @@
 
         function salvarConfigsLocais() {
             const cfg = {
-                pixKey: document.getElementById('confPixKey').value,
-                pixValue: document.getElementById('confPixValue').value,
-                pixQr: document.getElementById('confPixQr').value,
-                trialDays: document.getElementById('confTrial').value,
-                whatsApp: document.getElementById('confWhats').value,
-                instagram: document.getElementById('confInsta').value,
-                facebook: document.getElementById('confFace').value,
-                emailSuporte: document.getElementById('confEmailSuporte').value
+                pixKey: document.getElementById('confPixKey').value, pixValue: document.getElementById('confPixValue').value,
+                pixQr: document.getElementById('confPixQr').value, trialDays: document.getElementById('confTrial').value,
+                whatsApp: document.getElementById('confWhats').value, instagram: document.getElementById('confInsta').value,
+                facebook: document.getElementById('confFace').value, emailSuporte: document.getElementById('confEmailSuporte').value
             };
             localStorage.setItem('futSumulaSysConfig', JSON.stringify(cfg));
-            alert("Configurações salvas!");
-            document.getElementById('globalConfigModal').classList.remove('active');
-            filtrarTabela(); 
+            alert("Configurações salvas!"); document.getElementById('globalConfigModal').classList.remove('active'); filtrarTabela(); 
         }
     </script>
 </body>

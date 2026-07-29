@@ -110,8 +110,14 @@ public class TimeController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> editar(@PathVariable Long id, @RequestBody Time timeAtualizado) {
-        // Idealmente, usar findByIdAndOrganizador para evitar editar time alheio via ID na URL
+        Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
         return repository.findById(id).map(time -> {
+            // TRAVA DE SEGURANÇA: Impede editar time alheio
+            if (!time.getOrganizador().getId().equals(usuarioLogado.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado: Este time não pertence a você.");
+            }
+
             time.setNome(timeAtualizado.getNome());
             time.setCorPrimaria(timeAtualizado.getCorPrimaria());
             time.setCorSecundaria(timeAtualizado.getCorSecundaria());
@@ -155,11 +161,21 @@ public class TimeController {
     }
 
     @PostMapping("/{timeId}/adicionar-jogadores")
-    public ResponseEntity<Time> adicionarJogadores(@PathVariable Long timeId, @RequestBody List<Long> jogadoresIds) {
+    public ResponseEntity<?> adicionarJogadores(@PathVariable Long timeId, @RequestBody List<Long> jogadoresIds) {
+        Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
         return repository.findById(timeId).map(time -> {
+            // TRAVA DE SEGURANÇA 1: O time é dele?
+            if (!time.getOrganizador().getId().equals(usuarioLogado.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
             List<Jogador> jogadores = jogadorRepository.findAllById(jogadoresIds);
             for (Jogador jogador : jogadores) {
-                jogador.setTime(time);
+                // TRAVA DE SEGURANÇA 2: O jogador que ele quer roubar é dele?
+                if (jogador.getOrganizador().getId().equals(usuarioLogado.getId())) {
+                    jogador.setTime(time);
+                }
             }
             jogadorRepository.saveAll(jogadores);
             return ResponseEntity.ok(repository.findById(timeId).get());
@@ -167,14 +183,21 @@ public class TimeController {
     }
 
     @DeleteMapping("/{timeId}/remover-jogador/{jogadorId}")
-    public ResponseEntity<Void> removerJogador(@PathVariable Long timeId, @PathVariable Long jogadorId) {
+    public ResponseEntity<?> removerJogador(@PathVariable Long timeId, @PathVariable Long jogadorId) {
+        Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
         return jogadorRepository.findById(jogadorId).map(jogador -> {
+            // TRAVA DE SEGURANÇA: Ele só pode remover se o jogador for dele
+            if (!jogador.getOrganizador().getId().equals(usuarioLogado.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
             if (jogador.getTime() != null && jogador.getTime().getId().equals(timeId)) {
                 jogador.setTime(null);
                 jogadorRepository.save(jogador);
-                return ResponseEntity.noContent().<Void>build();
+                return ResponseEntity.noContent().build();
             }
-            return ResponseEntity.badRequest().<Void>build();
+            return ResponseEntity.badRequest().build();
         }).orElse(ResponseEntity.notFound().build());
     }
-}
+   }

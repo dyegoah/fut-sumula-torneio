@@ -1,11 +1,11 @@
-package br.com.higitech.fut_sumula_torneio.security; // Ajuste o pacote se necessário
+package br.com.higitech.fut_sumula_torneio.security;
 
 import java.util.Arrays;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod; // Importação necessária para o HttpMethod.GET
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -40,24 +40,22 @@ public class SecurityConfigurations {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
-                    // 1. REGRAS DE LIBERAÇÃO TOTAL (Devem vir PRIMEIRO)
-                    req.requestMatchers("/api/auth/**").permitAll();       // Login e Registro
-                    req.requestMatchers("/api/integracao/**").permitAll(); // Integração Racha (Webhook)
+                    // 1. REGRAS DE LIBERAÇÃO TOTAL
+                    req.requestMatchers("/api/auth/**").permitAll();       
+                    req.requestMatchers("/api/integracao/**").permitAll(); 
                     
-                    // --- A MÁGICA ACONTECE AQUI: LIBERANDO A LEITURA PÚBLICA ---
-                    // Permite que a Página Pública busque as informações sem precisar de Token
+                    // --- LEITURA PÚBLICA ---
                     req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/estatisticas/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/times/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/jogadores/**").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); // Permite carregar a súmula também
+                    req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); 
                     
-                    // 2. REGRAS DE BLOQUEIO (APIs do sistema)
-                    // Todo o resto da API (POST, PUT, DELETE) continuará exigindo Token
+                    // 2. REGRAS DE BLOQUEIO
                     req.requestMatchers("/api/**").authenticated();        
                     
-                    // 3. REGRA FINAL (Site/Frontend) - OBRIGATORIAMENTE A ÚLTIMA LINHA
-                    req.anyRequest().permitAll();                          // Libera HTML, CSS, JS, Imagens
+                    // 3. REGRA FINAL (HTML/CSS/JS)
+                    req.anyRequest().permitAll();                          
                 })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
@@ -67,10 +65,21 @@ public class SecurityConfigurations {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        
+        // =========================================================================
+        // A PORTA ESTÁ ABERTA PARA O SEU AMBIENTE DE PRODUÇÃO (RENDER) E LOCAL
+        // =========================================================================
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5500", 
+            "http://127.0.0.1:5500",
+            "https://fut-sumula-torneio.onrender.com" // <- SEU ENDEREÇO DE PRODUÇÃO AQUI
+        ));
+        // =========================================================================
+
+        configuration.setAllowCredentials(true); 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // ADICIONE "X-Api-Key" AQUI PARA A INTEGRAÇÃO FUNCIONAR
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Api-Key"));
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -93,5 +102,4 @@ public class SecurityConfigurations {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
 }

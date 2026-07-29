@@ -1,59 +1,40 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
+	<script>
+	    async function validarAcesso() {
+            const token = localStorage.getItem('futSumulaToken');
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+	        try {
+	            const res = await fetch('/api/auth/me', { 
+	                method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+	            });
+	            
+	            if (!res.ok) throw new Error("Sessão inválida.");
+                
+                // MÁGICA DE SEGURANÇA: Só revela a tela se o servidor confirmar que o token é real!
+                document.documentElement.style.display = '';
+	        } catch (error) {
+                localStorage.removeItem('futSumulaToken');
+	            window.location.replace('login.html'); 
+	        }
+	    }
+	    validarAcesso();
+	</script>
     
 	<script>
-	    // Lista de imagens do seu sistema
-	    const imagensFundo = [
-	        'images/bg1.png', // Ajuste conforme o caminho real das suas imagens
-	        'images/bg2.png',
-	        'images/bg3.png'
-	    ];
-
-	    // Função que força o download imediato
-	    function preCarregarImagens() {
-	        imagensFundo.forEach((src) => {
-	            const img = new Image();
-	            img.src = src;
-	        });
-	    }
-	    
-	    // Dispara assim que o documento estiver pronto
+	    const imagensFundo = ['images/bg1.png', 'images/bg2.png', 'images/bg3.png'];
+	    function preCarregarImagens() { imagensFundo.forEach((src) => { const img = new Image(); img.src = src; }); }
 	    document.addEventListener('DOMContentLoaded', preCarregarImagens);
 	</script>
 	
-	<script>
-        (function() {
-            const token = localStorage.getItem('futSumulaToken');
-            if (!token) {
-                window.location.href = 'login.html';
-                return;
-            }
-            const originalFetch = window.fetch;
-            window.fetch = function() {
-                let args = Array.from(arguments);
-                let url = args[0];
-                let options = args[1] || {};
-                if (url.includes('/api/') && !url.includes('/auth/') && !url.includes('/integracao/')) {
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                }
-                args[1] = options;
-                return originalFetch.apply(this, args).then(response => {
-                    if (response.status === 403 || response.status === 401) {
-                        localStorage.removeItem('futSumulaToken');
-                        window.location.href = 'login.html';
-                    }
-                    return response;
-                }).catch(err => { throw err; });
-            };
-        })();
-    </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | Fut-Súmula</title>
-	
 	<link rel="icon" type="image/png" href="images/icon-192.webp">
 	<link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00ff88">
@@ -64,20 +45,13 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('App Fut-Súmula pronto para instalação! ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('Erro ao registrar App: ', err);
-                    });
+                navigator.serviceWorker.register('/sw.js').then(r => console.log('App Fut-Súmula pronto!')).catch(err => {});
             });
         }
     </script>
     
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/finalHome.css">
     
@@ -87,12 +61,7 @@
         .bg-fans { background-image: var(--img-fans); }
         
         .hub-container { display: flex; flex-direction: column; gap: 20px; padding-bottom: 20px; }
-        .play-mode-card {
-            background: linear-gradient(160deg, rgba(30,30,30,0.9) 0%, rgba(10,10,10,0.95) 100%);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; height: 180px;
-            position: relative; overflow: hidden; cursor: pointer; transition: 0.4s;
-            display: flex; align-items: flex-end; padding: 20px;
-        }
+        .play-mode-card { background: linear-gradient(160deg, rgba(30,30,30,0.9) 0%, rgba(10,10,10,0.95) 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; height: 180px; position: relative; overflow: hidden; cursor: pointer; transition: 0.4s; display: flex; align-items: flex-end; padding: 20px; }
         .play-mode-card:hover { transform: scale(1.02); border-color: var(--primary-neon); box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .pm-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0.4; transition: 0.4s; z-index: 0; filter: grayscale(80%); }
         .play-mode-card:hover .pm-bg { opacity: 0.6; filter: grayscale(0%); transform: scale(1.1); }
@@ -139,10 +108,7 @@
             50% { opacity: 0.4; box-shadow: 0 0 0px transparent; }
             100% { opacity: 1; box-shadow: 0 0 10px #ff4444; }
         }
-        .blinking-banner {
-            background: #ff4444; color: #fff; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
-            animation: piscarAviso 1.5s infinite; border-bottom: 2px solid #fff;
-        }
+        .blinking-banner { background: #ff4444; color: #fff; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; animation: piscarAviso 1.5s infinite; border-bottom: 2px solid #fff; }
     </style>
 </head>
 <body>
@@ -157,9 +123,7 @@
 
     <header class="app-topbar" style="justify-content: space-between; padding: 0 20px; z-index: 10001;">
         <div class="brand-area">
-            <div class="logo-icon">
-                <i class="fas fa-trophy" style="color: var(--primary-neon);"></i>
-            </div>
+            <div class="logo-icon"><i class="fas fa-trophy" style="color: var(--primary-neon);"></i></div>
             <div class="logo-text">
                 <h2 style="font-size: 1.2rem; line-height: 1;">FUT<span style="color:var(--primary-neon)">SÚMULA</span></h2>
                 <span style="font-size: 0.6rem; letter-spacing: 2px; color: #aaa;">TORNEIO PRO</span>
@@ -182,6 +146,10 @@
                     <div style="font-size: 0.65rem; color: #aaa; letter-spacing: 1px;" data-ref="sua_assinatura">SUA ASSINATURA</div>
                     <div id="app-status-text" class="status-active" style="font-size:0.8rem;">CARREGANDO...</div>
                     <div id="app-expire-text" style="font-size: 0.65rem; color: #888; margin-top: 2px;"></div>
+                </div>
+                
+                <div id="btnAdminPanel" class="menu-item" onclick="window.location.href='admin-panel.html'" style="display: none; padding: 12px 15px; color: var(--primary-neon); background: rgba(0, 234, 255, 0.05); font-size: 0.9rem; border-bottom: 1px solid #333; align-items: center; gap: 10px; transition: 0.2s;">
+                    <i class="fas fa-cogs"></i> <span style="font-weight: bold;">Painel Admin</span>
                 </div>
 
                 <div class="menu-item" onclick="abrirConfiguracao(event)" style="padding: 12px 15px; color: #fff; font-size: 0.9rem; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
@@ -239,7 +207,6 @@
                 </div>
             </div>
 
-            <!-- NOVO: ATALHO DE COMPARTILHAMENTO PÁGINA PÚBLICA -->
             <div class="play-mode-card" onclick="if(window.abrirShareGlobal) window.abrirShareGlobal(event);" style="height: 120px; border-color: var(--primary-neon); background: linear-gradient(160deg, rgba(0, 255, 136, 0.1) 0%, rgba(10,10,10,0.95) 100%); margin-top: 10px;">
                 <div class="pm-bg bg-fans"></div> 
                 <div class="pm-content" style="display: flex; align-items: center; justify-content: space-between;">
@@ -259,10 +226,7 @@
             <div style="text-align: center; margin-bottom: 20px;">
                 <i class="fas fa-lock" style="font-size: 3rem; color: #ff4444; animation: piscarAviso 2s infinite;"></i>
                 <h3 style="color: #ff4444; margin: 15px 0 10px; font-weight: 900; letter-spacing: 1px;">ACESSO BLOQUEADO</h3>
-                <p style="color: #ccc; font-size: 0.9rem; line-height: 1.5;">
-                    Sua conta está inativa ou o período expirou.<br><br>
-                    Para liberar o acesso a todas as telas, acesse a aba <strong>Assinar Sistema</strong> ou fale com o nosso suporte.
-                </p>
+                <p style="color: #ccc; font-size: 0.9rem; line-height: 1.5;">Sua conta está inativa ou o período expirou.<br><br>Para liberar o acesso a todas as telas, acesse a aba <strong>Assinar Sistema</strong> ou fale com o nosso suporte.</p>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button class="btn-neon" onclick="abrirPagamentoAppBloqueado()" style="border-color: #ff00de; color: #ff00de; background: rgba(255,0,222,0.1);"><i class="fas fa-gem"></i> ASSINAR SISTEMA</button>
@@ -354,20 +318,20 @@
     <script src="js/gender-mode.js"></script>
 
     <script>
-        fetch('footbar.html').then(r => r.text()).then(d => {
-            document.getElementById('footbar-container').innerHTML = d;
-            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
-            scripts.forEach(s => eval(s.innerHTML));
-        });
+        fetch('footbar.html').then(r => r.text()).then(d => { document.getElementById('footbar-container').innerHTML = d; });
    
         let payloadPixString = "";
         let currentDynamicPixValue = "20.00"; 
-        
         let isAccountLocked = false;
 
         async function atualizarInterfaceUsuario() {
             try {
-                const res = await fetch('/api/users/me');
+                const token = localStorage.getItem('futSumulaToken');
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
                 if (res.ok) {
                     const user = await res.json();
                     
@@ -376,61 +340,50 @@
                     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=00eaff&color=000&bold=true`;
                     document.getElementById('user-avatar-img').src = avatarUrl;
 
+                    if (user.nome === 'Administrador') {
+                        const btnAdmin = document.getElementById('btnAdminPanel');
+                        if(btnAdmin) {
+                            btnAdmin.style.display = 'flex';
+                        }
+                    }
+
+                    sessionStorage.setItem('futSumulaPerfil', JSON.stringify(user));
                     localStorage.setItem('futSumulaPerfil', JSON.stringify(user));
+
                     if(user.genero) localStorage.setItem('futSumulaGender', user.genero);
                     if(user.idioma) localStorage.setItem('futSumulaLang', user.idioma);
 
                     aplicarStatusNaInterface(user);
                 }
-            } catch (e) { console.error("Erro ao buscar perfil", e); }
+            } catch (e) { 
+                console.error("Erro ao buscar perfil", e); 
+            }
         }
 
-		function aplicarStatusNaInterface(user) {
-		            const statusEl = document.getElementById('app-status-text');
-		            const expireEl = document.getElementById('app-expire-text');
-		            const ball = document.getElementById('status-ball');
+        function aplicarStatusNaInterface(user) {
+            const statusEl = document.getElementById('app-status-text');
+            const expireEl = document.getElementById('app-expire-text');
+            const ball = document.getElementById('status-ball');
 
-		            // 1. A VERDADE ABSOLUTA VEM DO BACKEND (Fim do Client-Side Trust)
-		            isAccountLocked = !user.acessoLiberado;
+            isAccountLocked = !user.acessoLiberado;
 
-		            if (user.status === 'INATIVO') {
-		                statusEl.innerText = "CONTA SUSPENSA";
-		                statusEl.className = "status-late";
-		                expireEl.innerText = "Contate o suporte.";
-		                ball.style.background = "#ff4444";
-		                
-		            } else if (user.plano === 'CORTESIA') {
-		                statusEl.innerText = "VIP / CORTESIA";
-		                statusEl.className = "status-active";
-		                statusEl.style.color = "#FFD700"; 
-		                expireEl.innerText = user.notaCortesia || "Acesso Ilimitado";
-		                ball.style.background = "#FFD700";
-		            
-		            } else if (user.plano === 'PREMIUM') {
-		                statusEl.innerText = "PREMIUM ATIVO";
-		                statusEl.className = "status-active";
-		                expireEl.innerText = "Renovação Mensal";
-		                ball.style.background = "#00ff2a";
+            if (user.status === 'INATIVO') {
+                statusEl.innerText = "CONTA SUSPENSA"; statusEl.className = "status-late"; expireEl.innerText = "Contate o suporte."; ball.style.background = "#ff4444";
+            } else if (user.plano === 'CORTESIA') {
+                statusEl.innerText = "VIP / CORTESIA"; statusEl.className = "status-active"; statusEl.style.color = "#FFD700"; expireEl.innerText = user.notaCortesia || "Acesso Ilimitado"; ball.style.background = "#FFD700";
+            } else if (user.plano === 'PREMIUM') {
+                statusEl.innerText = "PREMIUM ATIVO"; statusEl.className = "status-active"; expireEl.innerText = "Renovação Mensal"; ball.style.background = "#00ff2a";
+            } else {
+                if (isAccountLocked) {
+                    statusEl.innerText = "PERÍODO EXPIRADO"; statusEl.className = "status-late"; expireEl.innerText = "Assine para continuar."; ball.style.background = "#ff4444";
+                } else {
+                    statusEl.innerText = "PERÍODO DE TESTE"; statusEl.className = "status-trial"; expireEl.innerText = `Restam ${user.diasRestantes} dias gratuitos`; ball.style.background = "#ffd700";
+                }
+            }
 
-		            } else {
-		                // AVALIAÇÃO DE TESTE (TRIAL)
-		                if (isAccountLocked) {
-		                    statusEl.innerText = "PERÍODO EXPIRADO";
-		                    statusEl.className = "status-late";
-		                    expireEl.innerText = "Assine para continuar.";
-		                    ball.style.background = "#ff4444";
-		                } else {
-		                    statusEl.innerText = "PERÍODO DE TESTE";
-		                    statusEl.className = "status-trial";
-		                    // O valor vem direto da inteligência do Java!
-		                    expireEl.innerText = `Restam ${user.diasRestantes} dias gratuitos`;
-		                    ball.style.background = "#ffd700";
-		                }
-		            }
-
-		            if (isAccountLocked) document.getElementById('locked-banner').style.display = 'block';
-		            else document.getElementById('locked-banner').style.display = 'none';
-		        }
+            if (isAccountLocked) document.getElementById('locked-banner').style.display = 'block';
+            else document.getElementById('locked-banner').style.display = 'none';
+        }
 
         document.addEventListener('click', function(e) {
             if (isAccountLocked) {
@@ -447,51 +400,30 @@
             }
         }, true); 
 
-
-        function abrirPagamentoAppBloqueado() {
-            document.getElementById('locked-action-modal').classList.remove('active');
-            abrirPagamentoApp(null);
-        }
-
-        function abrirModalAjudaBloqueado() {
-            document.getElementById('locked-action-modal').classList.remove('active');
-            abrirModalAjuda(null);
-        }
-
-        function toggleUserMenu() {
-            const menu = document.getElementById('user-dropdown');
-            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
-        }
+        function abrirPagamentoAppBloqueado() { document.getElementById('locked-action-modal').classList.remove('active'); abrirPagamentoApp(null); }
+        function abrirModalAjudaBloqueado() { document.getElementById('locked-action-modal').classList.remove('active'); abrirModalAjuda(null); }
+        function toggleUserMenu() { const menu = document.getElementById('user-dropdown'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
 
         document.addEventListener('click', function(event) {
             const widget = document.querySelector('.user-profile-widget');
-            if (widget && !widget.contains(event.target)) {
-                document.getElementById('user-dropdown').style.display = 'none';
-            }
+            if (widget && !widget.contains(event.target)) document.getElementById('user-dropdown').style.display = 'none';
         });
 
         function abrirConfiguracao(e) {
             if(e) e.stopPropagation();
-            if (isAccountLocked) {
-                document.getElementById('locked-action-modal').classList.add('active');
-                document.getElementById('user-dropdown').style.display = 'none';
-                return;
-            }
+            if (isAccountLocked) { document.getElementById('locked-action-modal').classList.add('active'); document.getElementById('user-dropdown').style.display = 'none'; return; }
             document.getElementById('user-dropdown').style.display = 'none';
-            const perfil = JSON.parse(localStorage.getItem('futSumulaPerfil')) || {};
+            const perfil = JSON.parse(sessionStorage.getItem('futSumulaPerfil')) || JSON.parse(localStorage.getItem('futSumulaPerfil')) || {};
             
             document.getElementById('confNomeOrg').value = perfil.nome || '';
             document.getElementById('confNomeLiga').value = perfil.nomeLiga || '';
             document.getElementById('confEmail').value = perfil.login || ''; 
             
             const generoAtual = localStorage.getItem('futSumulaGender') || 'male';
-            if(generoAtual === 'female') document.getElementById('g-female').checked = true;
-            else document.getElementById('g-male').checked = true;
+            if(generoAtual === 'female') document.getElementById('g-female').checked = true; else document.getElementById('g-male').checked = true;
 
             const idiomaAtual = localStorage.getItem('futSumulaLang') || 'pt';
-            if(idiomaAtual === 'en') document.getElementById('l-en').checked = true;
-            else if(idiomaAtual === 'es') document.getElementById('l-es').checked = true;
-            else document.getElementById('l-pt').checked = true;
+            if(idiomaAtual === 'en') document.getElementById('l-en').checked = true; else if(idiomaAtual === 'es') document.getElementById('l-es').checked = true; else document.getElementById('l-pt').checked = true;
 
             document.getElementById('config-modal').classList.add('active');
         }
@@ -511,8 +443,9 @@
         }
 
         function executarLogout() {
-            localStorage.removeItem('futSumulaToken');
+            sessionStorage.removeItem('futSumulaPerfil');
             localStorage.removeItem('futSumulaPerfil');
+            localStorage.removeItem('futSumulaToken');
             window.location.href = 'login.html';
         }
 
@@ -529,29 +462,22 @@
             const priceText = parseFloat(pixVal).toFixed(2).replace('.', ',');
             document.getElementById('display-pix-value').innerHTML = `R$ ${priceText} <span style="font-size: 0.8rem; color: #aaa;">/ mês</span>`;
 
-            if(pixQrCodeRaw && pixQrCodeRaw.trim() !== "") {
-                payloadPixString = pixQrCodeRaw.trim();
-            } else {
-                payloadPixString = generatePixPayload(pixKey, pixVal, "HIGTECH SYSTEMS", "BRASIL", "ASSINATURA");
-            }
+            if(pixQrCodeRaw && pixQrCodeRaw.trim() !== "") payloadPixString = pixQrCodeRaw.trim();
+            else payloadPixString = generatePixPayload(pixKey, pixVal, "HIGTECH SYSTEMS", "BRASIL", "ASSINATURA");
 
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payloadPixString)}`;
             document.getElementById('img-qrcode-sistema').src = qrUrl;
-
             document.getElementById('payment-modal').classList.add('active');
         }
 
         window.copiarPixSistema = function() {
             navigator.clipboard.writeText(payloadPixString).then(() => {
                 alert("Código Pix copiado! Abrindo WhatsApp...");
-                
                 const sysCfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
                 const sysWhats = sysCfg.whatsApp || "5585999999999";
-                
-                const perfil = JSON.parse(localStorage.getItem('futSumulaPerfil')) || { nome: "Cliente" };
+                const perfil = JSON.parse(sessionStorage.getItem('futSumulaPerfil')) || JSON.parse(localStorage.getItem('futSumulaPerfil')) || { nome: "Cliente" };
                 const priceText = parseFloat(currentDynamicPixValue).toFixed(2).replace('.', ',');
                 const msg = `Olá! Sou *${perfil.nome}*. Acabei de copiar a chave PIX para assinar o *Fut-Súmula Torneio*.\nValor da assinatura: R$ ${priceText}`;
-                
                 window.open(`https://wa.me/${sysWhats}?text=${encodeURIComponent(msg)}`, '_blank');
             });
         }
@@ -566,17 +492,10 @@
             const sysFace = sysCfg.facebook || "futsumulapro";
             const sysEmail = sysCfg.emailSuporte || "suporte@futsumula.com";
 
-            const linkWhats = document.getElementById('link-whatsapp-support');
-            const linkInsta = document.getElementById('link-insta-support');
-            const linkFace = document.getElementById('link-facebook-support');
-            const linkEmail = document.getElementById('link-email-support');
-            
-            const msgHelp = `Olá! Preciso de ajuda com a minha conta no Fut-Súmula Torneio.`;
-            
-            linkWhats.href = `https://wa.me/${sysWhats}?text=${encodeURIComponent(msgHelp)}`;
-            linkInsta.href = `https://instagram.com/${sysInsta}`;
-            linkFace.href = `https://facebook.com/${sysFace}`;
-            linkEmail.href = `mailto:${sysEmail}`;
+            document.getElementById('link-whatsapp-support').href = `https://wa.me/${sysWhats}?text=${encodeURIComponent('Olá! Preciso de ajuda.')}`;
+            document.getElementById('link-insta-support').href = `https://instagram.com/${sysInsta}`;
+            document.getElementById('link-facebook-support').href = `https://facebook.com/${sysFace}`;
+            document.getElementById('link-email-support').href = `mailto:${sysEmail}`;
             
             document.getElementById('modal-help').classList.add('active');
         }
@@ -585,10 +504,9 @@
             const formatField = (id, val) => id + (val.length >= 10 ? val.length : "0" + val.length) + val;
             let payload = "00020126" + (chave.length + 22);
             payload += "0014BR.GOV.BCB.PIX01" + (chave.length >= 10 ? chave.length : "0" + chave.length) + chave;
-            payload += "52040000"; payload += "5303986";
+            payload += "520400005303986";
             if(valor) { const valStr = parseFloat(valor).toFixed(2); payload += formatField("54", valStr); }
-            payload += formatField("58", "BR"); payload += formatField("59", nome); payload += formatField("60", cidade);
-            payload += formatField("62", formatField("05", txtId)); payload += "6304";
+            payload += formatField("58", "BR") + formatField("59", nome) + formatField("60", cidade) + formatField("62", formatField("05", txtId)) + "6304";
             let crc = 0xFFFF;
             for (let i = 0; i < payload.length; i++) {
                 crc ^= payload.charCodeAt(i) << 8;

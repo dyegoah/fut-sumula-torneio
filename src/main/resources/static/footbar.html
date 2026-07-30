@@ -115,7 +115,6 @@
 </div>
 
 <script>
-    // Função Global para abrir menus
     window.toggleMenu = function(menuId, btnElement) {
         const allMenus = document.querySelectorAll('.float-menu');
         const allBtns = document.querySelectorAll('.nav-item');
@@ -136,7 +135,6 @@
         }
     };
 
-    // Destaca a página atual
     window.highlightCurrentPage = function() {
         const path = window.location.pathname;
         const homeBtn = document.getElementById('nav-home');
@@ -149,7 +147,6 @@
 
     window.highlightCurrentPage();
 
-    // Fecha ao clicar fora
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.app-footbar') && !e.target.closest('.float-menu') && !e.target.closest('.share-global-modal')) {
             document.querySelectorAll('.float-menu').forEach(m => m.classList.remove('show'));
@@ -157,14 +154,17 @@
         }
     });
 
-    // LÓGICA DO MODAL DE COMPARTILHAMENTO
     window.abrirShareGlobal = async function(e) {
         e.preventDefault(); e.stopPropagation();
         document.querySelectorAll('.float-menu').forEach(m => m.classList.remove('show'));
         document.getElementById('globalShareModal').classList.add('active');
         
         try {
-            const res = await fetch('/api/torneios');
+            // Adicionado o token explícito para garantir que o Java libere os torneios do usuário
+            const token = localStorage.getItem('futSumulaToken');
+            const res = await fetch('/api/torneios', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
             if(res.ok) {
                 const torneios = await res.json();
                 const select = document.getElementById('share-tourney-select');
@@ -183,28 +183,22 @@
         
         if(!tId) { alert("Por favor, selecione um torneio primeiro!"); return; }
 
-        // Gera a URL limpa da página pública
         const baseUrl = window.location.origin;
         const publicUrl = `${baseUrl}/public-torneio.html?id=${tId}`;
         
-        // Mensagem completa (Texto + Link separados por 2 linhas para garantir o clique no zap)
         const mensagemCompleta = `🏆 Acompanhe ao vivo o torneio *${tName}*! Tabela, Súmulas e Estatísticas oficiais:\n\n${publicUrl}`;
 
         if(plataforma === 'copy' || plataforma === 'instagram' || plataforma === 'tiktok' || plataforma === 'kwai') {
-            // AQUI ESTÁ A MÁGICA: Copia SOMENTE o link (publicUrl) para a área de transferência!
             navigator.clipboard.writeText(publicUrl).then(() => {
                 let msgSocial = "";
                 if(plataforma !== 'copy') msgSocial = `\nAbra o ${plataforma.toUpperCase()} e cole o link na sua Bio ou Stories!`;
                 alert("✅ Link oficial copiado com sucesso!" + msgSocial);
             });
         } else if (plataforma === 'whatsapp') {
-            // No WhatsApp manda o texto + link
             window.open(`https://wa.me/?text=${encodeURIComponent(mensagemCompleta)}`, '_blank');
         } else if (plataforma === 'facebook') {
-            // O Facebook só aceita o link limpo por padrão no sharer
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`, '_blank');
         } else if (plataforma === 'email') {
-            // No E-mail manda o texto + link
             window.open(`mailto:?subject=Acompanhe o Torneio ${encodeURIComponent(tName)}&body=${encodeURIComponent(mensagemCompleta)}`, '_self');
         }
     };

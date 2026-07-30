@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
 	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
@@ -237,11 +238,18 @@
 
     <script>
         // LÓGICA DO FOOTBAR
-        fetch('footbar.html').then(r => r.text()).then(d => { 
-            document.getElementById('footbar-container').innerHTML = d; 
-            const scripts = document.getElementById('footbar-container').querySelectorAll("script"); 
-            scripts.forEach(s => eval(s.innerHTML)); 
-        });
+		fetch('footbar.html').then(r => r.text()).then(d => {
+		            const container = document.getElementById('footbar-container');
+		            container.innerHTML = d;
+		            
+		            // Extrai e executa o script injetado de forma segura (sem eval)
+		            const scripts = container.querySelectorAll("script");
+		            scripts.forEach(s => {
+		                const novoScript = document.createElement("script");
+		                novoScript.textContent = s.textContent;
+		                document.body.appendChild(novoScript);
+		            });
+		        });
 
         let mascotsMap = { 'lion': 'fa-paw', 'eagle': 'fa-feather-alt', 'shark': 'fa-fish', 'wolf': 'fa-dog', 'dragon': 'fa-dragon', 'bull': 'fa-bullhorn', 'horse': 'fa-horse', 'spider': 'fa-spider', 'cat': 'fa-cat', 'crow': 'fa-crow', 'frog': 'fa-frog', 'hippo': 'fa-hippo', 'otter': 'fa-otter', 'dove': 'fa-dove', 'kiwi': 'fa-kiwi-bird', 'worm': 'fa-worm', 'skull': 'fa-skull', 'bolt': 'fa-bolt', 'star': 'fa-star', 'anchor': 'fa-anchor', 'poo': 'fa-poop', 'restroom': 'fa-restroom', 'leaf': 'fa-leaf', 'cannabis': 'fa-cannabis', 'ghost': 'fa-ghost', 'alien': 'fa-pastafarianism', 'robot': 'fa-robot', 'bomb': 'fa-bomb', 'fire': 'fa-fire', 'crown': 'fa-crown' };
 

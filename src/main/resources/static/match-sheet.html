@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
 	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
@@ -365,33 +366,37 @@
 	        function renderHeader(t, type) { document.getElementById(`${type}-crest-area`).innerHTML = getCrestHTML(t); document.getElementById(`${type}-name`).innerText = t.nome; }
 	        
             // --- POPULATE COM TRAVA DO GOLEIRO (SOMENTE O PRIMEIRO COMEÇA MARCADO) ---
-            function populatePreMatchList(team, el, type) {
-	            const c = document.getElementById(el);
-	            c.innerHTML = `
-                    <div class="modal-team-header">
-                        <div style="display:flex; align-items:center; gap:10px;">${getMiniCrestHTML(team)}<h4>${team.nome}</h4></div>
-                        <div id="count-${type}" style="font-size:0.8rem; background:rgba(0, 255, 136, 0.2); color:var(--primary-neon); padding:4px 10px; border-radius:20px; font-weight:900; box-shadow: 0 0 10px rgba(0,255,136,0.2);">0/0</div>
-                    </div>`;
-	            if(!team.jogadores) return;
-	            
-                let gkCount = 0;
+			function populatePreMatchList(team, el, type) {
+				            const c = document.getElementById(el);
+				            c.innerHTML = `
+			                    <div class="modal-team-header">
+			                        <div style="display:flex; align-items:center; gap:10px;">${getMiniCrestHTML(team)}<h4>${DOMPurify.sanitize(team.nome)}</h4></div>
+			                        <div id="count-${type}" style="font-size:0.8rem; background:rgba(0, 255, 136, 0.2); color:var(--primary-neon); padding:4px 10px; border-radius:20px; font-weight:900; box-shadow: 0 0 10px rgba(0,255,136,0.2);">0/0</div>
+			                    </div>`;
+				            if(!team.jogadores) return;
+				            
+			                let gkCount = 0;
 
-                team.jogadores.forEach(p => {
-	                const pid = p.id || Math.floor(Math.random()*99999);
-                    const pos = p.posicao ? p.posicao.toUpperCase() : 'LINHA';
-                    
-                    let isChecked = "checked";
-                    if (pos === 'GOLEIRO') {
-                        if (gkCount === 0) {
-                            gkCount++;
-                        } else {
-                            isChecked = ""; // Se já tem 1 goleiro marcado, desmarca os outros
-                        }
-                    }
+			                team.jogadores.forEach(p => {
+				                const pid = p.id || Math.floor(Math.random()*99999);
+			                    const pos = p.posicao ? p.posicao.toUpperCase() : 'LINHA';
+			                    
+			                    let isChecked = "checked";
+			                    if (pos === 'GOLEIRO') {
+			                        if (gkCount === 0) {
+			                            gkCount++;
+			                        } else {
+			                            isChecked = ""; 
+			                        }
+			                    }
 
-	                c.innerHTML += `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${p.foto}"><span><strong style="color:var(--primary-neon)">${p.numero}</strong> ${p.nome} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`;
-	            });
-	        }
+			                    // Blindagem
+			                    const nomeSeguro = DOMPurify.sanitize(p.nome);
+			                    const fotoSegura = DOMPurify.sanitize(p.foto);
+
+				                c.innerHTML += `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${fotoSegura}"><span><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`;
+				            });
+				        }
 
             function updateLineupCounts() {
                 const homeChecks = document.querySelectorAll('input[data-team="home"]');
@@ -486,10 +491,15 @@
 	            if(bList.length>0) { col.innerHTML += `<div class="bench-divider">BANCO</div>`; bList.forEach(p => col.innerHTML += createPlayerStrip(p, type, true)); }
 	        }
 	        
-            function createPlayerStrip(p, type, isBench) {
-	            const bClass = isBench ? 'bench-player' : ''; const pid = p.id;
-	            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${type}', ${isBench})"><img src="${p.foto}" class="p-photo"><div class="p-info"><div class="p-name">${p.nome}</div><div class="p-num">${p.numero}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
-	        }
+			function createPlayerStrip(p, type, isBench) {
+				            const bClass = isBench ? 'bench-player' : ''; const pid = p.id;
+			                
+			                // Blindagem
+			                const nomeSeguro = DOMPurify.sanitize(p.nome);
+			                const fotoSegura = DOMPurify.sanitize(p.foto);
+
+				            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${type}', ${isBench})"><img src="${fotoSegura}" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${p.numero}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
+				        }
 
             function restorePlayerIcons() {
                 matchEvents.forEach(evt => {
@@ -512,33 +522,38 @@
 	        }
 	        function closeActionModal() { document.getElementById('actionModal').classList.remove('active'); }
 	        
-            function openSubModal() { 
-                closeActionModal(); 
-                document.getElementById('subModal').classList.add('active'); 
-                document.getElementById('sub-out-name').innerText = matchState.currentPlayer.nome; 
-                
-                const teamKey = matchState.currentTeamType;
-                const benchPlayers = matchState.lineups.bench[teamKey];
-                const listContainer = document.getElementById('bench-list-select');
-                
-                listContainer.innerHTML = '';
+			function openSubModal() { 
+			                closeActionModal(); 
+			                document.getElementById('subModal').classList.add('active'); 
+			                document.getElementById('sub-out-name').innerText = matchState.currentPlayer.nome; 
+			                
+			                const teamKey = matchState.currentTeamType;
+			                const benchPlayers = matchState.lineups.bench[teamKey];
+			                const listContainer = document.getElementById('bench-list-select');
+			                
+			                listContainer.innerHTML = '';
 
-                if (!benchPlayers || benchPlayers.length === 0) {
-                    listContainer.innerHTML = "<p style='color:#777; text-align:center; padding:20px;'>Nenhum jogador no banco.</p>";
-                    return;
-                }
+			                if (!benchPlayers || benchPlayers.length === 0) {
+			                    listContainer.innerHTML = "<p style='color:#777; text-align:center; padding:20px;'>Nenhum jogador no banco.</p>";
+			                    return;
+			                }
 
-                benchPlayers.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'check-player'; 
-                    item.innerHTML = `
-                        <img src="${p.fotoUrl || p.foto || window.AppImages.defaultAvatar}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
-                        <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${p.numero}</strong> ${p.nome} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${p.posicao || 'LINHA'}</small></span>
-                    `;
-                    item.onclick = () => executeSubstitution(p.id);
-                    listContainer.appendChild(item);
-                });
-            }
+			                benchPlayers.forEach(p => {
+			                    const item = document.createElement('div');
+			                    item.className = 'check-player'; 
+			                    
+			                    // Blindagem
+			                    const nomeSeguro = DOMPurify.sanitize(p.nome);
+			                    const fotoSegura = DOMPurify.sanitize(p.fotoUrl || p.foto || window.AppImages.defaultAvatar);
+
+			                    item.innerHTML = `
+			                        <img src="${fotoSegura}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
+			                        <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${p.posicao || 'LINHA'}</small></span>
+			                    `;
+			                    item.onclick = () => executeSubstitution(p.id);
+			                    listContainer.appendChild(item);
+			                });
+			            }
 
             function executeSubstitution(inPlayerId) {
                 const teamKey = matchState.currentTeamType;
@@ -631,7 +646,11 @@
 	            matchEvents.splice(evtIndex, 1); saveLiveState();
 	        }
 
-	        function addFeedItemHTML(id, time, cls, icon, text) { document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${id}"><div class="feed-time">${time}</div><div class="feed-icon ${cls}"><i class="fas ${icon}"></i></div><div class="feed-text">${text}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${id}')" title="Excluir evento"></i></div>`); }
+			function addFeedItemHTML(id, time, cls, icon, text) { 
+			                // Blindagem do texto que carrega nomes de jogadores e clubes no feed
+			                const textoSeguro = DOMPurify.sanitize(text);
+			                document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${id}"><div class="feed-time">${time}</div><div class="feed-icon ${cls}"><i class="fas ${icon}"></i></div><div class="feed-text">${textoSeguro}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${id}')" title="Excluir evento"></i></div>`); 
+			            }
 	        function addPlayerEventIcon(container, iconClass, color, eventId) { if(container) container.innerHTML += `<span id="icon-event-${eventId}"><i class="fas ${iconClass} mini-event-icon" style="color:${color}; margin-left:2px;"></i></span>`; }
 	        function updateScoreboard() { document.getElementById('score-home').innerText = matchState.scoreHome; document.getElementById('score-away').innerText = matchState.scoreAway; }
 	        function toggleTimer() { const btn = document.getElementById('btn-timer-toggle'); if(matchState.isRunning){ clearInterval(matchState.interval); matchState.isRunning=false; btn.className='fas fa-play'; document.querySelector('.btn-play-big').classList.add('paused'); } else { matchState.interval=setInterval(tick,1000); matchState.isRunning=true; btn.className='fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused'); } saveLiveState(); }

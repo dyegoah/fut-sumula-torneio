@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
 	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
@@ -207,11 +208,18 @@
     <script src="js/images.js"></script>
     <script>
         // Injeta o footbar
-        fetch('footbar.html').then(r => r.text()).then(d => {
-            document.getElementById('footbar-container').innerHTML = d;
-            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
-            scripts.forEach(s => eval(s.innerHTML));
-        });
+		fetch('footbar.html').then(r => r.text()).then(d => {
+		            const container = document.getElementById('footbar-container');
+		            container.innerHTML = d;
+		            
+		            // Extrai e executa o script injetado de forma segura (sem eval)
+		            const scripts = container.querySelectorAll("script");
+		            scripts.forEach(s => {
+		                const novoScript = document.createElement("script");
+		                novoScript.textContent = s.textContent;
+		                document.body.appendChild(novoScript);
+		            });
+		        });
 
         // ESTRUTURA DO MOTOR DE HISTÓRICO
         // Nós vamos varrer o LocalStorage inteiro em busca de todas as "súmulas" salvas.
@@ -327,27 +335,31 @@
             const labelMap = { 'gols': 'GOLS', 'faltas': 'FALTAS', 'amarelos': 'AMARELOS', 'vermelhos': 'VERMELHOS' };
             const colorMap = { 'gols': '#FFD700', 'faltas': '#fff', 'amarelos': '#FFD700', 'vermelhos': '#ff4444' };
 
-            ranking.forEach((p, index) => {
-                let rankClass = '';
-                if(index === 0) rankClass = 'rank-1';
-                else if (index === 1) rankClass = 'rank-2';
-                else if (index === 2) rankClass = 'rank-3';
+			ranking.forEach((p, index) => {
+			                let rankClass = '';
+			                if(index === 0) rankClass = 'rank-1';
+			                else if (index === 1) rankClass = 'rank-2';
+			                else if (index === 2) rankClass = 'rank-3';
 
-                container.innerHTML += `
-                    <div class="hof-card" onclick="abrirDetalhesJogador('${p.id}')">
-                        <div class="hof-rank ${rankClass}">${index + 1}</div>
-                        <img src="${p.fotoUrl}" class="hof-photo">
-                        <div class="hof-info">
-                            <div class="hof-name">${p.nome}</div>
-                            <div class="hof-tourneys"><i class="fas fa-running" style="color:var(--primary-neon);"></i> ${p.partidasJogadas} Partidas Disputadas</div>
-                        </div>
-                        <div class="hof-stat">
-                            <div class="stat-num" style="color: ${colorMap[sortKey]};">${p[sortKey]}</div>
-                            <div class="stat-label">${labelMap[sortKey]}</div>
-                        </div>
-                    </div>
-                `;
-            });
+			                // --- MÁGICA DA SEGURANÇA: Limpa as variáveis antes de imprimir na tela ---
+			                const nomeSeguro = DOMPurify.sanitize(p.nome);
+			                const fotoSegura = DOMPurify.sanitize(p.fotoUrl);
+
+			                container.innerHTML += `
+			                    <div class="hof-card" onclick="abrirDetalhesJogador('${p.id}')">
+			                        <div class="hof-rank ${rankClass}">${index + 1}</div>
+			                        <img src="${fotoSegura}" class="hof-photo">
+			                        <div class="hof-info">
+			                            <div class="hof-name">${nomeSeguro}</div>
+			                            <div class="hof-tourneys"><i class="fas fa-running" style="color:var(--primary-neon);"></i> ${p.partidasJogadas} Partidas Disputadas</div>
+			                        </div>
+			                        <div class="hof-stat">
+			                            <div class="stat-num" style="color: ${colorMap[sortKey]};">${p[sortKey]}</div>
+			                            <div class="stat-label">${labelMap[sortKey]}</div>
+			                        </div>
+			                    </div>
+			                `;
+			            });;
         }
 
         function abrirDetalhesJogador(playerId) {
@@ -366,13 +378,15 @@
             const clubesList = document.getElementById('modal-clubes-list');
             clubesList.innerHTML = '';
 
-            if(p.clubes.size === 0) {
-                clubesList.innerHTML = `<span style="color:#666; font-size:0.8rem;">Nenhum clube registrado.</span>`;
-            } else {
-                p.clubes.forEach(clube => {
-                    clubesList.innerHTML += `<div class="clube-tag"><i class="fas fa-shield-alt" style="color:var(--primary-neon); margin-right:5px;"></i>${clube}</div>`;
-                });
-            }
+			if(p.clubes.size === 0) {
+			                clubesList.innerHTML = `<span style="color:#666; font-size:0.8rem;">Nenhum clube registrado.</span>`;
+			            } else {
+			                p.clubes.forEach(clube => {
+			                    // Limpa o nome do clube antes de inserir
+			                    const clubeSeguro = DOMPurify.sanitize(clube);
+			                    clubesList.innerHTML += `<div class="clube-tag"><i class="fas fa-shield-alt" style="color:var(--primary-neon); margin-right:5px;"></i>${clubeSeguro}</div>`;
+			                });
+			            }
 
             document.getElementById('playerHistoryModal').classList.add('active');
         }

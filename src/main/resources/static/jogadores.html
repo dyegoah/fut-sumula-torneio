@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
 	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
@@ -182,12 +183,19 @@
 
     <script>
         // Carregador do Footbar
-        fetch('footbar.html').then(r => r.text()).then(d => {
-            document.getElementById('footbar-container').innerHTML = d;
-            const scripts = document.getElementById('footbar-container').querySelectorAll("script");
-            scripts.forEach(s => eval(s.innerHTML));
-        });
-
+		fetch('footbar.html').then(r => r.text()).then(d => {
+		            const container = document.getElementById('footbar-container');
+		            container.innerHTML = d;
+		            
+		            // Extrai e executa o script injetado de forma segura (sem eval)
+		            const scripts = container.querySelectorAll("script");
+		            scripts.forEach(s => {
+		                const novoScript = document.createElement("script");
+		                novoScript.textContent = s.textContent;
+		                document.body.appendChild(novoScript);
+		            });
+		        });
+				
         let allJogadores = []; // Variável Global
 
         document.addEventListener('DOMContentLoaded', carregarJogadores);

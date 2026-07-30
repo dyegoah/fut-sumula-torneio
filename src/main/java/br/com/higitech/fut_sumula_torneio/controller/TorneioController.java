@@ -22,6 +22,7 @@ import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.PartidaRepository;
 import br.com.higitech.fut_sumula_torneio.repository.TimeRepository;
 import br.com.higitech.fut_sumula_torneio.repository.TorneioRepository;
+import jakarta.validation.Valid; // IMPORTAÇÃO DA BLINDAGEM
 
 @RestController
 @RequestMapping("/api/torneios")
@@ -39,23 +40,20 @@ public class TorneioController {
 
     @PostMapping("/criar")
     @Transactional
-    public ResponseEntity<?> criar(@RequestBody CriarTorneioDTO dados) {
+    public ResponseEntity<?> criar(@Valid @RequestBody CriarTorneioDTO dados) {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-        // --- VALIDAÇÕES DE REGRAS DE NEGÓCIO ---
         if (dados.getTipo().equalsIgnoreCase("COPA")) {
             if (dados.getQuantidadeTimes() < 6) {
                 return ResponseEntity.badRequest().body("Para o formato COPA, é necessário no mínimo 6 times (2 Grupos de 3).");
             }
         }
         
-        // NOVA TRAVA: MATA-MATA
         if (dados.getTipo().equalsIgnoreCase("MATA_MATA")) {
             if (dados.getQuantidadeTimes() < 4) {
                 return ResponseEntity.badRequest().body("Para o formato MATA-MATA, é necessário no mínimo 4 times.");
             }
         }
-        // ---------------------------------------
 
         Torneio t = new Torneio();
         t.setNome(dados.getNome());
@@ -68,10 +66,7 @@ public class TorneioController {
 
         if(dados.getTimesIds() != null && !dados.getTimesIds().isEmpty()) {
             List<Time> times = timeRepository.findAllById(dados.getTimesIds());
-            
-            // TRAVA DE SEGURANÇA: Filtra a lista removendo qualquer time que seja de outro organizador
             times.removeIf(time -> !time.getOrganizador().getId().equals(usuarioLogado.getId()));
-            
             t.setTimes(times);
         }
 
@@ -97,25 +92,21 @@ public class TorneioController {
         }).orElse(ResponseEntity.notFound().build());
     }
     
- /// 1. ROTA INTERNA (SEGURA): Verifica se o ID solicitado pertence ao Usuário Logado
     @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) { // <-- MUDOU DE <Torneio> PARA <?>
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         return repository.findById(id).map(torneio -> {
-            // TRAVA DE PROPRIEDADE: O Torneio é meu?
             if(!torneio.getOrganizador().getId().equals(usuarioLogado.getId())) {
-                return ResponseEntity.status(403).build(); // 403 Forbidden: É de outro usuário!
+                return ResponseEntity.status(403).build();
             }
             return ResponseEntity.ok(torneio);
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // 2. NOVA ROTA PÚBLICA (ANTI-VAZAMENTO): Usa o UUID (codigoPublico) impossível de adivinhar
     @GetMapping("/publico/{codigo}")
-    public ResponseEntity<?> buscarParaTorcedor(@PathVariable String codigo) { // <-- MUDOU DE <Torneio> PARA <?>
+    public ResponseEntity<?> buscarParaTorcedor(@PathVariable String codigo) {
         return repository.findByCodigoPublico(codigo).map(torneio -> {
-            // Oculta completamente quem é o dono por segurança antes de enviar para o torcedor
             torneio.setOrganizador(null); 
             return ResponseEntity.ok(torneio);
         }).orElse(ResponseEntity.notFound().build());

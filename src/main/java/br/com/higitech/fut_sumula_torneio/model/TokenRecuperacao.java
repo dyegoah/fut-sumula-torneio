@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -29,8 +30,16 @@ public class TokenRecuperacao {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
+    
+    @PrePersist
+    public void prePersist() {
+        this.token = java.util.UUID.randomUUID().toString();
+        this.dataExpiracao = LocalDateTime.now().plusMinutes(15);
+    }
 
     // Getters e Setters
+    
+    
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getToken() { return token; }

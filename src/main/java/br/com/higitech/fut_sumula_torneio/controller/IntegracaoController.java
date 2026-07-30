@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.higitech.fut_sumula_torneio.dto.IntegracaoDTO;
 import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
+import jakarta.validation.Valid; // IMPORTAÇÃO DA BLINDAGEM
 
 @RestController
 @RequestMapping("/api/integracao")
@@ -25,27 +26,22 @@ public class IntegracaoController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // --- CORREÇÃO DE SEGURANÇA AQUI ---
-    // Agora o Java vai ler a chave diretamente do ambiente seguro do Render
     @Value("${api.integracao.racha.key}")
     private String API_KEY_SEGURA;
 
     @PostMapping("/receber-usuario")
     public ResponseEntity<?> receberUsuarioExterno(
             @RequestHeader("X-Api-Key") String apiKey, 
-            @RequestBody IntegracaoDTO dados) {
+            @Valid @RequestBody IntegracaoDTO dados) {
 
-        // 1. Segurança: Verifica se quem chama tem a chave do ambiente
         if (!API_KEY_SEGURA.equals(apiKey)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Chave de API inválida.");
         }
 
-        // 2. Verifica se já existe
         if (repository.findByLogin(dados.email()) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Usuário já existe no sistema Torneio.");
         }
 
-        // 3. Cria o Usuário com a etiqueta RACHA
         Usuario u = new Usuario();
         u.setNome(dados.nome());
         u.setLogin(dados.email());

@@ -33,6 +33,7 @@ import br.com.higitech.fut_sumula_torneio.repository.TokenRecuperacaoRepository;
 import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
 import br.com.higitech.fut_sumula_torneio.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid; // IMPORTAÇÃO DA BLINDAGEM
 
 @RestController
 @RequestMapping("/api/auth")
@@ -54,11 +55,8 @@ public class AutenticacaoController {
         LoginAttempt() { this.attempts = 1; this.lockTime = null; }
     }
 
-    // ====================================================================
-    // 1. PRIMEIRA ETAPA DO LOGIN (E-mail e Senha)
-    // ====================================================================
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthenticationDTO data, HttpServletRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
         
         String clientIP = request.getRemoteAddr();
         LoginAttempt attempt = loginAttempts.getOrDefault(clientIP, new LoginAttempt());
@@ -79,22 +77,20 @@ public class AutenticacaoController {
 
             Usuario user = (Usuario) auth.getPrincipal();
 
-            // VERIFICA SE O USUÁRIO TEM A SEGURANÇA 2FA ATIVADA
             if (Boolean.TRUE.equals(user.getUsar2fa())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
                 response.put("login", user.getLogin());
-                return ResponseEntity.ok(response); // Manda o Front-end pedir a 2ª etapa
+                return ResponseEntity.ok(response);
             }
 
-            // Se não usar 2FA (Usuário Comum), entra direto
             var token = tokenService.gerarToken(user);
             ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
                     .httpOnly(true)
-                    .secure(true)       // <- MUDOU PARA TRUE (EXIGE HTTPS)
+                    .secure(true)       
                     .path("/")
                     .maxAge(24 * 60 * 60)
-                    .sameSite("None")   // <- MUDOU PARA NONE (PERMITE NAVEGAÇÃO CROSS-SITE SEGURA NO RENDER)
+                    .sameSite("None")   
                     .build();
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
 
@@ -106,9 +102,6 @@ public class AutenticacaoController {
         }
     }
 
-    // ====================================================================
-    // 2. SEGUNDA ETAPA DO LOGIN (Código de 6 Dígitos - Google Auth)
-    // ====================================================================
     @PostMapping("/login/validar-2fa")
     public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data) {
         String login = data.get("login");
@@ -136,9 +129,6 @@ public class AutenticacaoController {
         }
     }
 
-    // ====================================================================
-    // ROTA PARA VINCULAR O SEU CELULAR AO BANCO DE DADOS
-    // ====================================================================
     @GetMapping("/gerar-2fa-admin")
     public ResponseEntity<?> gerarQrCodeAdmin() {
         Usuario admin = (Usuario) repository.findByLogin("admin@futsumula.com");
@@ -151,7 +141,7 @@ public class AutenticacaoController {
             secretKey = key.getKey();
             
             admin.setChave2fa(secretKey);
-            admin.setUsar2fa(true); // OBRIGA O ADMIN A USAR O CÓDIGO
+            admin.setUsar2fa(true); 
             repository.save(admin);
         }
 
@@ -163,9 +153,8 @@ public class AutenticacaoController {
         return ResponseEntity.ok(resposta);
     }
 
-    // ... Rotas antigas de recuperar senha e /me e /register abaixo (mantidas iguaizinhas)
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterDTO data) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO data) {
         if (this.repository.findByLogin(data.login()) != null) return ResponseEntity.badRequest().body("E-mail já cadastrado.");
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.senha());
         Usuario newUser = new Usuario();
@@ -226,7 +215,7 @@ public class AutenticacaoController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordDTO data) {
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordDTO data) {
         Usuario user = (Usuario) repository.findByLogin(data.email());
         if (user == null) return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
 
@@ -245,7 +234,7 @@ public class AutenticacaoController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordDTO data) {
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordDTO data) {
         java.util.Optional<TokenRecuperacao> tokenOpt = tokenRecuperacaoRepository.findByToken(data.token());
         if (tokenOpt.isEmpty()) return ResponseEntity.badRequest().body("Token inválido ou não encontrado.");
         TokenRecuperacao token = tokenOpt.get();

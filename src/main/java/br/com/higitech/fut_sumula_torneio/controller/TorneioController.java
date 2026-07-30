@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,6 @@ import br.com.higitech.fut_sumula_torneio.repository.TorneioRepository;
 
 @RestController
 @RequestMapping("/api/torneios")
-@CrossOrigin("*")
 public class TorneioController {
 
     @Autowired private TorneioRepository repository;

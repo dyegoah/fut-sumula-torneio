@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,11 +29,10 @@ import br.com.higitech.fut_sumula_torneio.repository.TimeRepository;
 
 @RestController
 @RequestMapping("/api/jogadores")
-@CrossOrigin("*")
 public class JogadorController {
 
     @Autowired
-    private JogadorRepository repository; // Agora importa do pacote correto
+    private JogadorRepository repository; 
 
     @Autowired
     private TimeRepository timeRepository;
@@ -55,12 +53,12 @@ public class JogadorController {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         return repository.findById(id)
-                .filter(j -> j.getOrganizador().getId().equals(usuarioLogado.getId())) // Garante que é do dono
+                .filter(j -> j.getOrganizador().getId().equals(usuarioLogado.getId())) 
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // CADASTRAR (COM VÍNCULO AO DONO)
+    // CADASTRAR (COM VÍNCULO AO DONO E PROTEÇÃO DE UPLOAD)
     @PostMapping("/cadastrar")
     public ResponseEntity<?> cadastrar(
             @RequestParam("nome") String nome,
@@ -79,8 +77,8 @@ public class JogadorController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Jogador já existe no seu plantel.");
             }
 
-            // Limite de segurança (ex: 330 jogadores por conta)
-            long totalJogadores = repository.countByOrganizador(usuarioLogado); // Idealmente countByOrganizador
+            // Limite de segurança 
+            long totalJogadores = repository.countByOrganizador(usuarioLogado); 
             if (totalJogadores >= 330) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Limite de jogadores atingido.");
             }
@@ -98,14 +96,23 @@ public class JogadorController {
             // Vincula ao Time se informado
             if(timeId != null) {
                 Time time = timeRepository.findById(timeId).orElse(null);
-                // Verifica se o time também é do usuário
                 if(time != null && time.getOrganizador().getId().equals(usuarioLogado.getId())) {
                     j.setTime(time);
                 }
             }
 
-            // Upload de Foto
+            // --- TRAVA DE SEGURANÇA 1: INSPEÇÃO DE ARQUIVO ---
             if (foto != null && !foto.isEmpty()) {
+                String contentType = foto.getContentType();
+                
+                if (contentType == null || !contentType.startsWith("image/")) {
+                    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Apenas imagens são permitidas.");
+                }
+                
+                if (foto.getSize() > 2097152) { // 2 MB
+                    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("A imagem excede o tamanho máximo de 2MB.");
+                }
+
                 Map uploadResult = cloudinary.uploader().upload(foto.getBytes(), ObjectUtils.emptyMap());
                 j.setFotoUrl(uploadResult.get("url").toString());
             }
@@ -115,11 +122,13 @@ public class JogadorController {
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro no upload da foto.");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Erro ao salvar: " + e.getMessage());
+            e.printStackTrace();
+            // --- TRAVA DE SEGURANÇA 4: OCULTANDO O MAPA DO BANCO DE DADOS ---
+            return ResponseEntity.badRequest().body("Erro interno ao processar a requisição.");
         }
     }
 
-    // ATUALIZAR
+    // ATUALIZAR (REFATORADO PARA SUPORTAR ERROS DE UPLOAD)
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizar(@PathVariable Long id, 
                                      @RequestParam(value="nome", required=false) String nome,
@@ -131,29 +140,44 @@ public class JogadorController {
         
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-        return repository.findById(id).map(j -> {
-            if(!j.getOrganizador().getId().equals(usuarioLogado.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
+        Jogador j = repository.findById(id).orElse(null);
+        if (j == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-            if(nome != null) j.setNome(nome);
-            if(numero != null) j.setNumeroCamisa(numero);
-            if(posicao != null) j.setPosicao(posicao);
-            if(nivel != null) j.setNivelTecnico(nivel);
-            if(whatsapp != null) j.setWhatsapp(whatsapp);
+        if(!j.getOrganizador().getId().equals(usuarioLogado.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+        }
 
-            if (foto != null && !foto.isEmpty()) {
-                try {
-                    Map uploadResult = cloudinary.uploader().upload(foto.getBytes(), ObjectUtils.emptyMap());
-                    j.setFotoUrl(uploadResult.get("url").toString());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+        if(nome != null) j.setNome(nome);
+        if(numero != null) j.setNumeroCamisa(numero);
+        if(posicao != null) j.setPosicao(posicao);
+        if(nivel != null) j.setNivelTecnico(nivel);
+        if(whatsapp != null) j.setWhatsapp(whatsapp);
+
+        // --- TRAVA DE SEGURANÇA 1: INSPEÇÃO DE ARQUIVO ---
+        if (foto != null && !foto.isEmpty()) {
+            String contentType = foto.getContentType();
+            
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Apenas imagens são permitidas.");
             }
             
-            repository.save(j);
-            return ResponseEntity.ok(j);
-        }).orElse(ResponseEntity.notFound().build());
+            if (foto.getSize() > 2097152) { // 2 MB
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("A imagem excede o tamanho máximo de 2MB.");
+            }
+
+            try {
+                Map uploadResult = cloudinary.uploader().upload(foto.getBytes(), ObjectUtils.emptyMap());
+                j.setFotoUrl(uploadResult.get("url").toString());
+            } catch (IOException e) {
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro no upload da foto.");
+            }
+        }
+        
+        repository.save(j);
+        return ResponseEntity.ok(j);
     }
 
     // EXCLUIR

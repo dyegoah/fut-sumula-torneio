@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,14 +25,13 @@ import com.cloudinary.utils.ObjectUtils;
 
 import br.com.higitech.fut_sumula_torneio.model.Jogador;
 import br.com.higitech.fut_sumula_torneio.model.Time;
-import br.com.higitech.fut_sumula_torneio.model.Usuario; // IMPORTANTE: Sua classe de Usuário
+import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.JogadorRepository;
 import br.com.higitech.fut_sumula_torneio.repository.PartidaRepository;
 import br.com.higitech.fut_sumula_torneio.repository.TimeRepository;
 
 @RestController
 @RequestMapping("/api/times")
-@CrossOrigin("*") // O CORS global já cuida disso, mas pode deixar por garantia
 public class TimeController {
 
     @Autowired private TimeRepository repository;
@@ -41,24 +39,17 @@ public class TimeController {
     @Autowired private PartidaRepository partidaRepository;
     @Autowired private Cloudinary cloudinary;
 
-    // --- LISTAR (AGORA É MULTI-TENANT) ---
     @GetMapping
     public ResponseEntity<List<Time>> listar() {
         try {
-            // 1. Pega o usuário do Token JWT
             Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            
-            // 2. Busca APENAS os times desse usuário
-            // ATENÇÃO: Você precisa ter o método findAllByOrganizador no TimeRepository
             List<Time> times = repository.findAllByOrganizador(usuarioLogado);
-            
             return ResponseEntity.ok(times);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
-    // --- CRIAR (MULTI-TENANT + UPLOAD) ---
     @PostMapping("/criar")
     public ResponseEntity<?> criar(
             @RequestParam("nome") String nome,
@@ -71,10 +62,8 @@ public class TimeController {
             @RequestParam(value = "escudoFile", required = false) MultipartFile escudo) {
 
         try {
-            // 1. Identifica quem está criando
             Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-            // 2. Verifica duplicidade SÓ para esse usuário
             if (repository.existsByNomeIgnoreCaseAndOrganizador(nome, usuarioLogado)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Você já tem um clube com este nome.");
             }
@@ -85,12 +74,20 @@ public class TimeController {
             time.setCorSecundaria(corSecundaria);
             time.setCorTerciaria(corTerciaria);
             time.setTipoEscudo(tipoEscudo);
-            
-            // 3. VINCULA O TIME AO DONO (ISOLAMENTO DE DADOS)
             time.setOrganizador(usuarioLogado);
 
-            // 4. Lógica de Imagem
+            // --- TRAVA DE SEGURANÇA 1: INSPEÇÃO DE ARQUIVO ---
             if ("UPLOAD".equals(tipoEscudo) && escudo != null && !escudo.isEmpty()) {
+                String contentType = escudo.getContentType();
+                
+                if (contentType == null || !contentType.startsWith("image/")) {
+                    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Apenas imagens são permitidas.");
+                }
+                
+                if (escudo.getSize() > 2097152) { // 2 MB
+                    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("A imagem excede o tamanho máximo de 2MB.");
+                }
+
                 Map uploadResult = cloudinary.uploader().upload(escudo.getBytes(), ObjectUtils.emptyMap());
                 time.setEscudoUrl(uploadResult.get("url").toString());
             } else {
@@ -104,7 +101,8 @@ public class TimeController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao processar imagem.");
         } catch (Exception e) {
              e.printStackTrace();
-             return ResponseEntity.badRequest().body("Erro ao salvar time: " + e.getMessage());
+             // --- TRAVA DE SEGURANÇA 4: OCULTANDO O MAPA DO BANCO DE DADOS ---
+             return ResponseEntity.badRequest().body("Erro interno ao processar a requisição.");
         }
     }
 
@@ -113,7 +111,6 @@ public class TimeController {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         return repository.findById(id).map(time -> {
-            // TRAVA DE SEGURANÇA: Impede editar time alheio
             if (!time.getOrganizador().getId().equals(usuarioLogado.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado: Este time não pertence a você.");
             }
@@ -130,25 +127,19 @@ public class TimeController {
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<?> excluir(@PathVariable Long id) {
-        // Pega o usuário para garantir que ele só exclua o que é dele
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        
-        // Verifica se o time existe E pertence ao usuário
         Time t = repository.findById(id).orElse(null);
         
         if (t == null) return ResponseEntity.notFound().build();
         
-        // Verifica se o time pertence ao usuário logado (Segurança Extra)
         if (!t.getOrganizador().getId().equals(usuarioLogado.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Você não tem permissão para excluir este time.");
         }
 
-        // Verifica se tem jogos
         if (partidaRepository.existsByTimeCasaIdOrTimeVisitanteId(id, id)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Não é possível excluir: Clube em competição.");
         }
 
-        // Limpa jogadores
         if(t.getJogadores() != null) {
             for(Jogador j : t.getJogadores()) {
                 j.setTime(null);
@@ -165,14 +156,12 @@ public class TimeController {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         return repository.findById(timeId).map(time -> {
-            // TRAVA DE SEGURANÇA 1: O time é dele?
             if (!time.getOrganizador().getId().equals(usuarioLogado.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
             List<Jogador> jogadores = jogadorRepository.findAllById(jogadoresIds);
             for (Jogador jogador : jogadores) {
-                // TRAVA DE SEGURANÇA 2: O jogador que ele quer roubar é dele?
                 if (jogador.getOrganizador().getId().equals(usuarioLogado.getId())) {
                     jogador.setTime(time);
                 }
@@ -187,7 +176,6 @@ public class TimeController {
         Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         return jogadorRepository.findById(jogadorId).map(jogador -> {
-            // TRAVA DE SEGURANÇA: Ele só pode remover se o jogador for dele
             if (!jogador.getOrganizador().getId().equals(usuarioLogado.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
@@ -200,4 +188,4 @@ public class TimeController {
             return ResponseEntity.badRequest().build();
         }).orElse(ResponseEntity.notFound().build());
     }
-   }
+}

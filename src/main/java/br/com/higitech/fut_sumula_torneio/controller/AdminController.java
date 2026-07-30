@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,16 +23,21 @@ import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin("*")
+// @CrossOrigin("*") <-- REMOVIDO PARA FECHAR A BRECHA (Risco 3)
 public class AdminController {
 
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
+    // --- SEGURANÇA: Lendo o email oficial do cofre ---
+    @Value("${api.admin.email:admin@futsumula.com}")
+    private String adminEmail;
+
     private boolean isAdmin() {
         try {
             Usuario u = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            return "admin@futsumula.com".equals(u.getLogin());
+            // Compara o usuário logado com a variável protegida
+            return adminEmail.equals(u.getLogin());
         } catch (Exception e) { return false; }
     }
 
@@ -55,7 +60,6 @@ public class AdminController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // --- NOVO: BOTÃO PARA LIBERAR ASSINATURA PAGA ---
     @PutMapping("/users/{id}/premium")
     public ResponseEntity<?> alternarPremium(@PathVariable Long id) {
         if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -64,7 +68,7 @@ public class AdminController {
                 user.setPlano("FREE");
             } else {
                 user.setPlano("PREMIUM");
-                user.setStatus("ATIVO"); // Reativa conta automaticamente se estava suspensa
+                user.setStatus("ATIVO"); 
             }
             usuarioRepository.save(user);
             return ResponseEntity.ok(user);

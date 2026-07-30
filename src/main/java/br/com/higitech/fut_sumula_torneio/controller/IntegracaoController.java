@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -18,7 +17,6 @@ import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
 
 @RestController
 @RequestMapping("/api/integracao")
-@CrossOrigin("*") // Permite que o outro projeto chame esta API
 public class IntegracaoController {
 
     @Autowired

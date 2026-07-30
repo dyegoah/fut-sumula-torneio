@@ -13,7 +13,6 @@ import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
 import br.com.higitech.fut_sumula_torneio.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -43,19 +42,14 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
 
     private String recoverToken(HttpServletRequest request) {
-        // --- INÍCIO DA AUDITORIA: Lendo o token do Cookie Seguro ---
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if ("jwtToken".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
+        // --- SEGURANÇA MÁXIMA ---
+        // Leitura EXCLUSIVA via Header. Bloqueia ataques CSRF (Cross-Site Request Forgery).
+        var authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
         }
         
-        // Fallback: Mantém a leitura do Header para caso você use o Postman ou um App Mobile no futuro
-        var authHeader = request.getHeader("Authorization");
-        if (authHeader == null) return null;
         return authHeader.replace("Bearer ", "");
-        // --- FIM DA AUDITORIA ---
     }
 }

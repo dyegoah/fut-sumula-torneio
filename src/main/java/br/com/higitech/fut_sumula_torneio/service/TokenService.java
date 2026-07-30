@@ -17,9 +17,8 @@ import br.com.higitech.fut_sumula_torneio.model.Usuario;
 @Service
 public class TokenService {
     
-    // Injeta do application.properties ou usa o padrão se não encontrar
-    @Value("${api.security.token.secret:secreta-do-fut-sumula-pro}")
-    private String secret; 
+	@Value("${api.security.token.secret}")
+    private String secret;
 
     public String gerarToken(Usuario usuario) {
         try {

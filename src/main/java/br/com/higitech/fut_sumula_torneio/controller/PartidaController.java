@@ -28,6 +28,7 @@ import br.com.higitech.fut_sumula_torneio.repository.TimeRepository;
 import br.com.higitech.fut_sumula_torneio.repository.TorneioRepository;
 import br.com.higitech.fut_sumula_torneio.service.TorneioService;
 
+
 @RestController
 @RequestMapping("/api/partidas")
 public class PartidaController {
@@ -142,5 +143,17 @@ public class PartidaController {
     @PostMapping("/{id}/definir-confronto")
     public ResponseEntity<?> definirConfronto(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
         return ResponseEntity.ok().build();
+    }
+    
+ // NOVA ROTA PÚBLICA (ANTI-VAZAMENTO)
+    @GetMapping("/publico/{codigo}")
+    public ResponseEntity<?> getPartidaPublica(@PathVariable String codigo) {
+        return partidaRepo.findByCodigoPublico(codigo).map(partida -> {
+            // Opcional: Ocultar dados do organizador do torneio para proteger a privacidade
+            if (partida.getTorneio() != null) {
+                partida.getTorneio().setOrganizador(null); 
+            }
+            return ResponseEntity.ok(partida);
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

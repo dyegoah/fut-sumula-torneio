@@ -2,6 +2,7 @@ package br.com.higitech.fut_sumula_torneio.model;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -14,9 +15,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
-
 @Entity
 @Table(name = "tb_partidas")
 public class Partida {
@@ -63,6 +64,17 @@ public class Partida {
     // Campos auxiliares para a criação (não salvam no banco)
     @Transient private Integer tempIndexOrigemCasa;
     @Transient private Integer tempIndexOrigemVisitante;
+
+ // --- BLINDAGEM ANTI-SCRAPING ---
+    @Column(unique = true, updatable = false)
+    private String codigoPublico;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.codigoPublico == null) {
+            this.codigoPublico = UUID.randomUUID().toString();
+        }
+    }
 
     // --- GETTERS E SETTERS ---
 
@@ -117,4 +129,7 @@ public class Partida {
 
     public Integer getTempIndexOrigemVisitante() { return tempIndexOrigemVisitante; }
     public void setTempIndexOrigemVisitante(Integer tempIndexOrigemVisitante) { this.tempIndexOrigemVisitante = tempIndexOrigemVisitante; }
+    
+    public String getCodigoPublico() { return codigoPublico; }
+    public void setCodigoPublico(String codigoPublico) { this.codigoPublico = codigoPublico; }
 }

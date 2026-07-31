@@ -1,6 +1,5 @@
 package br.com.higitech.fut_sumula_torneio.controller;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -18,8 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.higitech.fut_sumula_torneio.dto.AdminUpdateUserDTO;
 import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -76,36 +77,21 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/update")
-    public ResponseEntity<?> atualizarDadosCompletos(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> atualizarDadosCompletos(@PathVariable Long id, @Valid @RequestBody AdminUpdateUserDTO dto) {
         if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
         return usuarioRepository.findById(id).map(user -> {
-            if(payload.containsKey("nome")) user.setNome((String) payload.get("nome"));
-            if(payload.containsKey("login")) user.setLogin((String) payload.get("login"));
-            if(payload.containsKey("cidade")) user.setCidade((String) payload.get("cidade"));
-            if(payload.containsKey("uf")) user.setUf((String) payload.get("uf"));
-            if(payload.containsKey("genero")) user.setGenero((String) payload.get("genero"));
-            if(payload.containsKey("idioma")) user.setIdioma((String) payload.get("idioma"));
-            
-            if(payload.containsKey("trialDays")) {
-                Object tdObj = payload.get("trialDays");
-                if(tdObj == null) {
-                    user.setTrialDays(null); 
-                } else if (tdObj instanceof Number) {
-                    user.setTrialDays(((Number) tdObj).intValue());
-                } else if (tdObj instanceof String && !((String)tdObj).isBlank()) {
-                    user.setTrialDays(Integer.parseInt((String) tdObj));
-                }
-            }
+            if(dto.nome() != null && !dto.nome().isBlank()) user.setNome(dto.nome());
+            if(dto.login() != null && !dto.login().isBlank()) user.setLogin(dto.login());
+            if(dto.cidade() != null) user.setCidade(dto.cidade());
+            if(dto.uf() != null) user.setUf(dto.uf());
+            if(dto.genero() != null) user.setGenero(dto.genero());
+            if(dto.idioma() != null) user.setIdioma(dto.idioma());
+            if(dto.trialDays() != null) user.setTrialDays(dto.trialDays());
+            if(dto.dataNascimento() != null) user.setDataNascimento(dto.dataNascimento());
 
-            String novaSenha = (String) payload.get("novaSenha");
-            if(novaSenha != null && !novaSenha.isBlank()) {
-                user.setSenha(passwordEncoder.encode(novaSenha));
-            }
-            
-            String dataNasc = (String) payload.get("dataNascimento");
-            if(dataNasc != null && !dataNasc.isEmpty()) {
-                user.setDataNascimento(LocalDate.parse(dataNasc));
+            if(dto.novaSenha() != null && !dto.novaSenha().isBlank()) {
+                user.setSenha(passwordEncoder.encode(dto.novaSenha()));
             }
 
             usuarioRepository.save(user);

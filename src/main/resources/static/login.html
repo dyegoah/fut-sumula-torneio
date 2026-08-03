@@ -51,6 +51,7 @@
 
         .btn-submit { width: 100%; padding: 15px; border: none; border-radius: 8px; background: linear-gradient(90deg, #00c6ff, #0072ff); color: #fff; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 20px rgba(0, 114, 255, 0.3); }
         .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 114, 255, 0.5); }
+        .btn-submit:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; }
 
         .divider { margin: 25px 0; border-top: 1px solid rgba(255,255,255,0.1); position: relative; }
         .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0b0b0f; padding: 0 10px; color: #666; font-size: 0.8rem; }
@@ -60,8 +61,8 @@
         .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
         .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
         
-        .forgot-link { display: block; text-align: right; color: var(--primary-neon); font-size: 0.8rem; text-decoration: none; margin-top: -10px; margin-bottom: 20px; font-weight: 600; }
-        .forgot-link:hover { text-decoration: underline; }
+        .forgot-link { display: inline-block; color: var(--primary-neon); font-size: 0.8rem; text-decoration: none; font-weight: 600; transition: 0.3s; }
+        .forgot-link:hover { text-decoration: underline; color: #fff; }
 
         @media (max-width: 900px) { body { flex-direction: column; height: auto; overflow-y: auto; } .info-side { display: none; } .login-side { height: 100vh; padding: 20px; } }
     </style>
@@ -103,8 +104,11 @@
                     <label>Sua Senha</label>
                 </div>
 
-                <!-- NOVA LINHA: ESQUECI A SENHA -->
-                <a href="#" class="forgot-link" onclick="abrirEsqueciSenha()">Esqueceu a senha?</a>
+                <!-- LINKS DE RECUPERAÇÃO LADO A LADO -->
+                <div style="display: flex; justify-content: space-between; margin-top: -10px; margin-bottom: 20px;">
+                    <a href="#" class="forgot-link" onclick="abrirEsqueciSenha()">Esqueceu a senha?</a>
+                    <a href="#" class="forgot-link" onclick="abrirReenviarAtivacao()">Reenviar ativação?</a>
+                </div>
 
                 <button class="btn-submit" id="btnStep1" onclick="fazerLogin()">
                     ACESSAR PAINEL <i class="fas fa-arrow-right" style="margin-left:5px;"></i>
@@ -133,6 +137,29 @@
                 
                 <div style="text-align: center; margin-top: 20px;">
                     <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar e trocar usuário</a>
+                </div>
+            </div>
+            
+            <!-- ETAPA 3: REENVIAR ATIVAÇÃO (NOVO) -->
+            <div id="step-resend" style="display: none;">
+                <div class="form-header">
+                    <i class="fas fa-envelope-open-text auth-icon"></i>
+                    <h2>Ativar Conta</h2>
+                    <p>Reenviaremos o link de confirmação para você</p>
+                </div>
+
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <i class="fas fa-at"></i>
+                    <input type="email" id="resendEmail" placeholder=" " required maxlength="100">
+                    <label>Seu e-mail cadastrado</label>
+                </div>
+
+                <button class="btn-submit" id="btnResend" onclick="reenviarAtivacao()">
+                    REENVIAR E-MAIL <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
+                </button>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
                 </div>
             </div>
 
@@ -199,7 +226,7 @@
                         window.location.href = 'index.html'; 
                     }
                 } else {
-                    alert("Acesso negado. Verifique seu e-mail e senha.");
+                    alert("Acesso negado. Verifique seu e-mail e senha. Se sua conta for nova, confirme o e-mail de ativação.");
                 }
             } catch(e) {
                 console.error(e);
@@ -250,15 +277,26 @@
         function abrirEsqueciSenha() {
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'none';
             document.getElementById('step-forgot').style.display = 'block';
+        }
+
+        function abrirReenviarAtivacao() {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'block';
         }
 
         function voltarEtapa1() {
             document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-forgot').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'none';
             document.getElementById('step-1').style.display = 'block';
+            
             document.getElementById('codigo2FA').value = "";
             document.getElementById('forgotEmail').value = "";
+            document.getElementById('resendEmail').value = "";
         }
 
         async function enviarRecuperacao() {
@@ -292,11 +330,45 @@
             }
         }
 
+        async function reenviarAtivacao() {
+            const email = document.getElementById('resendEmail').value.trim();
+            if(!email) { alert("Preencha seu e-mail."); return; }
+
+            const btn = document.getElementById('btnResend');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ENVIANDO...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/resend-activation', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+
+                const resposta = await res.text();
+                
+                if (res.ok) {
+                    alert("✅ " + resposta);
+                    voltarEtapa1();
+                } else {
+                    alert("❌ " + resposta);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Servidor indisponível no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
         document.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 if (document.getElementById('step-1').style.display !== 'none') fazerLogin();
                 else if (document.getElementById('step-2').style.display !== 'none') validarCodigo2FA();
                 else if (document.getElementById('step-forgot').style.display !== 'none') enviarRecuperacao();
+                else if (document.getElementById('step-resend').style.display !== 'none') reenviarAtivacao();
             }
         });
     </script>

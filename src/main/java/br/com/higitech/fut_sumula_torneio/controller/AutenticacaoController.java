@@ -293,14 +293,13 @@ public class AutenticacaoController {
             return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
         }
 
-        // --- SOLUÇÃO: ATUALIZAR EM VEZ DE APAGAR E CRIAR ---
         TokenRecuperacao tokenRecuperacao = null;
         
         try {
             Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
             for (TokenRecuperacao t : tokens) {
                 if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
-                    tokenRecuperacao = t; // Pega o token que já existe no banco
+                    tokenRecuperacao = t; 
                     break;
                 }
             }
@@ -308,7 +307,6 @@ public class AutenticacaoController {
             System.out.println("Erro ao buscar token: " + e.getMessage());
         }
 
-        // Se o usuário não tiver token nenhum (nunca pediu), cria a gaveta
         if (tokenRecuperacao == null) {
             tokenRecuperacao = new TokenRecuperacao();
             tokenRecuperacao.setUsuario(user);
@@ -316,21 +314,25 @@ public class AutenticacaoController {
 
         String novoToken = java.util.UUID.randomUUID().toString().trim();
         
-        // Atualiza a gaveta com a senha nova e expiração nova
         tokenRecuperacao.setToken(novoToken); 
         tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusMinutes(15));
         
-        // Salva com segurança, sem conflito de exclusão
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
-        String link = "http://localhost:8080/reset-password.html?token=" + novoToken;
+        // Link alterado para o seu domínio oficial de produção
+        String link = "https://fut-sumula-torneio.onrender.com/reset-password.html?token=" + novoToken;
         
-        System.out.println("\n========================================================");
-        System.out.println("TESTE MODO DESENVOLVEDOR - LINK DE RECUPERACAO DE SENHA:");
-        System.out.println(link);
-        System.out.println("========================================================\n");
+        // Criando a mensagem de e-mail oficial
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setFrom("fut_sumula_pro@hotmail.com"); 
+        message.setTo(user.getLogin()); 
+        message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
+        message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
 
-        return ResponseEntity.ok("Ambiente de Teste: O link de recuperação foi impresso no Console do Java.");
+        // --- DISPARO DE E-MAIL RELIGADO ---
+        mailSender.send(message);
+
+        return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
     }
 
     @PostMapping("/reset-password")
@@ -354,7 +356,6 @@ public class AutenticacaoController {
         }
         
         if (tokenValido == null) {
-            System.out.println("-> ERRO FINAL: Token [" + cleanToken + "] realmente não está no banco.");
             return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
         }
         
@@ -403,5 +404,68 @@ public class AutenticacaoController {
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, "/login.html?ativado=true")
                 .build();
+    }
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> reenviarEmailAtivacao(@RequestBody Map<String, String> data) {
+        String email = data.get("email");
+        
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("E-mail não fornecido.");
+        }
+
+        Usuario user = (Usuario) repository.findByLogin(email.trim());
+        
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        }
+
+        if ("ATIVO".equals(user.getStatus())) {
+            return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
+        }
+
+        // Lógica blindada: Reaproveita a gaveta de token se já existir
+        TokenRecuperacao tokenAtivacao = null;
+        try {
+            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
+            for (TokenRecuperacao t : tokens) {
+                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
+                    tokenAtivacao = t;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Erro ao buscar token: " + e.getMessage());
+        }
+
+        if (tokenAtivacao == null) {
+            tokenAtivacao = new TokenRecuperacao();
+            tokenAtivacao.setUsuario(user);
+        }
+
+        // Gera um novo token válido por 24 horas
+        String novoToken = java.util.UUID.randomUUID().toString().trim();
+        tokenAtivacao.setToken(novoToken);
+        tokenAtivacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
+        tokenRecuperacaoRepository.save(tokenAtivacao);
+
+        // Prepara e envia o e-mail
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setFrom("fut_sumula_pro@hotmail.com"); 
+        message.setTo(user.getLogin()); 
+        message.setSubject("Reenvio: Confirme seu E-mail - Fut-Súmula Torneio");
+        
+        String link = "https://fut-sumula-torneio.onrender.com/api/auth/confirmar-email?token=" + novoToken;
+        message.setText("Olá, " + user.getNome() + "!\n\n"
+                + "Você solicitou o reenvio do link de ativação.\n"
+                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
+                + link);
+        
+        try {
+            mailSender.send(message);
+            return ResponseEntity.ok("E-mail de ativação reenviado com sucesso! Verifique sua caixa de entrada.");
+        } catch (Exception e) {
+            System.out.println("Erro ao enviar e-mail: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao tentar enviar o e-mail. Verifique as configurações do servidor.");
+        }
     }
 }

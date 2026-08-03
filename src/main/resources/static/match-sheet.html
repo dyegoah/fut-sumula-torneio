@@ -1,75 +1,90 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) {
-	                window.location.href = 'login.html';
-	                return; 
-	            }
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-	                args[1] = options;
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => {
-	                    console.error("Erro na requisição segura:", err);
-	                    throw err;
-	                });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Sheet | Fut-Súmula</title>
+    
+    <!-- FONTES E CSS DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/iniciojogo.css">
+    <link rel="stylesheet" href="css/iniciojogo.css">
+
+    <!-- BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
+    <script>
+        // 1. Pega o token correto do LocalStorage
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        // 2. Fiscal de Autenticação Automático e Seguro
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+
+                // Tela autorizada: mostra o conteúdo
+                document.documentElement.style.display = '';
+
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        // 3. Interceptador de Requisições - Adiciona o Token em todas as chamadas
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- ESTILOS INTERNOS DO MATCH-SHEET -->
     <style>
-		.scoreboard-container { background: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(20,20,20,0.9)); border-bottom: 2px solid var(--primary-neon); padding: 10px 20px 50px 20px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; height: 170px; position: relative; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .scoreboard-container { background: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(20,20,20,0.9)); border-bottom: 2px solid var(--primary-neon); padding: 10px 20px 50px 20px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; height: 170px; position: relative; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .sb-team { display: flex; flex-direction: column; align-items: center; width: 220px; margin-top: 10px; }
         .sb-crest { width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)); transition: 0.3s; margin-bottom: 5px; }
         .sb-name { font-size: 1rem; font-weight: 900; color: #fff; text-transform: uppercase; text-align: center; line-height: 1.1; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
@@ -146,16 +161,16 @@
         .shape-round { border-radius: 50%; } .shape-shield { border-radius: 0 0 50% 50%; clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%); } .shape-pentagon { clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
         .mini-crest-wrapper .tiny-crest { width: 30px; height: 30px; }
         .mini-crest-wrapper .tiny-custom-mascot { font-size: 12px; }
-		.feed-remove-btn { margin-left: auto; color: #ff4444; cursor: pointer; opacity: 0.6; padding: 5px; transition: 0.2s; font-size: 0.9rem; }
-		.feed-remove-btn:hover { opacity: 1; transform: scale(1.2); text-shadow: 0 0 5px #ff4444; }
+        .feed-remove-btn { margin-left: auto; color: #ff4444; cursor: pointer; opacity: 0.6; padding: 5px; transition: 0.2s; font-size: 0.9rem; }
+        .feed-remove-btn:hover { opacity: 1; transform: scale(1.2); text-shadow: 0 0 5px #ff4444; }
     </style>
 </head>
 <body>
 
     <div class="bg-carousel-container">
-	    <div class="bg-overlay"></div>
-	    <div class="bg-image bg-match-drone"></div> 
-	</div>
+        <div class="bg-overlay"></div>
+        <div class="bg-image bg-match-drone"></div> 
+    </div>
 
     <div class="scoreboard-container">
         <div class="sb-team">
@@ -224,9 +239,9 @@
 
     <div id="preMatchModal" class="modal-overlay active">
         <div class="modal-box" style="max-width: 800px; position: relative;">
-			<div class="close-btn-header" onclick="window.history.back()" style="position:absolute; top:15px; right:15px; cursor: pointer;" title="Cancelar e Voltar">
-			    <i class="fas fa-times"></i>
-			</div>
+            <div class="close-btn-header" onclick="window.history.back()" style="position:absolute; top:15px; right:15px; cursor: pointer;" title="Cancelar e Voltar">
+                <i class="fas fa-times"></i>
+            </div>
             <h3 style="margin-bottom:5px;">DEFINIR ESCALAÇÕES</h3>
             <p style="font-size:0.8rem; color:#888;">Marque os titulares (Obrigatório 1 Goleiro). Desmarcados vão pro banco.</p>
             <div class="lineup-selector">
@@ -245,484 +260,485 @@
     <div id="endModal1" class="modal-overlay"><div class="modal-box"><i class="fas fa-flag-checkered modal-icon" style="color:#fff;"></i><h3>FIM DE JOGO?</h3><p>Deseja encerrar a partida e salvar a súmula?</p><div class="modal-buttons-center"><button class="modal-btn" onclick="document.getElementById('endModal1').classList.remove('active')">AINDA NÃO</button><button class="modal-btn btn-success" onclick="openEnd2()">SIM, APITAR</button></div></div></div>
     <div id="endModal2" class="modal-overlay"><div class="modal-box"><i class="fas fa-save modal-icon" style="color:var(--success-color);"></i><h3>CONFIRMAR</h3><p>A partida será finalizada e você sairá desta tela.</p><div class="modal-buttons-center"><button class="modal-btn" onclick="document.getElementById('endModal2').classList.remove('active')">VOLTAR</button><button class="modal-btn btn-success" onclick="executeEnd()">FINALIZAR</button></div></div></div>
 
-	<script src="js/images.js"></script>
-	    <script>
-	        if (typeof window.AppImages === 'undefined') { window.AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
+    <script src="js/images.js"></script>
+    <script>
+        if (typeof window.AppImages === 'undefined') { window.AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
 
-	        let matchState = { timer: 0, isRunning: false, lastTimestamp: 0, interval: null, scoreHome: 0, scoreAway: 0, homeYellow: 0, homeRed: 0, awayYellow: 0, awayRed: 0, currentPlayer: null, currentTeamType: null, lineups: null, matchStarted: false };
-	        let matchEvents = []; 
-	        let currentTourneyId = null;
-	        let currentMatchId = null;
-	        let matchData = null;
+        let matchState = { timer: 0, isRunning: false, lastTimestamp: 0, interval: null, scoreHome: 0, scoreAway: 0, homeYellow: 0, homeRed: 0, awayYellow: 0, awayRed: 0, currentPlayer: null, currentTeamType: null, lineups: null, matchStarted: false };
+        let matchEvents = []; 
+        let currentTourneyId = null;
+        let currentMatchId = null;
+        let matchData = null;
 
-	        const mascotsMap = { 'lion': 'fa-paw', 'eagle': 'fa-feather-alt', 'shark': 'fa-fish', 'wolf': 'fa-dog', 'dragon': 'fa-dragon', 'bull': 'fa-bullhorn', 'horse': 'fa-horse', 'spider': 'fa-spider', 'cat': 'fa-cat', 'crow': 'fa-crow', 'frog': 'fa-frog', 'hippo': 'fa-hippo', 'otter': 'fa-otter', 'dove': 'fa-dove', 'kiwi': 'fa-kiwi-bird', 'worm': 'fa-worm', 'skull': 'fa-skull', 'bolt': 'fa-bolt', 'star': 'fa-star', 'anchor': 'fa-anchor', 'poo': 'fa-poop', 'restroom': 'fa-restroom', 'leaf': 'fa-leaf', 'cannabis': 'fa-cannabis', 'ghost': 'fa-ghost', 'alien': 'fa-pastafarianism', 'robot': 'fa-robot', 'bomb': 'fa-bomb', 'fire': 'fa-fire', 'crown': 'fa-crown' };
+        const mascotsMap = { 'lion': 'fa-paw', 'eagle': 'fa-feather-alt', 'shark': 'fa-fish', 'wolf': 'fa-dog', 'dragon': 'fa-dragon', 'bull': 'fa-bullhorn', 'horse': 'fa-horse', 'spider': 'fa-spider', 'cat': 'fa-cat', 'crow': 'fa-crow', 'frog': 'fa-frog', 'hippo': 'fa-hippo', 'otter': 'fa-otter', 'dove': 'fa-dove', 'kiwi': 'fa-kiwi-bird', 'worm': 'fa-worm', 'skull': 'fa-skull', 'bolt': 'fa-bolt', 'star': 'fa-star', 'anchor': 'fa-anchor', 'poo': 'fa-poop', 'restroom': 'fa-restroom', 'leaf': 'fa-leaf', 'cannabis': 'fa-cannabis', 'ghost': 'fa-ghost', 'alien': 'fa-pastafarianism', 'robot': 'fa-robot', 'bomb': 'fa-bomb', 'fire': 'fa-fire', 'crown': 'fa-crown' };
 
-	        document.addEventListener('keydown', function(e) { if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); } });
+        document.addEventListener('keydown', function(e) { if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); } });
 
-            async function fetchFullTeamData(teamId) {
-                if(!teamId || teamId === -1) return [];
-                try {
-                    const res = await fetch(`/api/times/${teamId}`);
-                    if(res.ok) {
-                        const fullTeam = await res.json();
-                        return fullTeam.jogadores || [];
-                    }
-                } catch(e) { console.error("Erro ao buscar detalhes do time:", e); }
-                return [];
-            }
-
-            async function init() {
-                const params = new URLSearchParams(window.location.search);
-                currentTourneyId = params.get('tourneyId');
-                currentMatchId = parseInt(params.get('matchId'));
-
-                try {
-                    const response = await fetch(`/api/partidas/${currentMatchId}`);
-                    if (response.ok) {
-                        const partidaApi = await response.json();
-                        matchData = {
-                            id: partidaApi.id,
-                            t1: partidaApi.timeCasa || { id: -1, nome: "Aguardando..." },
-                            t2: partidaApi.timeVisitante || { id: -1, nome: "Aguardando..." }
-                        };
-                    } else { throw new Error("Erro API"); }
-                } catch (error) {
-                    if(currentTourneyId && currentMatchId) {
-                        const matchesStored = localStorage.getItem(`tourney_matches_${currentTourneyId}`);
-                        if(matchesStored) {
-                            const matches = JSON.parse(matchesStored);
-                            const m = matches.find(m => m.id === currentMatchId);
-                            if(m) matchData = m;
-                        }
-                    }
+        async function fetchFullTeamData(teamId) {
+            if(!teamId || teamId === -1) return [];
+            try {
+                const res = await fetch(`/api/times/${teamId}`);
+                if(res.ok) {
+                    const fullTeam = await res.json();
+                    return fullTeam.jogadores || [];
                 }
+            } catch(e) { console.error("Erro ao buscar detalhes do time:", e); }
+            return [];
+        }
 
-                if(!matchData) { alert("Erro crítico: Dados da partida não encontrados."); return; }
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            currentTourneyId = params.get('tourneyId');
+            currentMatchId = parseInt(params.get('matchId'));
 
-                if (matchData.t1.id && matchData.t1.id !== -1 && (!matchData.t1.jogadores || matchData.t1.jogadores.length === 0)) {
-                    matchData.t1.jogadores = await fetchFullTeamData(matchData.t1.id);
-                }
-                if (matchData.t2.id && matchData.t2.id !== -1 && (!matchData.t2.jogadores || matchData.t2.jogadores.length === 0)) {
-                    matchData.t2.jogadores = await fetchFullTeamData(matchData.t2.id);
-                }
-
-                if(!matchData.t1.jogadores || matchData.t1.jogadores.length === 0) matchData.t1.jogadores = generateMockPlayers();
-                if(!matchData.t2.jogadores || matchData.t2.jogadores.length === 0) matchData.t2.jogadores = generateMockPlayers();
-
-                const normalizePlayer = (p) => { p.foto = p.fotoUrl || p.foto || window.AppImages.defaultAvatar; p.numero = p.numeroCamisa || p.numero || "00"; p.posicao = p.posicao || 'LINHA'; return p; };
-                const sortSquad = (lista) => { if(!lista) return; lista.sort((a, b) => { const posA = (a.posicao || '').toUpperCase(); const posB = (b.posicao || '').toUpperCase(); if (posA === 'GOLEIRO' && posB !== 'GOLEIRO') return -1; if (posA !== 'GOLEIRO' && posB === 'GOLEIRO') return 1; return a.nome.localeCompare(b.nome); }); };
-
-                if(matchData.t1.jogadores) { matchData.t1.jogadores.forEach(normalizePlayer); sortSquad(matchData.t1.jogadores); }
-                if(matchData.t2.jogadores) { matchData.t2.jogadores.forEach(normalizePlayer); sortSquad(matchData.t2.jogadores); }
-
-                renderHeader(matchData.t1, 'home');
-                renderHeader(matchData.t2, 'away');
-                
-                populatePreMatchList(matchData.t1, 'pre-home-list', 'home');
-                populatePreMatchList(matchData.t2, 'pre-away-list', 'away');
-
-                updateLineupCounts(); 
-
-                checkLiveState();
-            }
-
-	        function getStorageKey() { return `live_match_${currentTourneyId}_${currentMatchId}`; }
-	        function saveLiveState() {
-	            if(!matchState.matchStarted) return;
-	            const stateToSave = { timer: matchState.timer, isRunning: matchState.isRunning, lastTimestamp: Date.now(), scoreHome: matchState.scoreHome, scoreAway: matchState.scoreAway, lineups: matchState.lineups, events: matchEvents, matchStarted: true };
-	            localStorage.setItem(getStorageKey(), JSON.stringify(stateToSave));
-	        }
-	        function checkLiveState() {
-	            const savedJson = localStorage.getItem(getStorageKey());
-	            if (savedJson) {
-	                const saved = JSON.parse(savedJson);
-	                matchState.matchStarted = true; matchState.lineups = saved.lineups; matchState.scoreHome = saved.scoreHome; matchState.scoreAway = saved.scoreAway; matchEvents = saved.events || []; matchState.timer = saved.timer; matchState.isRunning = saved.isRunning;
-	                if (matchState.isRunning && saved.lastTimestamp) {
-	                    const now = Date.now(); const diffSeconds = Math.floor((now - saved.lastTimestamp) / 1000);
-	                    if (diffSeconds > 0 && diffSeconds < 86400) matchState.timer += diffSeconds;
-	                    matchState.interval = setInterval(tick, 1000);
-	                    document.getElementById('btn-timer-toggle').className = 'fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused');
-	                }
-	                updateScoreboard(); updateTimerDisplay(); renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench); restoreEventsUI(); document.getElementById('preMatchModal').classList.remove('active');
-	            }
-	        }
-	        function restoreEventsUI() {
-	            document.getElementById('match-feed').innerHTML = '';
-	            matchEvents.forEach(evt => { addFeedItemHTML(evt.id, evt.time, evt.cssClass, evt.icon, evt.text); });
-	        }
-	        function generateMockPlayers() { return Array.from({length: 11}, (_, i) => ({ id: i+100, nome: `Jogador ${i+1}`, numero: i+1, foto: window.AppImages.defaultAvatar, posicao: (i===0?'GOLEIRO':'LINHA') })); }
-	        function getCrestHTML(t) {
-	            if(t.escudoUrl) return `<img src="${t.escudoUrl}" class="sb-crest">`;
-	            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
-	            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
-	            return `<div class="tiny-crest" style="width:70px; height:70px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:3px solid ${t.corTerciaria || '#fff'};"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:30px; color:${t.corTerciaria || '#fff'};"></i></div>`;
-	        }
-	        function getMiniCrestHTML(t) {
-	            if(t.escudoUrl) return `<img src="${t.escudoUrl}" style="width:30px; height:30px;">`;
-	            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
-	            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
-	            return `<div class="mini-crest-wrapper"><div class="tiny-crest" style="width:30px; height:30px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:1px solid #fff;"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:12px; color:#fff;"></i></div></div>`;
-	        }
-	        function renderHeader(t, type) { document.getElementById(`${type}-crest-area`).innerHTML = getCrestHTML(t); document.getElementById(`${type}-name`).innerText = t.nome; }
-	        
-            // --- POPULATE COM TRAVA DO GOLEIRO (SOMENTE O PRIMEIRO COMEÇA MARCADO) ---
-			function populatePreMatchList(team, el, type) {
-				            const c = document.getElementById(el);
-				            c.innerHTML = `
-			                    <div class="modal-team-header">
-			                        <div style="display:flex; align-items:center; gap:10px;">${getMiniCrestHTML(team)}<h4>${DOMPurify.sanitize(team.nome)}</h4></div>
-			                        <div id="count-${type}" style="font-size:0.8rem; background:rgba(0, 255, 136, 0.2); color:var(--primary-neon); padding:4px 10px; border-radius:20px; font-weight:900; box-shadow: 0 0 10px rgba(0,255,136,0.2);">0/0</div>
-			                    </div>`;
-				            if(!team.jogadores) return;
-				            
-			                let gkCount = 0;
-
-			                team.jogadores.forEach(p => {
-				                const pid = p.id || Math.floor(Math.random()*99999);
-			                    const pos = p.posicao ? p.posicao.toUpperCase() : 'LINHA';
-			                    
-			                    let isChecked = "checked";
-			                    if (pos === 'GOLEIRO') {
-			                        if (gkCount === 0) {
-			                            gkCount++;
-			                        } else {
-			                            isChecked = ""; 
-			                        }
-			                    }
-
-			                    // Blindagem
-			                    const nomeSeguro = DOMPurify.sanitize(p.nome);
-			                    const fotoSegura = DOMPurify.sanitize(p.foto);
-
-				                c.innerHTML += `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${fotoSegura}"><span><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`;
-				            });
-				        }
-
-            function updateLineupCounts() {
-                const homeChecks = document.querySelectorAll('input[data-team="home"]');
-                const awayChecks = document.querySelectorAll('input[data-team="away"]');
-                
-                const homeChecked = Array.from(homeChecks).filter(c => c.checked).length;
-                const awayChecked = Array.from(awayChecks).filter(c => c.checked).length;
-                
-                const elHome = document.getElementById('count-home');
-                const elAway = document.getElementById('count-away');
-                
-                if(elHome) elHome.innerText = `${homeChecked} / ${homeChecks.length}`;
-                if(elAway) elAway.innerText = `${awayChecked} / ${awayChecks.length}`;
-                
-                const totalChecked = homeChecked + awayChecked;
-                
-                const btnToggle = document.getElementById('btn-toggle-all');
-                if(btnToggle) {
-                    if(totalChecked === 0) btnToggle.innerText = "MARCAR TODOS";
-                    else btnToggle.innerText = "DESMARCAR TODOS"; 
-                }
-            }
-
-            // --- ALLPLAY RESPEITA A TRAVA DE GOLEIRO ---
-	        function allPlay() {
-                const checks = document.querySelectorAll('.check-player input[type="checkbox"]');
-                const btnToggle = document.getElementById('btn-toggle-all');
-                const isDesmarcar = btnToggle.innerText.includes("DESMARCAR");
-                
-                let homeGk = false;
-                let awayGk = false;
-
-                checks.forEach(c => {
-                    if (isDesmarcar) {
-                        c.checked = false;
-                    } else {
-                        if (c.dataset.pos === 'GOLEIRO') {
-                            if (c.dataset.team === 'home') {
-                                if (!homeGk) { c.checked = true; homeGk = true; }
-                                else { c.checked = false; }
-                            } else {
-                                if (!awayGk) { c.checked = true; awayGk = true; }
-                                else { c.checked = false; }
-                            }
-                        } else {
-                            c.checked = true;
-                        }
-                    }
-                });
-                updateLineupCounts();
-	        }
-
-	        function enterFullScreen() { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{}); }
-	        
-            // --- VALIDAÇÃO FINAL NO BOTÃO VERDE ---
-            function confirmLineups() {
-	            if(!matchData) return; 
-                
-                const homeGks = document.querySelectorAll('input[data-team="home"][data-pos="GOLEIRO"]:checked').length;
-                const awayGks = document.querySelectorAll('input[data-team="away"][data-pos="GOLEIRO"]:checked').length;
-                
-                if (homeGks > 1) {
-                    alert(`O time ${matchData.t1.nome} não pode ter mais de 1 Goleiro titular. Por favor, desmarque o reserva.`);
-                    return;
-                }
-                if (awayGks > 1) {
-                    alert(`O time ${matchData.t2.nome} não pode ter mais de 1 Goleiro titular. Por favor, desmarque o reserva.`);
-                    return;
-                }
-
-                enterFullScreen();
-	            const checks = document.querySelectorAll('.check-player input');
-	            const s = {home:[], away:[]}; const b = {home:[], away:[]};
-	            checks.forEach(c => {
-	                const tk = c.dataset.team; const pid = parseInt(c.value);
-	                const teamData = (tk==='home') ? matchData.t1 : matchData.t2;
-	                let pObj = teamData.jogadores.find(x => x.id == pid); 
-	                if(pObj) { if(c.checked) s[tk].push(pObj); else b[tk].push(pObj); }
-	            });
-	            matchState.lineups = { starters: s, bench: b }; matchState.matchStarted = true; renderMatchSheets(s, b); document.getElementById('preMatchModal').classList.remove('active'); saveLiveState();
-	        }
-
-	        function renderMatchSheets(s, b) { 
-                renderList('col-home', s.home, b.home, 'home'); 
-                renderList('col-away', s.away, b.away, 'away'); 
-                restorePlayerIcons(); 
-            }
-
-	        function renderList(id, sList, bList, type) {
-	            const col = document.getElementById(id); col.innerHTML = '';
-	            sList.forEach(p => col.innerHTML += createPlayerStrip(p, type, false));
-	            if(bList.length>0) { col.innerHTML += `<div class="bench-divider">BANCO</div>`; bList.forEach(p => col.innerHTML += createPlayerStrip(p, type, true)); }
-	        }
-	        
-			function createPlayerStrip(p, type, isBench) {
-				            const bClass = isBench ? 'bench-player' : ''; const pid = p.id;
-			                
-			                // Blindagem
-			                const nomeSeguro = DOMPurify.sanitize(p.nome);
-			                const fotoSegura = DOMPurify.sanitize(p.foto);
-
-				            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${type}', ${isBench})"><img src="${fotoSegura}" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${p.numero}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
-				        }
-
-            function restorePlayerIcons() {
-                matchEvents.forEach(evt => {
-                    const evContainer = document.getElementById(`events-${evt.playerId}`);
-                    if (evContainer && evt.type !== 'SUB') {
-                        addPlayerEventIcon(evContainer, evt.icon, evt.color, evt.id);
-                    }
-                });
-            }
-
-	        function clickPlayer(pid, type, isBench) {
-	            const teamData = (type==='home') ? matchData.t1 : matchData.t2;
-	            const player = teamData.jogadores.find(x => x.id == pid);
-	            matchState.currentPlayer = player; matchState.currentTeamType = type;
-	            if(player) {
-	                document.getElementById('action-player-name').innerText = player.nome;
-	                if(isBench) { alert("Jogador no banco. Faça substituição para ele jogar."); return; }
-	                document.getElementById('actionModal').classList.add('active');
-	            }
-	        }
-	        function closeActionModal() { document.getElementById('actionModal').classList.remove('active'); }
-	        
-			function openSubModal() { 
-			                closeActionModal(); 
-			                document.getElementById('subModal').classList.add('active'); 
-			                document.getElementById('sub-out-name').innerText = matchState.currentPlayer.nome; 
-			                
-			                const teamKey = matchState.currentTeamType;
-			                const benchPlayers = matchState.lineups.bench[teamKey];
-			                const listContainer = document.getElementById('bench-list-select');
-			                
-			                listContainer.innerHTML = '';
-
-			                if (!benchPlayers || benchPlayers.length === 0) {
-			                    listContainer.innerHTML = "<p style='color:#777; text-align:center; padding:20px;'>Nenhum jogador no banco.</p>";
-			                    return;
-			                }
-
-			                benchPlayers.forEach(p => {
-			                    const item = document.createElement('div');
-			                    item.className = 'check-player'; 
-			                    
-			                    // Blindagem
-			                    const nomeSeguro = DOMPurify.sanitize(p.nome);
-			                    const fotoSegura = DOMPurify.sanitize(p.fotoUrl || p.foto || window.AppImages.defaultAvatar);
-
-			                    item.innerHTML = `
-			                        <img src="${fotoSegura}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
-			                        <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${p.posicao || 'LINHA'}</small></span>
-			                    `;
-			                    item.onclick = () => executeSubstitution(p.id);
-			                    listContainer.appendChild(item);
-			                });
-			            }
-
-            function executeSubstitution(inPlayerId) {
-                const teamKey = matchState.currentTeamType;
-                const outPlayer = matchState.currentPlayer;
-                
-                const benchIndex = matchState.lineups.bench[teamKey].findIndex(p => p.id === inPlayerId);
-                const starterIndex = matchState.lineups.starters[teamKey].findIndex(p => p.id === outPlayer.id);
-
-                if (benchIndex > -1 && starterIndex > -1) {
-                    const inPlayer = matchState.lineups.bench[teamKey][benchIndex];
-                    
-                    matchState.lineups.bench[teamKey].splice(benchIndex, 1);
-                    matchState.lineups.starters[teamKey].splice(starterIndex, 1);
-                    
-                    matchState.lineups.starters[teamKey].push(inPlayer);
-                    matchState.lineups.bench[teamKey].push(outPlayer);
-
-                    const timeStr = document.getElementById('timer-display').innerText;
-                    const eventId = Date.now() + Math.random().toString(16).slice(2);
-                    const teamId = teamKey === 'home' ? matchData.t1.id : matchData.t2.id;
-                    const teamName = teamKey === 'home' ? matchData.t1.nome : matchData.t2.nome;
-                    
-                    const eventObj = { 
-                        id: eventId, type: 'SUB', 
-                        playerId: inPlayer.id, playerName: inPlayer.nome, fotoUrl: inPlayer.foto || inPlayer.fotoUrl,
-                        outPlayerId: outPlayer.id, outPlayerName: outPlayer.nome,
-                        teamId: teamId, teamName: teamName, teamKey: teamKey, 
-                        time: timeStr, cssClass: 'evt-sub', icon: 'fa-exchange-alt', color: '#00f3ff', 
-                        text: `Subst: Sai ${outPlayer.nome}, Entra <strong>${inPlayer.nome}</strong>`
+            try {
+                const response = await fetch(`/api/partidas/${currentMatchId}`);
+                if (response.ok) {
+                    const partidaApi = await response.json();
+                    matchData = {
+                        id: partidaApi.id,
+                        t1: partidaApi.timeCasa || { id: -1, nome: "Aguardando..." },
+                        t2: partidaApi.timeVisitante || { id: -1, nome: "Aguardando..." }
                     };
-                    
-                    matchEvents.push(eventObj); 
-                    addFeedItemHTML(eventId, timeStr, 'evt-sub', 'fa-exchange-alt', eventObj.text); 
-                    
-                    renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
-                    document.getElementById('subModal').classList.remove('active');
-                    saveLiveState();
+                } else { throw new Error("Erro API"); }
+            } catch (error) {
+                if(currentTourneyId && currentMatchId) {
+                    const matchesStored = localStorage.getItem(`tourney_matches_${currentTourneyId}`);
+                    if(matchesStored) {
+                        const matches = JSON.parse(matchesStored);
+                        const m = matches.find(m => m.id === currentMatchId);
+                        if(m) matchData = m;
+                    }
                 }
             }
 
-            function registerAction(type) {
-	            const p = matchState.currentPlayer; 
-                const timeStr = document.getElementById('timer-display').innerText; 
-                const teamKey = matchState.currentTeamType; 
-                const teamId = teamKey === 'home' ? matchData.t1.id : matchData.t2.id; 
-                const teamName = teamKey === 'home' ? matchData.t1.nome : matchData.t2.nome; 
-                const evContainer = document.getElementById(`events-${p.id}`); 
-                const eventId = Date.now() + Math.random().toString(16).slice(2);
-	            
-                let cssClass = ''; let icon = ''; let color = ''; let text = '';
-	            if(type === 'GOAL') { if(teamKey === 'home') matchState.scoreHome++; else matchState.scoreAway++; updateScoreboard(); cssClass = 'evt-goal'; icon = 'fa-futbol'; color = '#00ff88'; text = `GOL de <strong>${p.nome}</strong>`; } 
-	            else if(type === 'OWN_GOAL') { if(teamKey === 'home') matchState.scoreAway++; else matchState.scoreHome++; updateScoreboard(); cssClass = 'evt-red'; icon = 'fa-futbol'; color = '#ff4444'; text = `GOL CONTRA de <strong>${p.nome}</strong>`; } 
-	            else if(type === 'YELLOW') { if(teamKey === 'home') matchState.homeYellow++; else matchState.awayYellow++; cssClass = 'evt-yellow'; icon = 'fa-square'; color = '#FFD700'; text = `Cartão Amarelo: <strong>${p.nome}</strong>`; } 
-	            else if(type === 'RED') { if(teamKey === 'home') matchState.homeRed++; else matchState.awayRed++; cssClass = 'evt-red'; icon = 'fa-square'; color = '#ff4444'; text = `CARTÃO VERMELHO: <strong>${p.nome}</strong>`; } 
-	            else if(type === 'FOUL') { cssClass = 'evt-foul'; icon = 'fa-exclamation-circle'; color = '#FF8C00'; text = `Falta: <strong>${p.nome}</strong>`; }
-	            
-                const eventObj = { 
-                    id: eventId, type: type, playerId: p.id, playerName: p.nome, fotoUrl: p.foto,
-                    teamId: teamId, teamName: teamName, teamKey: teamKey, 
-                    time: timeStr, cssClass: cssClass, icon: icon, color: color, text: text 
-                };
-	            
-                matchEvents.push(eventObj); 
-                addFeedItemHTML(eventId, timeStr, cssClass, icon, text); 
-                addPlayerEventIcon(evContainer, icon, color, eventId); 
-                closeActionModal(); 
-                saveLiveState();
-	        }
+            if(!matchData) { alert("Erro crítico: Dados da partida não encontrados."); return; }
 
-	        window.undoEvent = function(eventId) {
-	            if(!confirm("Deseja excluir este evento? O placar e estatísticas serão revertidos.")) return;
-	            const evtIndex = matchEvents.findIndex(e => e.id === eventId); if(evtIndex === -1) return; const evt = matchEvents[evtIndex];
-	            
-                if(evt.type === 'GOAL') { if(evt.teamKey === 'home') matchState.scoreHome--; else matchState.scoreAway--; updateScoreboard(); } 
-	            else if(evt.type === 'OWN_GOAL') { if(evt.teamKey === 'home') matchState.scoreAway--; else matchState.scoreHome--; updateScoreboard(); }
-	            else if(evt.type === 'SUB') {
-                    const sIdx = matchState.lineups.starters[evt.teamKey].findIndex(p => p.id === evt.playerId); 
-                    const bIdx = matchState.lineups.bench[evt.teamKey].findIndex(p => p.id === evt.outPlayerId); 
-                    if (sIdx > -1 && bIdx > -1) {
-                        const inP = matchState.lineups.starters[evt.teamKey].splice(sIdx, 1)[0];
-                        const outP = matchState.lineups.bench[evt.teamKey].splice(bIdx, 1)[0];
-                        matchState.lineups.starters[evt.teamKey].push(outP);
-                        matchState.lineups.bench[evt.teamKey].push(inP);
-                        renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
+            if (matchData.t1.id && matchData.t1.id !== -1 && (!matchData.t1.jogadores || matchData.t1.jogadores.length === 0)) {
+                matchData.t1.jogadores = await fetchFullTeamData(matchData.t1.id);
+            }
+            if (matchData.t2.id && matchData.t2.id !== -1 && (!matchData.t2.jogadores || matchData.t2.jogadores.length === 0)) {
+                matchData.t2.jogadores = await fetchFullTeamData(matchData.t2.id);
+            }
+
+            if(!matchData.t1.jogadores || matchData.t1.jogadores.length === 0) matchData.t1.jogadores = generateMockPlayers();
+            if(!matchData.t2.jogadores || matchData.t2.jogadores.length === 0) matchData.t2.jogadores = generateMockPlayers();
+
+            const normalizePlayer = (p) => { p.foto = p.fotoUrl || p.foto || window.AppImages.defaultAvatar; p.numero = p.numeroCamisa || p.numero || "00"; p.posicao = p.posicao || 'LINHA'; return p; };
+            const sortSquad = (lista) => { if(!lista) return; lista.sort((a, b) => { const posA = (a.posicao || '').toUpperCase(); const posB = (b.posicao || '').toUpperCase(); if (posA === 'GOLEIRO' && posB !== 'GOLEIRO') return -1; if (posA !== 'GOLEIRO' && posB === 'GOLEIRO') return 1; return a.nome.localeCompare(b.nome); }); };
+
+            if(matchData.t1.jogadores) { matchData.t1.jogadores.forEach(normalizePlayer); sortSquad(matchData.t1.jogadores); }
+            if(matchData.t2.jogadores) { matchData.t2.jogadores.forEach(normalizePlayer); sortSquad(matchData.t2.jogadores); }
+
+            renderHeader(matchData.t1, 'home');
+            renderHeader(matchData.t2, 'away');
+            
+            populatePreMatchList(matchData.t1, 'pre-home-list', 'home');
+            populatePreMatchList(matchData.t2, 'pre-away-list', 'away');
+
+            updateLineupCounts(); 
+
+            checkLiveState();
+        }
+
+        function getStorageKey() { return `live_match_${currentTourneyId}_${currentMatchId}`; }
+        
+        function saveLiveState() {
+            if(!matchState.matchStarted) return;
+            const stateToSave = { timer: matchState.timer, isRunning: matchState.isRunning, lastTimestamp: Date.now(), scoreHome: matchState.scoreHome, scoreAway: matchState.scoreAway, lineups: matchState.lineups, events: matchEvents, matchStarted: true };
+            localStorage.setItem(getStorageKey(), JSON.stringify(stateToSave));
+        }
+        
+        function checkLiveState() {
+            const savedJson = localStorage.getItem(getStorageKey());
+            if (savedJson) {
+                const saved = JSON.parse(savedJson);
+                matchState.matchStarted = true; matchState.lineups = saved.lineups; matchState.scoreHome = saved.scoreHome; matchState.scoreAway = saved.scoreAway; matchEvents = saved.events || []; matchState.timer = saved.timer; matchState.isRunning = saved.isRunning;
+                if (matchState.isRunning && saved.lastTimestamp) {
+                    const now = Date.now(); const diffSeconds = Math.floor((now - saved.lastTimestamp) / 1000);
+                    if (diffSeconds > 0 && diffSeconds < 86400) matchState.timer += diffSeconds;
+                    matchState.interval = setInterval(tick, 1000);
+                    document.getElementById('btn-timer-toggle').className = 'fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused');
+                }
+                updateScoreboard(); updateTimerDisplay(); renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench); restoreEventsUI(); document.getElementById('preMatchModal').classList.remove('active');
+            }
+        }
+        
+        function restoreEventsUI() {
+            document.getElementById('match-feed').innerHTML = '';
+            matchEvents.forEach(evt => { addFeedItemHTML(evt.id, evt.time, evt.cssClass, evt.icon, evt.text); });
+        }
+        
+        function generateMockPlayers() { return Array.from({length: 11}, (_, i) => ({ id: i+100, nome: `Jogador ${i+1}`, numero: i+1, foto: window.AppImages.defaultAvatar, posicao: (i===0?'GOLEIRO':'LINHA') })); }
+        
+        function getCrestHTML(t) {
+            if(t.escudoUrl) return `<img src="${t.escudoUrl}" class="sb-crest">`;
+            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
+            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
+            return `<div class="tiny-crest" style="width:70px; height:70px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:3px solid ${t.corTerciaria || '#fff'};"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:30px; color:${t.corTerciaria || '#fff'};"></i></div>`;
+        }
+        
+        function getMiniCrestHTML(t) {
+            if(t.escudoUrl) return `<img src="${t.escudoUrl}" style="width:30px; height:30px;">`;
+            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
+            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
+            return `<div class="mini-crest-wrapper"><div class="tiny-crest" style="width:30px; height:30px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:1px solid #fff;"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:12px; color:#fff;"></i></div></div>`;
+        }
+        
+        function renderHeader(t, type) { document.getElementById(`${type}-crest-area`).innerHTML = getCrestHTML(t); document.getElementById(`${type}-name`).innerText = t.nome; }
+        
+        function populatePreMatchList(team, el, type) {
+            const c = document.getElementById(el);
+            c.innerHTML = `
+                <div class="modal-team-header">
+                    <div style="display:flex; align-items:center; gap:10px;">${getMiniCrestHTML(team)}<h4>${DOMPurify.sanitize(team.nome)}</h4></div>
+                    <div id="count-${type}" style="font-size:0.8rem; background:rgba(0, 255, 136, 0.2); color:var(--primary-neon); padding:4px 10px; border-radius:20px; font-weight:900; box-shadow: 0 0 10px rgba(0,255,136,0.2);">0/0</div>
+                </div>`;
+            if(!team.jogadores) return;
+            
+            let gkCount = 0;
+
+            team.jogadores.forEach(p => {
+                const pid = p.id || Math.floor(Math.random()*99999);
+                const pos = p.posicao ? p.posicao.toUpperCase() : 'LINHA';
+                
+                let isChecked = "checked";
+                if (pos === 'GOLEIRO') {
+                    if (gkCount === 0) {
+                        gkCount++;
+                    } else {
+                        isChecked = ""; 
                     }
                 }
 
-                const feedItem = document.getElementById(`feed-item-${eventId}`); if(feedItem) feedItem.remove(); 
-                renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
-	            matchEvents.splice(evtIndex, 1); saveLiveState();
-	        }
+                const nomeSeguro = DOMPurify.sanitize(p.nome);
+                const fotoSegura = DOMPurify.sanitize(p.foto);
 
-			function addFeedItemHTML(id, time, cls, icon, text) { 
-			                // Blindagem do texto que carrega nomes de jogadores e clubes no feed
-			                const textoSeguro = DOMPurify.sanitize(text);
-			                document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${id}"><div class="feed-time">${time}</div><div class="feed-icon ${cls}"><i class="fas ${icon}"></i></div><div class="feed-text">${textoSeguro}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${id}')" title="Excluir evento"></i></div>`); 
-			            }
-	        function addPlayerEventIcon(container, iconClass, color, eventId) { if(container) container.innerHTML += `<span id="icon-event-${eventId}"><i class="fas ${iconClass} mini-event-icon" style="color:${color}; margin-left:2px;"></i></span>`; }
-	        function updateScoreboard() { document.getElementById('score-home').innerText = matchState.scoreHome; document.getElementById('score-away').innerText = matchState.scoreAway; }
-	        function toggleTimer() { const btn = document.getElementById('btn-timer-toggle'); if(matchState.isRunning){ clearInterval(matchState.interval); matchState.isRunning=false; btn.className='fas fa-play'; document.querySelector('.btn-play-big').classList.add('paused'); } else { matchState.interval=setInterval(tick,1000); matchState.isRunning=true; btn.className='fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused'); } saveLiveState(); }
-	        function tick() { matchState.timer++; updateTimerDisplay(); if(matchState.timer % 5 === 0) saveLiveState(); }
-	        function updateTimerDisplay() { const m=Math.floor(matchState.timer/60); const s=matchState.timer%60; document.getElementById('timer-display').innerText=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-	        function tryResetTimer() { document.getElementById('resetModal1').classList.add('active'); }
-	        function openReset2() { document.getElementById('resetModal1').classList.remove('active'); document.getElementById('resetModal2').classList.add('active'); }
-	        function executeReset() { clearInterval(matchState.interval); matchState.timer=0; matchState.isRunning=false; document.getElementById('timer-display').innerText="00:00"; document.getElementById('resetModal2').classList.remove('active'); document.getElementById('btn-timer-toggle').className='fas fa-play'; saveLiveState(); }
-	        function tryEndMatch() { document.getElementById('endModal1').classList.add('active'); }
-	        function openEnd2() { document.getElementById('endModal1').classList.remove('active'); document.getElementById('endModal2').classList.add('active'); }
-	        
-            function executeEnd() {
-	            if (document.exitFullscreen) document.exitFullscreen();
-	            localStorage.removeItem(getStorageKey());
-	            const summaryHTML = generateRichSummary();
-	            
-                if(currentTourneyId) { 
-                    const localResult = { 
-                        partidaId: currentMatchId, 
-                        scoreHome: matchState.scoreHome, 
-                        scoreAway: matchState.scoreAway, 
-                        summaryHTML: summaryHTML, 
-                        eventos: matchEvents, 
-                        stats: { home: { y: matchState.homeYellow, r: matchState.homeRed }, away: { y: matchState.awayYellow, r: matchState.awayRed } } 
-                    }; 
-                    localStorage.setItem(`match_result_${currentTourneyId}_${currentMatchId}`, JSON.stringify(localResult)); 
+                c.innerHTML += `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${fotoSegura}"><span><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`;
+            });
+        }
+
+        function updateLineupCounts() {
+            const homeChecks = document.querySelectorAll('input[data-team="home"]');
+            const awayChecks = document.querySelectorAll('input[data-team="away"]');
+            
+            const homeChecked = Array.from(homeChecks).filter(c => c.checked).length;
+            const awayChecked = Array.from(awayChecks).filter(c => c.checked).length;
+            
+            const elHome = document.getElementById('count-home');
+            const elAway = document.getElementById('count-away');
+            
+            if(elHome) elHome.innerText = `${homeChecked} / ${homeChecks.length}`;
+            if(elAway) elAway.innerText = `${awayChecked} / ${awayChecks.length}`;
+            
+            const totalChecked = homeChecked + awayChecked;
+            
+            const btnToggle = document.getElementById('btn-toggle-all');
+            if(btnToggle) {
+                if(totalChecked === 0) btnToggle.innerText = "MARCAR TODOS";
+                else btnToggle.innerText = "DESMARCAR TODOS"; 
+            }
+        }
+
+        function allPlay() {
+            const checks = document.querySelectorAll('.check-player input[type="checkbox"]');
+            const btnToggle = document.getElementById('btn-toggle-all');
+            const isDesmarcar = btnToggle.innerText.includes("DESMARCAR");
+            
+            let homeGk = false;
+            let awayGk = false;
+
+            checks.forEach(c => {
+                if (isDesmarcar) {
+                    c.checked = false;
+                } else {
+                    if (c.dataset.pos === 'GOLEIRO') {
+                        if (c.dataset.team === 'home') {
+                            if (!homeGk) { c.checked = true; homeGk = true; }
+                            else { c.checked = false; }
+                        } else {
+                            if (!awayGk) { c.checked = true; awayGk = true; }
+                            else { c.checked = false; }
+                        }
+                    } else {
+                        c.checked = true;
+                    }
                 }
+            });
+            updateLineupCounts();
+        }
 
-                const apiData = { 
+        function enterFullScreen() { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{}); }
+        
+        function confirmLineups() {
+            if(!matchData) return; 
+            
+            const homeGks = document.querySelectorAll('input[data-team="home"][data-pos="GOLEIRO"]:checked').length;
+            const awayGks = document.querySelectorAll('input[data-team="away"][data-pos="GOLEIRO"]:checked').length;
+            
+            if (homeGks > 1) {
+                alert(`O time ${matchData.t1.nome} não pode ter mais de 1 Goleiro titular. Por favor, desmarque o reserva.`);
+                return;
+            }
+            if (awayGks > 1) {
+                alert(`O time ${matchData.t2.nome} não pode ter mais de 1 Goleiro titular. Por favor, desmarque o reserva.`);
+                return;
+            }
+
+            enterFullScreen();
+            const checks = document.querySelectorAll('.check-player input');
+            const s = {home:[], away:[]}; const b = {home:[], away:[]};
+            checks.forEach(c => {
+                const tk = c.dataset.team; const pid = parseInt(c.value);
+                const teamData = (tk==='home') ? matchData.t1 : matchData.t2;
+                let pObj = teamData.jogadores.find(x => x.id == pid); 
+                if(pObj) { if(c.checked) s[tk].push(pObj); else b[tk].push(pObj); }
+            });
+            matchState.lineups = { starters: s, bench: b }; matchState.matchStarted = true; renderMatchSheets(s, b); document.getElementById('preMatchModal').classList.remove('active'); saveLiveState();
+        }
+
+        function renderMatchSheets(s, b) { 
+            renderList('col-home', s.home, b.home, 'home'); 
+            renderList('col-away', s.away, b.away, 'away'); 
+            restorePlayerIcons(); 
+        }
+
+        function renderList(id, sList, bList, type) {
+            const col = document.getElementById(id); col.innerHTML = '';
+            sList.forEach(p => col.innerHTML += createPlayerStrip(p, type, false));
+            if(bList.length>0) { col.innerHTML += `<div class="bench-divider">BANCO</div>`; bList.forEach(p => col.innerHTML += createPlayerStrip(p, type, true)); }
+        }
+        
+        function createPlayerStrip(p, type, isBench) {
+            const bClass = isBench ? 'bench-player' : ''; const pid = p.id;
+            const nomeSeguro = DOMPurify.sanitize(p.nome);
+            const fotoSegura = DOMPurify.sanitize(p.foto);
+
+            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${type}', ${isBench})"><img src="${fotoSegura}" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${p.numero}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
+        }
+
+        function restorePlayerIcons() {
+            matchEvents.forEach(evt => {
+                const evContainer = document.getElementById(`events-${evt.playerId}`);
+                if (evContainer && evt.type !== 'SUB') {
+                    addPlayerEventIcon(evContainer, evt.icon, evt.color, evt.id);
+                }
+            });
+        }
+
+        function clickPlayer(pid, type, isBench) {
+            const teamData = (type==='home') ? matchData.t1 : matchData.t2;
+            const player = teamData.jogadores.find(x => x.id == pid);
+            matchState.currentPlayer = player; matchState.currentTeamType = type;
+            if(player) {
+                document.getElementById('action-player-name').innerText = player.nome;
+                if(isBench) { alert("Jogador no banco. Faça substituição para ele jogar."); return; }
+                document.getElementById('actionModal').classList.add('active');
+            }
+        }
+        
+        function closeActionModal() { document.getElementById('actionModal').classList.remove('active'); }
+        
+        function openSubModal() { 
+            closeActionModal(); 
+            document.getElementById('subModal').classList.add('active'); 
+            document.getElementById('sub-out-name').innerText = matchState.currentPlayer.nome; 
+            
+            const teamKey = matchState.currentTeamType;
+            const benchPlayers = matchState.lineups.bench[teamKey];
+            const listContainer = document.getElementById('bench-list-select');
+            
+            listContainer.innerHTML = '';
+
+            if (!benchPlayers || benchPlayers.length === 0) {
+                listContainer.innerHTML = "<p style='color:#777; text-align:center; padding:20px;'>Nenhum jogador no banco.</p>";
+                return;
+            }
+
+            benchPlayers.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'check-player'; 
+                
+                const nomeSeguro = DOMPurify.sanitize(p.nome);
+                const fotoSegura = DOMPurify.sanitize(p.fotoUrl || p.foto || window.AppImages.defaultAvatar);
+
+                item.innerHTML = `
+                    <img src="${fotoSegura}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
+                    <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${p.posicao || 'LINHA'}</small></span>
+                `;
+                item.onclick = () => executeSubstitution(p.id);
+                listContainer.appendChild(item);
+            });
+        }
+
+        function executeSubstitution(inPlayerId) {
+            const teamKey = matchState.currentTeamType;
+            const outPlayer = matchState.currentPlayer;
+            
+            const benchIndex = matchState.lineups.bench[teamKey].findIndex(p => p.id === inPlayerId);
+            const starterIndex = matchState.lineups.starters[teamKey].findIndex(p => p.id === outPlayer.id);
+
+            if (benchIndex > -1 && starterIndex > -1) {
+                const inPlayer = matchState.lineups.bench[teamKey][benchIndex];
+                
+                matchState.lineups.bench[teamKey].splice(benchIndex, 1);
+                matchState.lineups.starters[teamKey].splice(starterIndex, 1);
+                
+                matchState.lineups.starters[teamKey].push(inPlayer);
+                matchState.lineups.bench[teamKey].push(outPlayer);
+
+                const timeStr = document.getElementById('timer-display').innerText;
+                const eventId = Date.now() + Math.random().toString(16).slice(2);
+                const teamId = teamKey === 'home' ? matchData.t1.id : matchData.t2.id;
+                const teamName = teamKey === 'home' ? matchData.t1.nome : matchData.t2.nome;
+                
+                const eventObj = { 
+                    id: eventId, type: 'SUB', 
+                    playerId: inPlayer.id, playerName: inPlayer.nome, fotoUrl: inPlayer.foto || inPlayer.fotoUrl,
+                    outPlayerId: outPlayer.id, outPlayerName: outPlayer.nome,
+                    teamId: teamId, teamName: teamName, teamKey: teamKey, 
+                    time: timeStr, cssClass: 'evt-sub', icon: 'fa-exchange-alt', color: '#00f3ff', 
+                    text: `Subst: Sai ${outPlayer.nome}, Entra <strong>${inPlayer.nome}</strong>`
+                };
+                
+                matchEvents.push(eventObj); 
+                addFeedItemHTML(eventId, timeStr, 'evt-sub', 'fa-exchange-alt', eventObj.text); 
+                
+                renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
+                document.getElementById('subModal').classList.remove('active');
+                saveLiveState();
+            }
+        }
+
+        function registerAction(type) {
+            const p = matchState.currentPlayer; 
+            const timeStr = document.getElementById('timer-display').innerText; 
+            const teamKey = matchState.currentTeamType; 
+            const teamId = teamKey === 'home' ? matchData.t1.id : matchData.t2.id; 
+            const teamName = teamKey === 'home' ? matchData.t1.nome : matchData.t2.nome; 
+            const evContainer = document.getElementById(`events-${p.id}`); 
+            const eventId = Date.now() + Math.random().toString(16).slice(2);
+            
+            let cssClass = ''; let icon = ''; let color = ''; let text = '';
+            if(type === 'GOAL') { if(teamKey === 'home') matchState.scoreHome++; else matchState.scoreAway++; updateScoreboard(); cssClass = 'evt-goal'; icon = 'fa-futbol'; color = '#00ff88'; text = `GOL de <strong>${p.nome}</strong>`; } 
+            else if(type === 'OWN_GOAL') { if(teamKey === 'home') matchState.scoreAway++; else matchState.scoreHome++; updateScoreboard(); cssClass = 'evt-red'; icon = 'fa-futbol'; color = '#ff4444'; text = `GOL CONTRA de <strong>${p.nome}</strong>`; } 
+            else if(type === 'YELLOW') { if(teamKey === 'home') matchState.homeYellow++; else matchState.awayYellow++; cssClass = 'evt-yellow'; icon = 'fa-square'; color = '#FFD700'; text = `Cartão Amarelo: <strong>${p.nome}</strong>`; } 
+            else if(type === 'RED') { if(teamKey === 'home') matchState.homeRed++; else matchState.awayRed++; cssClass = 'evt-red'; icon = 'fa-square'; color = '#ff4444'; text = `CARTÃO VERMELHO: <strong>${p.nome}</strong>`; } 
+            else if(type === 'FOUL') { cssClass = 'evt-foul'; icon = 'fa-exclamation-circle'; color = '#FF8C00'; text = `Falta: <strong>${p.nome}</strong>`; }
+            
+            const eventObj = { 
+                id: eventId, type: type, playerId: p.id, playerName: p.nome, fotoUrl: p.foto,
+                teamId: teamId, teamName: teamName, teamKey: teamKey, 
+                time: timeStr, cssClass: cssClass, icon: icon, color: color, text: text 
+            };
+            
+            matchEvents.push(eventObj); 
+            addFeedItemHTML(eventId, timeStr, cssClass, icon, text); 
+            addPlayerEventIcon(evContainer, icon, color, eventId); 
+            closeActionModal(); 
+            saveLiveState();
+        }
+
+        window.undoEvent = function(eventId) {
+            if(!confirm("Deseja excluir este evento? O placar e estatísticas serão revertidos.")) return;
+            const evtIndex = matchEvents.findIndex(e => e.id === eventId); if(evtIndex === -1) return; const evt = matchEvents[evtIndex];
+            
+            if(evt.type === 'GOAL') { if(evt.teamKey === 'home') matchState.scoreHome--; else matchState.scoreAway--; updateScoreboard(); } 
+            else if(evt.type === 'OWN_GOAL') { if(evt.teamKey === 'home') matchState.scoreAway--; else matchState.scoreHome--; updateScoreboard(); }
+            else if(evt.type === 'SUB') {
+                const sIdx = matchState.lineups.starters[evt.teamKey].findIndex(p => p.id === evt.playerId); 
+                const bIdx = matchState.lineups.bench[evt.teamKey].findIndex(p => p.id === evt.outPlayerId); 
+                if (sIdx > -1 && bIdx > -1) {
+                    const inP = matchState.lineups.starters[evt.teamKey].splice(sIdx, 1)[0];
+                    const outP = matchState.lineups.bench[evt.teamKey].splice(bIdx, 1)[0];
+                    matchState.lineups.starters[evt.teamKey].push(outP);
+                    matchState.lineups.bench[evt.teamKey].push(inP);
+                    renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
+                }
+            }
+
+            const feedItem = document.getElementById(`feed-item-${eventId}`); if(feedItem) feedItem.remove(); 
+            renderMatchSheets(matchState.lineups.starters, matchState.lineups.bench);
+            matchEvents.splice(evtIndex, 1); saveLiveState();
+        }
+
+        function addFeedItemHTML(id, time, cls, icon, text) { 
+            const textoSeguro = DOMPurify.sanitize(text);
+            document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${id}"><div class="feed-time">${time}</div><div class="feed-icon ${cls}"><i class="fas ${icon}"></i></div><div class="feed-text">${textoSeguro}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${id}')" title="Excluir evento"></i></div>`); 
+        }
+        
+        function addPlayerEventIcon(container, iconClass, color, eventId) { if(container) container.innerHTML += `<span id="icon-event-${eventId}"><i class="fas ${iconClass} mini-event-icon" style="color:${color}; margin-left:2px;"></i></span>`; }
+        function updateScoreboard() { document.getElementById('score-home').innerText = matchState.scoreHome; document.getElementById('score-away').innerText = matchState.scoreAway; }
+        function toggleTimer() { const btn = document.getElementById('btn-timer-toggle'); if(matchState.isRunning){ clearInterval(matchState.interval); matchState.isRunning=false; btn.className='fas fa-play'; document.querySelector('.btn-play-big').classList.add('paused'); } else { matchState.interval=setInterval(tick,1000); matchState.isRunning=true; btn.className='fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused'); } saveLiveState(); }
+        function tick() { matchState.timer++; updateTimerDisplay(); if(matchState.timer % 5 === 0) saveLiveState(); }
+        function updateTimerDisplay() { const m=Math.floor(matchState.timer/60); const s=matchState.timer%60; document.getElementById('timer-display').innerText=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+        function tryResetTimer() { document.getElementById('resetModal1').classList.add('active'); }
+        function openReset2() { document.getElementById('resetModal1').classList.remove('active'); document.getElementById('resetModal2').classList.add('active'); }
+        function executeReset() { clearInterval(matchState.interval); matchState.timer=0; matchState.isRunning=false; document.getElementById('timer-display').innerText="00:00"; document.getElementById('resetModal2').classList.remove('active'); document.getElementById('btn-timer-toggle').className='fas fa-play'; saveLiveState(); }
+        function tryEndMatch() { document.getElementById('endModal1').classList.add('active'); }
+        function openEnd2() { document.getElementById('endModal1').classList.remove('active'); document.getElementById('endModal2').classList.add('active'); }
+        
+        function executeEnd() {
+            if (document.exitFullscreen) document.exitFullscreen();
+            localStorage.removeItem(getStorageKey());
+            const summaryHTML = generateRichSummary();
+            
+            if(currentTourneyId) { 
+                const localResult = { 
                     partidaId: currentMatchId, 
                     scoreHome: matchState.scoreHome, 
                     scoreAway: matchState.scoreAway, 
                     summaryHTML: summaryHTML, 
-                    eventos: matchEvents.map(e => ({ type: e.type, playerId: e.playerId, teamId: e.teamId, time: e.time })) 
-                };
-	            
-                fetch('/api/partidas/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiData) })
-                .then(response => { window.history.back(); })
-                .catch(err => { console.error("Erro de conexão:", err); window.history.back(); });
-	        }
+                    eventos: matchEvents, 
+                    stats: { home: { y: matchState.homeYellow, r: matchState.homeRed }, away: { y: matchState.awayYellow, r: matchState.awayRed } } 
+                }; 
+                localStorage.setItem(`match_result_${currentTourneyId}_${currentMatchId}`, JSON.stringify(localResult)); 
+            }
 
-	        function generateRichSummary() {
-	            const t1 = matchData.t1; const t2 = matchData.t2; const params = new URLSearchParams(window.location.search); const tourneyName = decodeURIComponent(params.get('tName') || 'TORNEIO OFICIAL');
-	            const getSheetCrest = (team) => { if(team.escudoUrl) return `<img src="${team.escudoUrl}" class="sh-crest-img">`; const icon = mascotsMap[team.customMascot] || 'fa-shield-alt'; const grad = `linear-gradient(135deg, ${team.corPrimaria}, ${team.corSecundaria})`; return `<div class="sh-crest-box" style="background:${grad}; border-color:${team.corTerciaria||'#fff'}"><i class="fas ${icon}" style="color:${team.corTerciaria||'#fff'}"></i></div>`; };
-	            const getTeamName = (id) => (id == t1.id ? t1.nome : t2.nome);
-	            const generateListHTML = (title, events, iconClass, color, printColor) => { if (events.length === 0) return ''; let listItems = events.map(e => { const tName = getTeamName(e.teamId); return `<li style="border-bottom: 1px dashed #ddd;"><span class="s-time" style="color:#000;">${e.time}'</span> <span class="s-player">${e.playerName}</span> <span class="s-team">(${tName})</span>${e.type === 'OWN_GOAL' ? '<span class="og-tag">(CONTRA)</span>' : ''}</li>`; }).join(''); return `<div class="sumula-category" style="border-left: 4px solid ${printColor}; padding-left: 10px; margin-bottom:15px;"><h3 style="color:${color} !important; border-bottom: 1px solid #ccc; padding-bottom:5px;"><i class="fas ${iconClass}"></i> ${title}</h3><ul class="cat-list">${listItems}</ul></div>`; };
-	            
-                const goals = matchEvents.filter(e => e.type === 'GOAL' || e.type === 'OWN_GOAL'); const fouls = matchEvents.filter(e => e.type === 'FOUL'); const yellows = matchEvents.filter(e => e.type === 'YELLOW'); const reds = matchEvents.filter(e => e.type === 'RED');
-	            const goalsHTML = generateListHTML('GOLS', goals, 'fa-futbol', '#000', '#00cc6a'); const foulsHTML = generateListHTML('FALTAS', fouls, 'fa-exclamation-circle', '#000', '#666'); const yellowHTML = generateListHTML('CARTÃO AMARELO', yellows, 'fa-square', '#daa520', '#daa520'); const redHTML = generateListHTML('CARTÃO VERMELHO', reds, 'fa-square', '#ff4444', '#ff4444');
-	            const emptyBlock = (title) => `<div class="sumula-category" style="opacity:0.5; margin-bottom:15px;"><h3 style="border-bottom:1px solid #ccc;">${title}</h3><ul class="cat-list"><li>--</li></ul></div>`;
-	            
-                let timelineHTML = ''; 
-                matchEvents.forEach(e => { 
-                    const isHome = (e.teamKey === 'home'); 
-                    const sideClass = isHome ? 'left' : 'right'; 
-                    let icon = 'fa-square';
-                    let bgStyle = 'background:#eee; color:#555;'; 
-                    
-                    if(e.type === 'YELLOW') { icon = 'fa-square'; bgStyle = 'background:#fff3cd; color:#856404; border:1px solid #ffeeba;'; }
-                    if(e.type === 'RED') { icon = 'fa-square'; bgStyle = 'background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;'; }
-                    if(e.type.includes('GOAL')) { icon = 'fa-futbol'; bgStyle = 'background:#d4edda; color:#155724; border:1px solid #c3e6cb;'; }
-                    if(e.type === 'SUB') { icon = 'fa-exchange-alt'; bgStyle = 'background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;'; }
-                    if(e.type === 'FOUL') { icon = 'fa-exclamation-circle'; }
-                    
-                    let pText = e.playerName;
-                    if(e.type === 'SUB') pText = `Sai ${e.outPlayerName} <br> Entra ${e.playerName}`;
+            const apiData = { 
+                partidaId: currentMatchId, 
+                scoreHome: matchState.scoreHome, 
+                scoreAway: matchState.scoreAway, 
+                summaryHTML: summaryHTML, 
+                eventos: matchEvents.map(e => ({ type: e.type, playerId: e.playerId, teamId: e.teamId, time: e.time })) 
+            };
+            
+            fetch('/api/partidas/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiData) })
+            .then(response => { window.history.back(); })
+            .catch(err => { console.error("Erro de conexão:", err); window.history.back(); });
+        }
 
-                    timelineHTML += `<div class="tl-item ${sideClass}" style="margin-bottom:5px;"><div class="tl-time" style="background:#000; color:#fff;">${e.time}'</div><div class="tl-content" style="${bgStyle} -webkit-print-color-adjust: exact;"><i class="fas ${icon}"></i> <strong>${pText}</strong></div></div>`; 
-                });
-	            return `<div class="official-sheet"><div class="sheet-branding"><div class="sb-top-row">FUT-SÚMULA PRO | HIGTECH SYSTEMS</div><div class="sb-tournament-title">${tourneyName}</div></div><div class="sheet-header"><div class="sh-team"><div class="sh-crest-wrapper">${getSheetCrest(t1)}</div><h2>${t1.nome}</h2></div><div class="sh-score-box"><div class="sh-final-score">${matchState.scoreHome} x ${matchState.scoreAway}</div><div class="sh-date">${new Date().toLocaleDateString()}</div></div><div class="sh-team"><div class=\"sh-crest-wrapper\">${getSheetCrest(t2)}</div><h2>${t2.nome}</h2></div></div><div class=\"sheet-body-grid\"><div class=\"col-left\">${goalsHTML || emptyBlock('GOLS')}${foulsHTML || emptyBlock('FALTAS')}</div><div class=\"col-right\">${yellowHTML || emptyBlock('CARTÃO AMARELO')}${redHTML || emptyBlock('CARTÃO VERMELHO')}</div></div><div class=\"sheet-timeline-title\">CRONOLOGIA DA PARTIDA</div><div class=\"sheet-timeline-container\">${timelineHTML || '<p style=\"text-align:center; color:#999;\">Sem eventos registrados.</p>'}</div><div class=\"sheet-footer\">Documento gerado eletronicamente por Fut-Súmula Pro - HigTech Systems.<br>${new Date().toLocaleString()}</div></div>`;
-	        }
-	        init();
-	    </script>
+        function generateRichSummary() {
+            const t1 = matchData.t1; const t2 = matchData.t2; const params = new URLSearchParams(window.location.search); const tourneyName = decodeURIComponent(params.get('tName') || 'TORNEIO OFICIAL');
+            const getSheetCrest = (team) => { if(team.escudoUrl) return `<img src="${team.escudoUrl}" class="sh-crest-img">`; const icon = mascotsMap[team.customMascot] || 'fa-shield-alt'; const grad = `linear-gradient(135deg, ${team.corPrimaria}, ${team.corSecundaria})`; return `<div class="sh-crest-box" style="background:${grad}; border-color:${team.corTerciaria||'#fff'}"><i class="fas ${icon}" style="color:${team.corTerciaria||'#fff'}"></i></div>`; };
+            const getTeamName = (id) => (id == t1.id ? t1.nome : t2.nome);
+            const generateListHTML = (title, events, iconClass, color, printColor) => { if (events.length === 0) return ''; let listItems = events.map(e => { const tName = getTeamName(e.teamId); return `<li style="border-bottom: 1px dashed #ddd;"><span class="s-time" style="color:#000;">${e.time}'</span> <span class="s-player">${e.playerName}</span> <span class="s-team">(${tName})</span>${e.type === 'OWN_GOAL' ? '<span class="og-tag">(CONTRA)</span>' : ''}</li>`; }).join(''); return `<div class="sumula-category" style="border-left: 4px solid ${printColor}; padding-left: 10px; margin-bottom:15px;"><h3 style="color:${color} !important; border-bottom: 1px solid #ccc; padding-bottom:5px;"><i class="fas ${iconClass}"></i> ${title}</h3><ul class="cat-list">${listItems}</ul></div>`; };
+            
+            const goals = matchEvents.filter(e => e.type === 'GOAL' || e.type === 'OWN_GOAL'); const fouls = matchEvents.filter(e => e.type === 'FOUL'); const yellows = matchEvents.filter(e => e.type === 'YELLOW'); const reds = matchEvents.filter(e => e.type === 'RED');
+            const goalsHTML = generateListHTML('GOLS', goals, 'fa-futbol', '#000', '#00cc6a'); const foulsHTML = generateListHTML('FALTAS', fouls, 'fa-exclamation-circle', '#000', '#666'); const yellowHTML = generateListHTML('CARTÃO AMARELO', yellows, 'fa-square', '#daa520', '#daa520'); const redHTML = generateListHTML('CARTÃO VERMELHO', reds, 'fa-square', '#ff4444', '#ff4444');
+            const emptyBlock = (title) => `<div class="sumula-category" style="opacity:0.5; margin-bottom:15px;"><h3 style="border-bottom:1px solid #ccc;">${title}</h3><ul class="cat-list"><li>--</li></ul></div>`;
+            
+            let timelineHTML = ''; 
+            matchEvents.forEach(e => { 
+                const isHome = (e.teamKey === 'home'); 
+                const sideClass = isHome ? 'left' : 'right'; 
+                let icon = 'fa-square';
+                let bgStyle = 'background:#eee; color:#555;'; 
+                
+                if(e.type === 'YELLOW') { icon = 'fa-square'; bgStyle = 'background:#fff3cd; color:#856404; border:1px solid #ffeeba;'; }
+                if(e.type === 'RED') { icon = 'fa-square'; bgStyle = 'background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;'; }
+                if(e.type.includes('GOAL')) { icon = 'fa-futbol'; bgStyle = 'background:#d4edda; color:#155724; border:1px solid #c3e6cb;'; }
+                if(e.type === 'SUB') { icon = 'fa-exchange-alt'; bgStyle = 'background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;'; }
+                if(e.type === 'FOUL') { icon = 'fa-exclamation-circle'; }
+                
+                let pText = e.playerName;
+                if(e.type === 'SUB') pText = `Sai ${e.outPlayerName} <br> Entra ${e.playerName}`;
+
+                timelineHTML += `<div class="tl-item ${sideClass}" style="margin-bottom:5px;"><div class="tl-time" style="background:#000; color:#fff;">${e.time}'</div><div class="tl-content" style="${bgStyle} -webkit-print-color-adjust: exact;"><i class="fas ${icon}"></i> <strong>${pText}</strong></div></div>`; 
+            });
+            return `<div class="official-sheet"><div class="sheet-branding"><div class="sb-top-row">FUT-SÚMULA PRO | HIGTECH SYSTEMS</div><div class="sb-tournament-title">${tourneyName}</div></div><div class="sheet-header"><div class="sh-team"><div class="sh-crest-wrapper">${getSheetCrest(t1)}</div><h2>${t1.nome}</h2></div><div class="sh-score-box"><div class="sh-final-score">${matchState.scoreHome} x ${matchState.scoreAway}</div><div class="sh-date">${new Date().toLocaleDateString()}</div></div><div class="sh-team"><div class=\"sh-crest-wrapper\">${getSheetCrest(t2)}</div><h2>${t2.nome}</h2></div></div><div class=\"sheet-body-grid\"><div class=\"col-left\">${goalsHTML || emptyBlock('GOLS')}${foulsHTML || emptyBlock('FALTAS')}</div><div class=\"col-right\">${yellowHTML || emptyBlock('CARTÃO AMARELO')}${redHTML || emptyBlock('CARTÃO VERMELHO')}</div></div><div class=\"sheet-timeline-title\">CRONOLOGIA DA PARTIDA</div><div class=\"sheet-timeline-container\">${timelineHTML || '<p style=\"text-align:center; color:#999;\">Sem eventos registrados.</p>'}</div><div class=\"sheet-footer\">Documento gerado eletronicamente por Fut-Súmula Pro - HigTech Systems.<br>${new Date().toLocaleString()}</div></div>`;
+        }
+        init();
+    </script>
 </body>
 </html>

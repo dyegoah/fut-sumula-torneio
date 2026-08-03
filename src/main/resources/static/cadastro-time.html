@@ -1,79 +1,75 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            // 1. Verifica se o usuário está logado
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) {
-	                window.location.href = 'login.html';
-	                return; 
-	            }
-
-	            // 2. Intercepta todas as chamadas de API
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-
-	                args[1] = options;
-
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => {
-	                    console.error("Erro na requisição segura:", err);
-	                    throw err;
-	                });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novo Clube | Fut-Súmula</title>
+
+    <!-- FONTES E CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/cadastro-time.css">
+    <link rel="stylesheet" href="css/cadastro-time.css">
+
+    <!-- SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+    
     <style>
         .select-player-list { max-height: 250px; overflow-y: auto; text-align: left; margin-bottom: 20px; }
         .select-player-item {
@@ -92,21 +88,21 @@
         <div class="bg-image bg-studio"></div> 
     </div>
 
-	<header class="app-topbar">
-	        <div class="brand-area" onclick="window.location.href='times.html'">
-	            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
-	        </div>
-	        
-	        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
-	             <div class="logo-text" style="text-align: center;">
-	                <h2 style="color: #fff;">FUNDAR CLUBE</h2>
-	             </div>
-	        </div>
-	        
-	        <div class="close-btn-header" onclick="window.location.href='times.html'">
-	            <i class="fas fa-times"></i>
-	        </div>
-	    </header>
+    <header class="app-topbar">
+        <div class="brand-area" onclick="window.location.href='times.html'">
+            <i class="fas fa-arrow-left" style="color: var(--text-gray); font-size: 1.5rem;"></i>
+        </div>
+        
+        <div class="brand-area" style="position: absolute; left: 50%; transform: translateX(-50%);">
+             <div class="logo-text" style="text-align: center;">
+                <h2 style="color: #fff;">FUNDAR CLUBE</h2>
+             </div>
+        </div>
+        
+        <div class="close-btn-header" onclick="window.location.href='times.html'">
+            <i class="fas fa-times"></i>
+        </div>
+    </header>
 
     <main class="main-content" style="max-width: 600px; padding-top: 20px;">
         
@@ -223,7 +219,6 @@
     </div>
 
     <script src="js/images.js"></script>
-    
     <script src="js/mascotes.js"></script>
 
     <script>
@@ -277,7 +272,6 @@
             if(btnElement) btnElement.classList.add('selected');
         }
 
-        // Função do Novo Botão (+100)
         function abrirMascotes() {
             if(window.abrirModalMascotesExtra) {
                 window.abrirModalMascotesExtra((selectedKey) => {

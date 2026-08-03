@@ -1,120 +1,135 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
+	<head>
+	    <meta charset="UTF-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	    <title>Clubes | Fut-Súmula</title>
+
+	    <!-- FONTES E CSS DO SISTEMA -->
+	    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+	    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+	    <link rel="stylesheet" href="css/style.css">
+	    <link rel="stylesheet" href="css/times.css">
+
+	    <!-- BIBLIOTECA DE SEGURANÇA -->
+	    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+	    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
+	    <script>
+	        function getTokenGlobal() {
+	            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+	        }
+
+	        async function validarAcesso() {
+	            const token = getTokenGlobal();
+	            if (!token) {
+	                window.location.replace('login.html');
+	                return;
 	            }
 
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
+	            try {
+	                const res = await fetch('/api/auth/me', { 
+	                    method: 'GET',
+	                    headers: { 'Authorization': 'Bearer ' + token }
+	                });
+	                
+	                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
 
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
+	            } catch (error) {
+	                console.warn(error.message);
+	                localStorage.removeItem('futSumulaToken');
+	                localStorage.removeItem('token');
+	                window.location.replace('login.html'); 
+	            }
 	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
+	        validarAcesso();
+	    </script>
+	    <script>
 	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) { window.location.href = 'login.html'; return; }
+	            const token = getTokenGlobal();
 	            const originalFetch = window.fetch;
+
 	            window.fetch = function() {
 	                let args = Array.from(arguments);
 	                let url = args[0];
 	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
+
+	                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
 	                    options.headers = options.headers || {};
 	                    options.headers['Authorization'] = 'Bearer ' + token;
 	                }
 	                args[1] = options;
+
 	                return originalFetch.apply(this, args).then(response => {
 	                    if (response.status === 403 || response.status === 401) {
+	                        alert("Sessão expirada. Por favor, faça login novamente.");
 	                        localStorage.removeItem('futSumulaToken');
+	                        localStorage.removeItem('token');
 	                        window.location.href = 'login.html';
 	                    }
 	                    return response;
-	                }).catch(err => { throw err; });
+	                }).catch(err => {
+	                    console.error("Erro na requisição segura:", err);
+	                    throw err;
+	                });
 	            };
 	        })();
 	    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clubes | Fut-Súmula</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/times.css">
-	
-    <style>
-        .modal-sidebar {
-            position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh;
-            background: #111; border-left: 1px solid var(--primary-neon);
-            transition: right 0.3s ease; z-index: 20001;
-            display: flex; flex-direction: column;
-            box-shadow: -10px 0 50px rgba(0,0,0,0.8);
-        }
-        .modal-sidebar.active { right: 0; }
-        
-        .sidebar-header {
-            padding: 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
-        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: #000; }
 
-        .sidebar-search {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            padding: 10px; border-radius: 8px; display: flex; align-items: center; margin-bottom: 15px;
-        }
-        .sidebar-search input {
-            background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px;
-        }
+	    <!-- ESTILOS EXCLUSIVOS DE TIME -->
+	    <style>
+	        .modal-sidebar {
+	            position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh;
+	            background: #111; border-left: 1px solid var(--primary-neon);
+	            transition: right 0.3s ease; z-index: 20001;
+	            display: flex; flex-direction: column;
+	            box-shadow: -10px 0 50px rgba(0,0,0,0.8);
+	        }
+	        .modal-sidebar.active { right: 0; }
+	        
+	        .sidebar-header {
+	            padding: 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.1);
+	            display: flex; justify-content: space-between; align-items: center;
+	        }
+	        .sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
+	        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: #000; }
 
-        .close-sidebar { cursor: pointer; color: #aaa; font-size: 1.2rem; transition: 0.2s; }
-        .close-sidebar:hover { color: #fff; }
+	        .sidebar-search {
+	            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+	            padding: 10px; border-radius: 8px; display: flex; align-items: center; margin-bottom: 15px;
+	        }
+	        .sidebar-search input {
+	            background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px;
+	        }
 
-        .sidebar-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
-            z-index: 20000; display: none;
-        }
-        .sidebar-overlay.active { display: block; }
+	        .close-sidebar { cursor: pointer; color: #aaa; font-size: 1.2rem; transition: 0.2s; }
+	        .close-sidebar:hover { color: #fff; }
 
-        .btn-delete-modal {
-            width: 100%; margin-top: 25px; padding: 14px;
-            background: linear-gradient(90deg, rgba(255, 68, 68, 0.05), rgba(255, 0, 0, 0.1));
-            border: 1px solid rgba(255, 68, 68, 0.4); color: #ff4444;
-            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.85rem;
-            text-transform: uppercase; letter-spacing: 1px; border-radius: 8px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
-        .btn-delete-modal:hover { background: #ff4444; color: #fff; border-color: #ff4444; }
-        .select-player-item {
-            display: flex; align-items: center; gap: 10px; padding: 12px;
-            background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;
-        }
-        .select-player-item:hover { background: rgba(255,255,255,0.08); }
-        .select-player-item.selected { border-left: 3px solid var(--success-color); background: rgba(0,255,136,0.1); }
-        .select-player-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
-    </style>    
-</head>
+	        .sidebar-overlay {
+	            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+	            background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
+	            z-index: 20000; display: none;
+	        }
+	        .sidebar-overlay.active { display: block; }
+
+	        .btn-delete-modal {
+	            width: 100%; margin-top: 25px; padding: 14px;
+	            background: linear-gradient(90deg, rgba(255, 68, 68, 0.05), rgba(255, 0, 0, 0.1));
+	            border: 1px solid rgba(255, 68, 68, 0.4); color: #ff4444;
+	            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.85rem;
+	            text-transform: uppercase; letter-spacing: 1px; border-radius: 8px; cursor: pointer;
+	            display: flex; align-items: center; justify-content: center; gap: 10px;
+	        }
+	        .btn-delete-modal:hover { background: #ff4444; color: #fff; border-color: #ff4444; }
+	        .select-player-item {
+	            display: flex; align-items: center; gap: 10px; padding: 12px;
+	            background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;
+	        }
+	        .select-player-item:hover { background: rgba(255,255,255,0.08); }
+	        .select-player-item.selected { border-left: 3px solid var(--success-color); background: rgba(0,255,136,0.1); }
+	        .select-player-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+	    </style>    
+	</head>
 <body>
 
 	<div class="bg-carousel-container">

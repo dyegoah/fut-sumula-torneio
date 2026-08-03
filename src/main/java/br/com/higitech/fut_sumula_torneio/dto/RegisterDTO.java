@@ -12,6 +12,7 @@ public record RegisterDTO(
     @Size(max = 100) String nomeLiga,
     @Size(max = 100) String cidade,
     @Size(max = 2) String uf,
+    @Size(max = 50) String pais,
     @Size(max = 20) String whatsapp,
     @Size(max = 20) String genero,
     @Size(max = 20) String idioma,

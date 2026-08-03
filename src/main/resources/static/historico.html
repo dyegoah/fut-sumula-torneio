@@ -3,37 +3,40 @@
 <head>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
-	    // Fiscal de Autenticação Automático
+        // 1. Pega o token correto do LocalStorage
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+	    // 2. Fiscal de Autenticação Automático e Seguro
 	    async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+
 	        try {
 	            const res = await fetch('/api/auth/me', { 
 	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
+                    headers: { 'Authorization': 'Bearer ' + token } // O segredo está aqui!
 	            });
 	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
+	            if (!res.ok) throw new Error("Sessão inválida ou expirada.");
 
 	        } catch (error) {
 	            console.warn(error.message);
-	            // Expulsa para a tela de login
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
 	            window.location.replace('login.html'); 
 	        }
 	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
 	    validarAcesso();
 	</script>
 	<script>
 	    // Lista de imagens do seu sistema
 	    const imagensFundo = [
-	        'images/bg1.png', // Ajuste conforme o caminho real das suas imagens
+	        'images/bg1.png', 
 	        'images/bg2.png',
 	        'images/bg3.png'
 	    ];
@@ -50,35 +53,47 @@
 	    document.addEventListener('DOMContentLoaded', preCarregarImagens);
 	</script>
 	<script>
+        // 3. Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
         (function() {
-            const token = localStorage.getItem('futSumulaToken');
-            if (!token) { window.location.href = 'login.html'; return; }
+            const token = getTokenGlobal();
             const originalFetch = window.fetch;
+
             window.fetch = function() {
                 let args = Array.from(arguments);
                 let url = args[0];
                 let options = args[1] || {};
-                if (url.includes('/api/') && !url.includes('/auth/')) {
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
                     options.headers = options.headers || {};
                     options.headers['Authorization'] = 'Bearer ' + token;
                 }
                 args[1] = options;
+
                 return originalFetch.apply(this, args).then(response => {
                     if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
                         localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
                         window.location.href = 'login.html';
                     }
                     return response;
-                }).catch(err => { throw err; });
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
             };
         })();
     </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hall da Fama | Fut-Súmula</title>
+    
+    <!-- AQUI ESTÃO SEUS ESTILOS VOLTANDO À VIDA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+
     <style>
         /* ESTILO EXCLUSIVO DO HALL DA FAMA */
         body { background-color: #050505; color: #fff; }

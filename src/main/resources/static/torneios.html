@@ -1,74 +1,86 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) { window.location.href = 'login.html'; return; }
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-	                args[1] = options;
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => { throw err; });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torneios | Fut-Súmula</title>
+    <title>Galeria de Troféus | Fut-Súmula</title>
+
+    <!-- FONTES E CSS GERAL DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/torneio.css">
-    <style>
-        .tiny-crest { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; margin-right: 5px; }
-        .tiny-crest img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
-        .tiny-custom-shape { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
-        .tiny-custom-mascot { font-size: 14px; color: #fff; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); }
-        .shape-round { border-radius: 50%; } .shape-shield { border-radius: 0 0 50% 50%; clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%); } 
+    
+    <!-- BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
+    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+
+                // Tela liberada!
+                document.documentElement.style.display = '';
+
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- ESTILOS VISUAIS EXCLUSIVOS DO TORNEIOS.HTML -->
+    <style>
+        /* Barra de Busca e Filtros */
         .filters-area { display: flex; gap: 15px; justify-content: center; align-items: center; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
         .search-box-ph { flex: 2; position: relative; }
         .search-input-ph { width: 100%; padding: 12px 15px 12px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; transition: 0.3s; }
@@ -77,36 +89,66 @@
         .status-select-ph { flex: 1; padding: 12px 15px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; font-weight: 700; }
         .status-select-ph option { background: #111; color: #fff; }
 
+        /* Cards de Torneio (Mesmo visual da Home/PlayHub) */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .tournament-card { background: linear-gradient(145deg, #111, #1a1a1a); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .tournament-card:hover { transform: translateY(-5px); border-color: var(--primary-neon); box-shadow: 0 10px 25px rgba(0, 234, 255, 0.2); }
         .tournament-card.finished { filter: grayscale(0.8); opacity: 0.8; border-color: #444; }
-        .tournament-card.finished:hover { filter: grayscale(0); opacity: 1; transform: translateY(-5px); }
-        .champion-banner { background: linear-gradient(90deg, #FFD700, #FFA500); color: #000; font-weight: 900; text-align: center; padding: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 0 0 15px 15px; margin-top: -15px; position: relative; z-index: 1;}
+        .tournament-card.finished:hover { filter: grayscale(0); opacity: 1; transform: translateY(-5px); border-color: var(--primary-neon); }
+        .t-card-header { position: relative; height: 100px; background-size: cover; background-position: center; }
+        .t-card-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.2)); }
+        .t-type-badge { position: absolute; top: 10px; right: 10px; background: var(--primary-neon); color: #000; font-size: 0.6rem; font-weight: 900; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+        .t-card-body { padding: 15px; }
+        .t-title { font-size: 1.1rem; font-weight: 900; color: #fff; text-transform: uppercase; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .t-info { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #aaa; font-weight: 600; }
+        .t-status { font-weight: bold; }
+        .champion-banner { background: linear-gradient(90deg, #FFD700, #FFA500); color: #000; font-weight: 900; text-align: center; padding: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-        .tv-section-title { font-size: 1rem; color: var(--primary-neon); text-transform: uppercase; margin: 25px 0 15px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
-        .tv-count-badge { background: rgba(255,255,255,0.1); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; letter-spacing: 1px; font-weight: 800; }
-        .tv-broadcast-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 400px; overflow-y: auto; padding-right: 5px; }
-        .tv-broadcast-container::-webkit-scrollbar { width: 6px; }
-        .tv-broadcast-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
-        .tv-broadcast-container::-webkit-scrollbar-thumb { background: var(--primary-neon); border-radius: 3px; }
+        /* Modal Full e Header do Torneio */
+        .modal-box.modal-full { max-width: 950px; width: 95%; height: 90vh; padding: 0; background: rgba(15, 15, 15, 0.98); display: flex; flex-direction: column; overflow: hidden; }
+        .modal-content-pad { padding: 20px; overflow-y: auto; flex: 1; }
+        .close-btn-fixed { position: absolute; top: 15px; right: 15px; z-index: 200; cursor: pointer; color: #fff; background: rgba(0,0,0,0.5); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.3s; }
+        .close-btn-fixed:hover { background: #ff4444; }
+        .tournament-header-big { position: relative; padding: 20px; background: linear-gradient(to bottom, #000, rgba(0,0,0,0.8)); border-bottom: 2px solid var(--primary-neon); text-align: center; flex-shrink: 0; }
+        .th-title { color: #fff; text-transform: uppercase; margin: 0; font-weight: 900; font-size: 1.5rem; letter-spacing: 1px; }
+        .th-subtitle { color: #aaa; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; margin-top: 5px; }
         
-        /* NOTE QUE O CARD AQUI NÃO TEM HOVER DE CLIQUE */
-        .tv-match-card { background: linear-gradient(90deg, #151515, #222); border-left: 4px solid var(--primary-neon); border-radius: 6px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.5); flex-shrink: 0; }
+        .rules-trigger { position: absolute; top: 20px; left: 20px; width: 35px; height: 35px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 205; }
+        .rules-popover { display: none; position: absolute; top: 60px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 1px solid var(--primary-neon); padding: 15px; border-radius: 10px; font-size: 0.8rem; text-align: left; z-index: 300; color: #ccc; }
+        .rules-popover.active { display: block; }
         
-        .tv-match-id { position: absolute; top: -8px; left: 10px; background: var(--primary-neon); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 2px; letter-spacing: 1px; }
-        .tv-team { display: flex; align-items: center; gap: 15px; width: 40%; }
+        /* Seção TV / Jogos e Tabela */
+        .tv-section-title { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin: 25px 0 15px 0; color: var(--primary-neon); font-size: 1rem; text-transform: uppercase; font-weight: 700; }
+        .tv-count-badge { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; color: #fff; }
+        .tv-broadcast-container { display: flex; flex-direction: column; gap: 10px; }
+        .tv-match-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; position: relative; }
+        .tv-match-id { position: absolute; top: -8px; left: 10px; background: var(--primary-neon); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 2px; }
+        .tv-team { display: flex; align-items: center; gap: 10px; width: 40%; font-size: 0.85rem; font-weight: 700; color: #fff; }
         .tv-team.home { justify-content: flex-end; text-align: right; }
         .tv-team.away { justify-content: flex-start; text-align: left; }
-        .tv-team span { font-weight: 700; color: #fff; font-size: 0.9rem; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tv-crest-wrapper { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .tv-vs { font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 1.2rem; color: #555; text-shadow: 0 1px 1px rgba(255,255,255,0.1); width: 10%; text-align: center; }
-        #tv-structure-area { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .big-table td.td-left { display: flex; align-items: center; font-weight: 600; padding-left: 15px; }
-        .tournament-header-big { position: relative; padding: 30px 20px; text-align: center; background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.6)); border-bottom: 2px solid var(--primary-neon); flex-shrink: 0; }
-        .close-btn-fixed { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: rgba(255, 68, 68, 0.2); border: 1px solid #ff4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ff4444; cursor: pointer; z-index: 200; }
-        .rules-trigger { position: absolute; top: 20px; left: 20px; width: 40px; height: 40px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; z-index: 200; }
-        .rules-popover { display: none; position: absolute; top: 70px; left: 20px; width: 280px; background: rgba(10,10,10,0.98); border: 1px solid var(--primary-neon); padding: 20px; border-radius: 10px; font-size: 0.85rem; color: #ccc; text-align: left; z-index: 300; backdrop-filter: blur(10px); }
-        .rules-popover.active { display: block; }
-        .modal-box.modal-full { max-width: 950px; width: 95%; height: 90vh; padding: 0; background: rgba(15, 15, 15, 0.98); display: flex; flex-direction: column; overflow: hidden; }
-        .modal-content-pad { padding: 20px; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--primary-neon) #222; }
+        .tv-vs { font-weight: 900; font-size: 1.1rem; color: #888; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; min-width: 60px; text-align: center; }
+        .tv-crest-wrapper { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+
+        /* Tabela de Classificação */
+        .responsive-table-wrapper { overflow-x: auto; background: rgba(0,0,0,0.4); border-radius: 10px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); margin-top: 10px; }
+        .big-table { width: 100%; border-collapse: collapse; color: #fff; font-size: 0.85rem; }
+        .big-table th { padding: 10px; color: #888; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; font-size: 0.75rem; text-align: center; }
+        .big-table td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 600; text-align: center; }
+        .pos-rank { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 50%; background: rgba(255,255,255,0.1); font-weight: 900; font-size: 0.8rem; }
+        .rank-1 { background: #FFD700; color: #000; box-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        .rank-2 { background: #C0C0C0; color: #000; }
+        .rank-3 { background: #cd7f32; color: #000; }
+        .val-pts { color: var(--primary-neon); font-weight: 900; font-size: 1rem; }
+        .val-warn { color: #FFD700; }
+        .val-bad { color: #ff4444; }
+
+        /* Escudos SVG/Imagem Dinâmicos */
+        .tiny-crest { width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
+        .tiny-crest img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+        .tiny-custom-shape { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+        .tiny-custom-mascot { font-size: 12px; color: #fff; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); position: relative; }
+        .shape-round { border-radius: 50%; } 
+        .shape-shield { border-radius: 0 0 50% 50%; clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%); }
     </style>
 </head>
 <body>
@@ -179,17 +221,17 @@
     <script>
         // Carregador do Footbar
 		fetch('footbar.html').then(r => r.text()).then(d => {
-		            const container = document.getElementById('footbar-container');
-		            container.innerHTML = d;
-		            
-		            // Extrai e executa o script injetado de forma segura (sem eval)
-		            const scripts = container.querySelectorAll("script");
-		            scripts.forEach(s => {
-		                const novoScript = document.createElement("script");
-		                novoScript.textContent = s.textContent;
-		                document.body.appendChild(novoScript);
-		            });
-		        });
+            const container = document.getElementById('footbar-container');
+            container.innerHTML = d;
+            
+            // Extrai e executa o script injetado de forma segura
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(s => {
+                const novoScript = document.createElement("script");
+                novoScript.textContent = s.textContent;
+                document.body.appendChild(novoScript);
+            });
+        });
 				
         if (typeof AppImages === 'undefined') { var AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
         const trophyIcons = ['fa-trophy', 'fa-award', 'fa-medal', 'fa-crown', 'fa-star', 'fa-shield-alt', 'fa-wine-glass', 'fa-gem', 'fa-ribbon', 'fa-certificate'];
@@ -412,7 +454,6 @@
                 const resKey = `match_result_${tournament.id}_${m.id}`;
                 const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
 
-                // NOTA: Aqui NÃO existe função onclick, os cards são apenas visuais
                 if(result) {
                     container.innerHTML += `
                         <div class="tv-match-card" style="opacity: 0.8; cursor: default;">

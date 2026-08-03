@@ -1,69 +1,89 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) { window.location.href = 'login.html'; return; }
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-	                args[1] = options;
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => { throw err; });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Play Hub | Fut-Súmula</title>
+
+    <!-- 1. FONTES E CSS DO SISTEMA (O SEGREDO DO LAYOUT ESTÁ AQUI) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/play-hub.css">
+    <link rel="stylesheet" href="css/play-hub.css">
+
+    <!-- 2. BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- 3. BLINDAGEM DE SESSÃO -->
+    <script>
+        // Pega o token correto do LocalStorage, independente de como foi salvo
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        // Fiscal de Autenticação Automático e Seguro
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token } // O segredo está aqui!
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+
+                // Se passou, exibe a tela
+                document.documentElement.style.display = '';
+
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        // Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- 4. ESTILOS EXCLUSIVOS DO PLAY-HUB -->
     <style>
-        /* MANTIDO O CSS ORIGINAL DO PLAY-HUB LIGA */
         .live-badge { background: #ff4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.6rem; font-weight: 900; letter-spacing: 1px; animation: pulseLive 2s infinite; }
         @keyframes pulseLive { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         .filters-area { display: flex; gap: 15px; justify-content: center; align-items: center; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
@@ -300,11 +320,9 @@
             return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${team.customShape || 'shield'}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${color};"></i></div>`;
         }
 
-        // --- AQUI ESTÁ O DESVIO DE ROTAS DO PLAY-HUB PARA OS UNIVERSOS ---
         function openPlayDashboard(id) {
             const t = processedTournaments.find(x => x.id === id); 
             
-            // SE FOR UNIVERSO PRÓPRIO, DESVIA A ROTA
             if (t.tipo === 'COPA') {
                 window.location.href = `copadomundo.html?id=${t.id}`;
                 return;
@@ -313,7 +331,6 @@
                 return;
             }
 
-            // SE FOR LIGA, CONTINUA ABRINDO O MODAL NORMAL
             const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
             const color = t.corTrofeu || '#FFD700';
             let matches = getOrGenerateMatches(t);

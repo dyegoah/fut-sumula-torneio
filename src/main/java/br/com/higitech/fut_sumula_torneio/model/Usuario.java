@@ -52,6 +52,9 @@ public class Usuario implements UserDetails {
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'TORNEIO'")
     private String sistemaOrigem; 
     
+    @Column(length = 50)
+    private String pais;
+
     private LocalDate dataCadastro = LocalDate.now();
 
     // NOVO CAMPO: Dias de teste específicos do usuário
@@ -89,6 +92,8 @@ public class Usuario implements UserDetails {
     }
   
     // --- GETTERS E SETTERS MANUAIS ---
+    public String getPais() { return pais; }
+    public void setPais(String pais) { this.pais = pais; }
     
     public Boolean getUsar2fa() { return usar2fa; }
     public void setUsar2fa(Boolean usar2fa) { this.usar2fa = usar2fa; }
@@ -149,14 +154,14 @@ public class Usuario implements UserDetails {
     public LocalDate getDataCadastro() { return dataCadastro; }
     public void setDataCadastro(LocalDate dataCadastro) { this.dataCadastro = dataCadastro; }
 
-    // GETTER E SETTER DO TRIAL DAYS
     public Integer getTrialDays() { return trialDays; }
     public void setTrialDays(Integer trialDays) { this.trialDays = trialDays; }
 
     // --- SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if ("admin@futsumula.com".equals(this.login)) {
+        // CORRIGIDO PARA O SEU E-MAIL
+        if ("fut_sumula_pro@hotmail.com".equals(this.login)) {
             return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"));
         }
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));

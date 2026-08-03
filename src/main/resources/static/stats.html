@@ -1,201 +1,156 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) {
-	                window.location.href = 'login.html';
-	                return; 
-	            }
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-	                args[1] = options;
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => {
-	                    console.error("Erro na requisição segura:", err);
-	                    throw err;
-	                });
-	            };
-	        })();
-	    </script>
-	
-	<meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estatísticas | Fut-Súmula</title>
+
+    <!-- 1. FONTES E CSS DO SISTEMA (O LAYOUT VOLTA AQUI) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-	<link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/estatisticas-futebol.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/estatisticas-futebol.css">
+
+    <!-- 2. BIBLIOTECAS (DOMPurify para segurança e html2canvas para baixar o Card) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-	<style>
-	        /* ESTILOS EXCLUSIVOS DE STATS */
-	        .podium-container { 
-	            display: flex; align-items: flex-end; justify-content: center; gap: 15px; 
-	            margin: 30px 0 50px 0; height: 260px; 
-	        }
 
-	        .podium-card { 
-	            background: rgba(255, 255, 255, 0.05);
-	            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-	            border: 1px solid rgba(255, 255, 255, 0.1);
-	            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-	            border-radius: 15px 15px 0 0; 
-	            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
-	            padding: 15px; position: relative; transition: 0.3s; 
-	        }
+    <!-- 3. BLINDAGEM DE SESSÃO -->
+    <script>
+        // Pega o token correto do LocalStorage
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
 
-	        .podium-card.rank-1 { 
-	            height: 100%; width: 140px; 
-	            border-top: 1px solid rgba(255, 215, 0, 0.5); border-bottom: 4px solid #FFD700; 
-	            background: linear-gradient(to top, rgba(255, 215, 0, 0.15), rgba(255,255,255,0.05)); 
-	        }
-	        .podium-card.rank-2 { height: 80%; width: 110px; border-bottom: 4px solid #C0C0C0; }
-	        .podium-card.rank-3 { height: 70%; width: 110px; border-bottom: 4px solid #CD7F32; }
-	        
-	        .podium-img { 
-	            width: 60px; height: 60px; border-radius: 50%; object-fit: cover; 
-	            border: 2px solid rgba(255,255,255,0.2); margin-bottom: 10px; 
-	            box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
-	        }
-	        .rank-1 .podium-img { width: 80px; height: 80px; border-color: #FFD700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
-	        
-	        .podium-name { font-weight: 800; font-size: 0.8rem; text-align: center; color: #fff; margin-bottom: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-	        .podium-team { font-size: 0.7rem; color: #ccc; text-transform: uppercase; margin-bottom: 5px; }
-	        .podium-value { font-size: 1.5rem; font-weight: 900; color: var(--primary-neon); line-height: 1; text-shadow: 0 0 10px rgba(0, 255, 136, 0.3); }
-	        
-	        .rank-badge { 
-	            position: absolute; top: -12px; background: #222; color: #fff; width: 30px; height: 30px; 
-	            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-	            font-weight: 900; font-size: 0.9rem; border: 2px solid rgba(255,255,255,0.2); 
-	            z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-	        }
-	        .rank-1 .rank-badge { background: #FFD700; color: #000; border-color: #fff; box-shadow: 0 0 15px #FFD700; }
-	        .rank-2 .rank-badge { background: #C0C0C0; color: #000; border-color: #fff; }
-	        .rank-3 .rank-badge { background: #CD7F32; color: #000; border-color: #fff; }
-
-	        .stats-list { display: flex; flex-direction: column; gap: 10px; }
-	        .stat-row { 
-	            display: flex; align-items: center; padding: 12px 20px; 
-	            background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); 
-	            transition: 0.2s; backdrop-filter: blur(5px);
-	        }
-	        .stat-row:hover { background: rgba(255,255,255,0.1); border-color: var(--primary-neon); transform: translateX(5px); box-shadow: 0 0 15px rgba(0, 255, 136, 0.1); }
-	        .sr-rank { font-weight: 900; color: var(--text-gray); width: 30px; }
-	        .sr-info { flex: 1; display: flex; align-items: center; gap: 15px; }
-	        .sr-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-	        .sr-name { font-weight: 700; color: #fff; font-size: 0.9rem; }
-	        .sr-team { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-left: 5px; }
-	        .sr-value { font-size: 1.2rem; font-weight: 900; color: #fff; width: 50px; text-align: right; }
-
-	        .stats-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-	        .stat-tab { padding: 10px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; transition: 0.3s; font-weight: 700; font-size: 0.8rem; border: 1px solid transparent; }
-	        .stat-tab:hover { color: #fff; background: rgba(255,255,255,0.1); }
-	        .stat-tab.active { background: var(--primary-neon); color: #000; box-shadow: 0 0 15px var(--primary-neon-dim); }
-
-            #share-template-container {
-                position: fixed; left: -9999px; top: 0; 
-                width: 1080px; height: 1920px;
-                background: linear-gradient(135deg, #050505 0%, #1a1a1a 100%);
-                font-family: 'Montserrat', sans-serif;
-                display: flex; flex-direction: column; align-items: center;
-                padding: 80px 50px; color: #fff; box-sizing: border-box;
+        // Fiscal de Autenticação Automático e Seguro
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
             }
-            .share-header { text-align: center; margin-bottom: 50px; width: 100%; display:flex; flex-direction:column; align-items:center;}
-            .share-logo { font-size: 3rem; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }
-            .share-logo span { color: var(--primary-neon); }
-            
-            .share-tournament { font-size: 2.2rem; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-            .share-title { font-size: 4rem; font-weight: 900; text-transform: uppercase; padding: 10px 40px; border: 4px solid var(--primary-neon); display: inline-block; border-radius: 20px; box-shadow: 0 0 30px var(--primary-neon-dim); background: rgba(0,0,0,0.5); }
-            
-            .share-podium { display: flex; align-items: flex-end; justify-content: center; gap: 40px; width: 100%; height: 600px; margin-bottom: 80px; }
-            .share-card { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 30px; width: 280px; position: relative; }
-            .share-card.p-1 { height: 100%; width: 340px; border-color: #FFD700; background: linear-gradient(to top, rgba(255, 215, 0, 0.2), transparent); }
-            .share-card.p-2 { height: 80%; border-color: #C0C0C0; }
-            .share-card.p-3 { height: 70%; border-color: #CD7F32; }
-            
-            .share-badge { position: absolute; top: -30px; width: 70px; height: 70px; border-radius: 50%; background: #000; border: 4px solid #fff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 900; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-            .p-1 .share-badge { background: #FFD700; color: #000; border-color: #fff; box-shadow: 0 0 30px #FFD700; width: 90px; height: 90px; font-size: 3.5rem; top: -45px; }
-            .p-2 .share-badge { background: #C0C0C0; color: #000; }
-            .p-3 .share-badge { background: #CD7F32; color: #000; }
 
-            .share-img { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 5px solid rgba(255,255,255,0.2); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-            .p-1 .share-img { width: 220px; height: 220px; border-color: #FFD700; }
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token } // Envia o token corretamente
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
 
-            .share-name { font-size: 1.8rem; font-weight: 800; text-align: center; line-height: 1.1; margin-bottom: 10px; }
-            .share-team { font-size: 1.2rem; color: #ccc; text-transform: uppercase; font-weight: 600; margin-bottom: 15px; }
-            .share-value { font-size: 4rem; font-weight: 900; color: #fff; text-shadow: 0 0 20px currentColor; }
+                // Tela confirmada!
+                document.documentElement.style.display = '';
 
-            .share-list { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
-            .share-row { display: flex; align-items: center; padding: 25px 40px; background: rgba(255,255,255,0.05); border-radius: 20px; border: 2px solid rgba(255,255,255,0.1); }
-            .share-row-rank { font-size: 2.5rem; font-weight: 900; color: #888; width: 80px; }
-            .share-row-img { width: 80px; height: 80px; border-radius: 50%; margin-right: 30px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3); }
-            .share-row-info { flex: 1; }
-            .share-row-name { font-size: 2rem; font-weight: 700; }
-            .share-row-team { font-size: 1.4rem; color: #aaa; text-transform: uppercase; }
-            .share-row-val { font-size: 3rem; font-weight: 900; color: #fff; }
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        // Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
 
-            .share-footer { margin-top: auto; text-align: center; color: #666; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; border-top: 2px solid #333; width: 100%; padding-top: 30px; }
-            
-            .float-share-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary-neon); color: #000; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; z-index: 100; box-shadow: 0 0 20px var(--primary-neon-dim); transition: 0.3s; }
-            .float-share-btn:hover { transform: scale(1.1); color: #fff; }
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
 
-            #preview-img-container { margin-bottom: 20px; border: 2px solid #333; border-radius: 10px; overflow-y: auto; max-height: 55vh; display: block; }
-            #preview-img-container canvas { width: 100% !important; height: auto !important; display: block; }
-            #preview-img-container::-webkit-scrollbar { width: 8px; }
-            #preview-img-container::-webkit-scrollbar-track { background: #222; }
-            #preview-img-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
 
-            .share-actions-grid { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
-            .btn-social { flex: 1; padding: 12px; border-radius: 8px; border: none; color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-size: 0.8rem; text-decoration: none; }
-            .btn-wa { background: #25D366; }
-            .btn-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
-            .btn-fb { background: #1877F2; }
-            .btn-social:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-	    </style>
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- 4. ESTILOS INTERNOS DA PÁGINA STATS -->
+    <style>
+        .bg-tactics-board { background-image: url('https://images.unsplash.com/photo-1508344928928-7137b2931f82?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.2); }
+        
+        .stats-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-tab { padding: 10px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: 0.3s; }
+        .stat-tab.active { background: rgba(255,255,255,0.1); color: #fff; border-color: var(--primary-neon); }
+        
+        .float-share-btn { position: absolute; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary-neon); color: #000; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; box-shadow: 0 5px 15px rgba(0,255,136,0.4); transition: 0.3s; z-index: 100; }
+        .float-share-btn:hover { transform: scale(1.1); }
+        
+        .share-actions-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn-social { padding: 12px 5px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; color: white; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.8rem; }
+        .btn-wa { background: #25D366; } .btn-ig { background: #E1306C; } .btn-fb { background: #1877F2; }
+        
+        /* Podium e Lista Interna */
+        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin-top: 30px; margin-bottom: 30px; }
+        .podium-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px 10px; text-align: center; width: 30%; position: relative; }
+        .podium-card.rank-1 { transform: scale(1.1); border-color: #FFD700; z-index: 2; margin-bottom: 15px; }
+        .podium-card.rank-2 { border-color: #C0C0C0; }
+        .podium-card.rank-3 { border-color: #cd7f32; }
+        .rank-badge { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; border: 2px solid; }
+        .rank-1 .rank-badge { border-color: #FFD700; color: #FFD700; }
+        .rank-2 .rank-badge { border-color: #C0C0C0; color: #C0C0C0; }
+        .rank-3 .rank-badge { border-color: #cd7f32; color: #cd7f32; }
+        .podium-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid rgba(255,255,255,0.1); }
+        .podium-name { font-size: 0.8rem; font-weight: bold; color: #fff; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .podium-team { font-size: 0.65rem; color: #888; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .podium-value { font-size: 1.8rem; font-weight: 900; line-height: 1; }
+        
+        .stats-list { display: flex; flex-direction: column; gap: 8px; }
+        .stat-row { display: flex; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; }
+        .sr-rank { width: 30px; font-weight: bold; color: #666; font-size: 1.1rem; }
+        .sr-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        .sr-info { flex: 1; text-align: left; }
+        .sr-name { font-weight: bold; color: #fff; font-size: 0.9rem; text-transform: uppercase; }
+        .sr-team { font-size: 0.7rem; color: #888; }
+        .sr-value { font-size: 1.5rem; font-weight: bold; }
+
+        /* Estilos do Template que gera a imagem (fica escondido) */
+        #share-template-container { position: absolute; left: -9999px; width: 1080px; height: 1920px; background: linear-gradient(145deg, #050505, #111); color: white; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .share-header { text-align: center; margin-bottom: 50px; }
+        .share-logo { font-size: 3rem; font-weight: 900; letter-spacing: 2px; }
+        .share-tournament { font-size: 2.5rem; color: #ccc; margin: 10px 0; }
+        .share-title { font-size: 4rem; font-weight: 900; border-bottom: 5px solid; display: inline-block; padding-bottom: 10px; }
+        .share-podium { display: flex; justify-content: center; align-items: flex-end; gap: 30px; margin-top: 50px; flex: 1; }
+        .share-card { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; text-align: center; width: 280px; position: relative; }
+        .share-card.p-1 { transform: scale(1.15); border-color: #FFD700; z-index: 10; margin-bottom: 40px; }
+        .share-card.p-2 { border-color: #C0C0C0; }
+        .share-card.p-3 { border-color: #cd7f32; }
+        .share-badge { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; border: 3px solid; }
+        .p-1 .share-badge { border-color: #FFD700; color: #FFD700; }
+        .p-2 .share-badge { border-color: #C0C0C0; color: #C0C0C0; }
+        .p-3 .share-badge { border-color: #cd7f32; color: #cd7f32; }
+        .share-img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 4px solid rgba(255,255,255,0.1); }
+        .share-name { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; }
+        .share-team { font-size: 1.2rem; color: #aaa; margin-bottom: 15px; }
+        .share-value { font-size: 4rem; font-weight: 900; line-height: 1; }
+        .share-list { margin-top: 60px; display: flex; flex-direction: column; gap: 20px; }
+        .share-row { display: flex; align-items: center; background: rgba(255,255,255,0.05); padding: 20px 30px; border-radius: 15px; border-left: 5px solid; }
+        .share-row-rank { font-size: 2rem; font-weight: 900; width: 60px; color: #888; }
+        .share-row-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-right: 25px; }
+        .share-row-info { flex: 1; text-align: left; }
+        .share-row-name { font-size: 2rem; font-weight: 900; text-transform: uppercase; }
+        .share-row-team { font-size: 1.4rem; color: #aaa; }
+        .share-row-val { font-size: 3.5rem; font-weight: 900; }
+        .share-footer { text-align: center; margin-top: 50px; font-size: 1.5rem; color: #666; letter-spacing: 5px; }
+    </style>
 </head>
 <body>
 
@@ -247,7 +202,7 @@
             <p style="color:#ccc; font-size:0.8rem; margin-bottom:15px;">Escolha onde postar ou baixe a imagem:</p>
             
             <div id="preview-img-container">
-                </div>
+            </div>
             
             <div class="share-actions-grid">
                 <button class="btn-social btn-wa" onclick="shareImage('WhatsApp')">
@@ -269,6 +224,7 @@
         </div>
     </div>
 
+    <!-- MOLDE DA IMAGEM DO INSTAGRAM -->
     <div id="share-template-container">
         <div class="share-header">
             <div class="share-logo">FUT<span style="color:var(--primary-neon);">SÚMULA</span></div>
@@ -285,17 +241,17 @@
     <script src="js/images.js"></script>
     <script>
 		fetch('footbar.html').then(r => r.text()).then(d => {
-		            const container = document.getElementById('footbar-container');
-		            container.innerHTML = d;
-		            
-		            // Extrai e executa o script injetado de forma segura (sem eval)
-		            const scripts = container.querySelectorAll("script");
-		            scripts.forEach(s => {
-		                const novoScript = document.createElement("script");
-		                novoScript.textContent = s.textContent;
-		                document.body.appendChild(novoScript);
-		            });
-		        });
+            const container = document.getElementById('footbar-container');
+            container.innerHTML = d;
+            
+            // Extrai e executa o script injetado de forma segura
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(s => {
+                const novoScript = document.createElement("script");
+                novoScript.textContent = s.textContent;
+                document.body.appendChild(novoScript);
+            });
+        });
         if (typeof AppImages === 'undefined') { var AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
         const trophyIcons = ['fa-trophy', 'fa-award', 'fa-medal', 'fa-crown', 'fa-star'];
         

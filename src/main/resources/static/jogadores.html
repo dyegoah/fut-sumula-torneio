@@ -1,88 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	<script>
-	        (function() {
-	            // 1. Verifica se o usuário está logado
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) {
-	                window.location.href = 'login.html';
-	                return; // Para a execução do restante da página
-	            }
-
-	            // 2. Intercepta todas as chamadas de API para injetar o Token
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-
-	                // Se for chamada para API do sistema, adiciona o cabeçalho Authorization
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-
-	                args[1] = options;
-
-	                return originalFetch.apply(this, args).then(response => {
-	                    // Se o servidor recusar (Token expirado ou inválido)
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => {
-	                    console.error("Erro na requisição segura:", err);
-	                    throw err;
-	                });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plantel | Fut-Súmula</title>
+    
+    <!-- FONTES E CSS DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/jogador.css">
+    <link rel="stylesheet" href="css/jogador.css">
+
+    <!-- BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- BLINDAGEM DE SESSÃO -->
+    <script>
+        // 1. Pega o token correto do LocalStorage, independente de como foi salvo
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        // 2. Fiscal de Autenticação Automático e Seguro
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token } // O segredo está aqui!
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        // 3. Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
 </head>
 <body>
 
-	<div class="bg-carousel-container">
-	    <div class="bg-overlay"></div>
-	    <div class="bg-image bg-tunnel"></div> 
-	</div>
+    <div class="bg-carousel-container">
+        <div class="bg-overlay"></div>
+        <div class="bg-image bg-tunnel"></div> 
+    </div>
 
     <header class="app-topbar">
         <div class="brand-area" onclick="window.location.href='index.html'">
@@ -183,19 +185,19 @@
 
     <script>
         // Carregador do Footbar
-		fetch('footbar.html').then(r => r.text()).then(d => {
-		            const container = document.getElementById('footbar-container');
-		            container.innerHTML = d;
-		            
-		            // Extrai e executa o script injetado de forma segura (sem eval)
-		            const scripts = container.querySelectorAll("script");
-		            scripts.forEach(s => {
-		                const novoScript = document.createElement("script");
-		                novoScript.textContent = s.textContent;
-		                document.body.appendChild(novoScript);
-		            });
-		        });
-				
+        fetch('footbar.html').then(r => r.text()).then(d => {
+            const container = document.getElementById('footbar-container');
+            container.innerHTML = d;
+            
+            // Extrai e executa o script injetado de forma segura
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(s => {
+                const novoScript = document.createElement("script");
+                novoScript.textContent = s.textContent;
+                document.body.appendChild(novoScript);
+            });
+        });
+                
         let allJogadores = []; // Variável Global
 
         document.addEventListener('DOMContentLoaded', carregarJogadores);

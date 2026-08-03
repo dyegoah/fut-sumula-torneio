@@ -1,97 +1,83 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	
-    <script>
-        (function() {
-            const token = localStorage.getItem('futSumulaToken');
-            if (!token) { window.location.href = 'login.html'; return; }
-            const originalFetch = window.fetch;
-            window.fetch = function() {
-                let args = Array.from(arguments);
-                let url = args[0];
-                let options = args[1] || {};
-                if (url.includes('/api/') && !url.includes('/auth/')) {
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                }
-                args[1] = options;
-                return originalFetch.apply(this, args).then(response => {
-                    if (response.status === 403 || response.status === 401) {
-                        alert("Sessão expirada. Por favor, faça login novamente.");
-                        localStorage.removeItem('futSumulaToken');
-                        window.location.href = 'login.html';
-                    }
-                    return response;
-                }).catch(err => { console.error("Erro na requisição segura:", err); throw err; });
-            };
-        })();
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novo Jogador | Fut-Súmula</title>
+    
+    <!-- FONTES E CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/modal-cadastro.css">
     
+    <!-- SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+    
     <style>
-        /* Estilo do Botão de Remover Foto (X) */
         .remove-photo-btn {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ff4444;
-            color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: none; /* Escondido por padrão */
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            border: 2px solid #fff;
-            transition: transform 0.2s;
+            position: absolute; top: -5px; right: -5px; background: #ff4444; color: white; width: 28px; height: 28px;
+            border-radius: 50%; display: none; align-items: center; justify-content: center; cursor: pointer;
+            z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 2px solid #fff; transition: transform 0.2s;
         }
-        .remove-photo-btn:hover {
-            transform: scale(1.1);
-            background: #cc0000;
-        }
-        /* Garante que o wrapper suporte posicionamento absoluto */
-        .photo-upload-wrapper {
-            position: relative;
-        }
+        .remove-photo-btn:hover { transform: scale(1.1); background: #cc0000; }
+        .photo-upload-wrapper { position: relative; }
     </style>
 </head>
 <body>
@@ -226,57 +212,50 @@
             setRating(3);
         });
 
-        // --- VALIDAÇÃO E PREVIEW DA IMAGEM ---
         function previewImage(event) {
             const file = event.target.files[0];
             const input = event.target;
 
             if (!file) return;
 
-            // 1. Validação de TIPO (Apenas Imagens)
             if (!file.type.startsWith('image/')) {
                 showModal('error', 'ARQUIVO INVÁLIDO', 'Por favor, selecione apenas arquivos de imagem (JPG, PNG, etc).');
-                input.value = ""; // Limpa o input
+                input.value = ""; 
                 return;
             }
 
-            // 2. Validação de TAMANHO (Max 2MB)
-            const maxSize = 2 * 1024 * 1024; // 2MB em bytes
+            const maxSize = 2 * 1024 * 1024; 
             if (file.size > maxSize) {
                 showModal('error', 'IMAGEM MUITO GRANDE', 'A imagem deve ter no máximo 2MB para envio rápido.');
-                input.value = ""; // Limpa o input
+                input.value = ""; 
                 return;
             }
 
-            // Se passou, mostra o preview
             const reader = new FileReader();
             reader.onload = function(e) {
                 const preview = document.getElementById('photoPreview');
                 preview.style.backgroundImage = `url('${e.target.result}')`;
                 preview.style.backgroundSize = 'cover';
                 preview.style.backgroundPosition = 'center';
-                preview.innerHTML = ''; // Remove ícone de câmera e texto
+                preview.innerHTML = ''; 
                 preview.style.border = '2px solid var(--success-color)';
                 
-                // Mostra o botão "X"
                 document.getElementById('btnRemovePhoto').style.display = 'flex';
             }
             reader.readAsDataURL(file);
         }
 
-        // --- FUNÇÃO PARA REMOVER A FOTO SELECIONADA ---
         function removeImage(event) {
-            event.stopPropagation(); // Impede que abra a janela de seleção de arquivos novamente
+            event.stopPropagation(); 
             
             const input = document.getElementById('fileInput');
-            input.value = ""; // Limpa o input de arquivo
+            input.value = ""; 
             
             const preview = document.getElementById('photoPreview');
-            preview.style.backgroundImage = 'none'; // Remove a imagem de fundo
+            preview.style.backgroundImage = 'none'; 
             preview.style.border = '2px dashed var(--text-gray)';
-            preview.innerHTML = '<i class="fas fa-camera"></i><span>Add Foto</span>'; // Restaura ícone
+            preview.innerHTML = '<i class="fas fa-camera"></i><span>Add Foto</span>'; 
             
-            // Esconde o botão "X"
             document.getElementById('btnRemovePhoto').style.display = 'none';
         }
 
@@ -342,7 +321,6 @@
 
             document.getElementById('formJogador').reset();
             
-            // Reseta visual da imagem usando a função de remover
             const fakeEvent = { stopPropagation: () => {} };
             removeImage(fakeEvent);
 
@@ -390,8 +368,6 @@
             }
         }
     </script>
-
     <script src="js/gender-mode.js"></script>
-
 </body>
 </html>

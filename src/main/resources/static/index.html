@@ -1,48 +1,114 @@
 <!DOCTYPE html>
 <html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    async function validarAcesso() {
-            const token = localStorage.getItem('futSumulaToken');
-            if (!token) {
-                window.location.replace('login.html');
-                return;
-            }
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
-	            });
-	            
-	            if (!res.ok) throw new Error("Sessão inválida.");
-                
-                // MÁGICA DE SEGURANÇA: Só revela a tela se o servidor confirmar que o token é real!
-                document.documentElement.style.display = '';
-	        } catch (error) {
-                localStorage.removeItem('futSumulaToken');
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    validarAcesso();
-	</script>
-    
-	<script>
-	    const imagensFundo = ['images/bg1.png', 'images/bg2.png', 'images/bg3.png'];
-	    function preCarregarImagens() { imagensFundo.forEach((src) => { const img = new Image(); img.src = src; }); }
-	    document.addEventListener('DOMContentLoaded', preCarregarImagens);
-	</script>
-	
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | Fut-Súmula</title>
-	<link rel="icon" type="image/png" href="images/icon-192.webp">
-	<link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" href="images/icon-192.webp">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00ff88">
     <link rel="apple-touch-icon" href="images/icon-192.webp">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+    <!-- FONTES E CSS DO SISTEMA -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/finalHome.css">
+
+    <!-- BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (!res.ok) throw new Error("Sessão inválida.");
+                
+                const perfil = await res.json();
+
+                // REDIRECIONA USUÁRIOS ANTIGOS USANDO MODAL BOOTSTRAP
+                if (perfil.cadastroIncompleto) {
+                    document.documentElement.style.display = ''; 
+                    
+                    const showBootstrapModal = () => {
+                        const modalElement = document.getElementById('modalCadastroIncompleto');
+                        const modalIncompleto = new bootstrap.Modal(modalElement);
+                        modalIncompleto.show();
+                    };
+
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', showBootstrapModal);
+                    } else {
+                        showBootstrapModal();
+                    }
+                    return; 
+                }
+
+                document.documentElement.style.display = '';
+            } catch (error) {
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- SCRIPTS ADICIONAIS -->
+    <script>
+        const imagensFundo = ['images/bg1.png', 'images/bg2.png', 'images/bg3.png'];
+        function preCarregarImagens() { imagensFundo.forEach((src) => { const img = new Image(); img.src = src; }); }
+        document.addEventListener('DOMContentLoaded', preCarregarImagens);
+    </script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -51,11 +117,7 @@
         }
     </script>
     
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/finalHome.css">
-    
+    <!-- ESTILOS INTERNOS -->
     <style>
         .bg-stadium { background-image: var(--img-stadium); } 
         .bg-trophy { background-image: var(--img-trophy); }
@@ -116,6 +178,28 @@
     <div class="bg-carousel-container">
         <div class="bg-overlay"></div>
         <div class="bg-image bg-stadium"></div> 
+    </div>
+
+    <!-- MODAL BOOTSTRAP PARA AVISO DE CADASTRO -->
+    <div class="modal fade" id="modalCadastroIncompleto" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: linear-gradient(145deg, rgba(20,20,20,0.98), rgba(10,10,10,1)); border: 1px solid var(--primary-neon); box-shadow: 0 0 30px rgba(0, 234, 255, 0.2); border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <h5 class="modal-title" style="color: var(--primary-neon); font-weight: 800; letter-spacing: 1px; font-family: 'Montserrat', sans-serif;">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> AÇÃO NECESSÁRIA
+                    </h5>
+                </div>
+                <div class="modal-body text-light" style="font-family: 'Montserrat', sans-serif;">
+                    <p style="font-size: 0.95rem; color: #ccc;">Detectamos que seu cadastro está incompleto. Isso acontece porque implementamos novas regras de segurança e geolocalização no sistema.</p>
+                    <p style="font-size: 0.95rem; color: #ccc;">Por favor, atualize seus dados de <strong>País, Cidade e Telefone</strong> para continuar acessando seus torneios.</p>
+                </div>
+                <div class="modal-footer" style="border-top: none; justify-content: center; padding-bottom: 20px;">
+                    <button type="button" class="btn-neon w-100 m-0" onclick="window.location.href='completar-cadastro.html'">
+                        COMPLETAR CADASTRO AGORA <i class="bi bi-arrow-right-circle ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="locked-banner" class="blinking-banner" style="display: none;">
@@ -230,9 +314,9 @@
                 <p style="color: #ccc; font-size: 0.9rem; line-height: 1.5;">Sua conta está inativa ou o período expirou.<br><br>Para liberar o acesso a todas as telas, acesse a aba <strong>Assinar Sistema</strong> ou fale com o nosso suporte.</p>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button class="btn-neon" onclick="abrirPagamentoAppBloqueado()" style="border-color: #ff00de; color: #ff00de; background: rgba(255,0,222,0.1);"><i class="fas fa-gem"></i> ASSINAR SISTEMA</button>
-                <button class="btn-neon" onclick="abrirModalAjudaBloqueado()" style="border-color: #fff; color: #fff;"><i class="fas fa-headset"></i> FALAR COM SUPORTE</button>
-                <button class="btn-mini-text" onclick="document.getElementById('locked-action-modal').classList.remove('active')">FECHAR AVISO</button>
+                <button type="button" class="btn-neon" onclick="abrirPagamentoAppBloqueado()" style="border-color: #ff00de; color: #ff00de; background: rgba(255,0,222,0.1);"><i class="fas fa-gem"></i> ASSINAR SISTEMA</button>
+                <button type="button" class="btn-neon" onclick="abrirModalAjudaBloqueado()" style="border-color: #fff; color: #fff;"><i class="fas fa-headset"></i> FALAR COM SUPORTE</button>
+                <button type="button" class="btn-mini-text" onclick="document.getElementById('locked-action-modal').classList.remove('active')">FECHAR AVISO</button>
             </div>
         </div>
     </div>
@@ -269,7 +353,7 @@
             </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-neon" onclick="salvarPerfil()">SALVAR DADOS</button>
+                <button type="button" class="btn-neon" onclick="salvarPerfil()">SALVAR DADOS</button>
             </div>
         </div>
     </div>
@@ -281,8 +365,8 @@
             <div style="background: white; padding: 10px; border-radius: 8px; margin: 20px auto; width: 150px; height: 150px;">
                 <img id="img-qrcode-sistema" src="" style="width: 100%; height: 100%;">
             </div>
-            <button class="btn-neon" onclick="copiarPixSistema()" style="border-color: #ff00de; color: #fff; background: rgba(255,0,222,0.15);"><i class="fab fa-whatsapp"></i> COPIAR PIX</button>
-            <button class="btn-mini-text" onclick="document.getElementById('payment-modal').classList.remove('active')">FECHAR</button>
+            <button type="button" class="btn-neon" onclick="copiarPixSistema()" style="border-color: #ff00de; color: #fff; background: rgba(255,0,222,0.15);"><i class="fab fa-whatsapp"></i> COPIAR PIX</button>
+            <button type="button" class="btn-mini-text" onclick="document.getElementById('payment-modal').classList.remove('active')">FECHAR</button>
         </div>
     </div>
 
@@ -291,12 +375,12 @@
             <div class="close-btn-header" onclick="document.getElementById('modal-help').classList.remove('active')" style="position: absolute; top: 10px; right: 10px;"><i class="fas fa-times"></i></div>
             <div style="text-align: center; margin-bottom: 20px;"><i class="fas fa-headset" style="font-size: 3rem; color: var(--primary-neon);"></i><h3>AJUDA</h3></div>
             <div style="display: flex; flex-direction: column; gap: 15px;">
-                <a id="link-whatsapp-support" href="#" target="_blank" class="btn-neon" style="border-color: #25D366; color: #25D366;"><i class="fab fa-whatsapp"></i> WHATSAPP</a>
-                <a id="link-insta-support" href="#" target="_blank" class="btn-neon" style="border-color: #E1306C; color: #E1306C;"><i class="fab fa-instagram"></i> INSTAGRAM</a>
-                <a id="link-facebook-support" href="#" target="_blank" class="btn-neon" style="border-color: #1877F2; color: #1877F2;"><i class="fab fa-facebook-f"></i> FACEBOOK</a>
-                <a id="link-email-support" href="#" class="btn-neon" style="border-color: #ccc; color: #ccc;"><i class="fas fa-envelope"></i> EMAIL</a>
+                <a id="link-whatsapp-support" href="#" target="_blank" class="btn-neon" style="border-color: #25D366; color: #25D366; text-decoration: none;"><i class="fab fa-whatsapp"></i> WHATSAPP</a>
+                <a id="link-insta-support" href="#" target="_blank" class="btn-neon" style="border-color: #E1306C; color: #E1306C; text-decoration: none;"><i class="fab fa-instagram"></i> INSTAGRAM</a>
+                <a id="link-facebook-support" href="#" target="_blank" class="btn-neon" style="border-color: #1877F2; color: #1877F2; text-decoration: none;"><i class="fab fa-facebook-f"></i> FACEBOOK</a>
+                <a id="link-email-support" href="#" class="btn-neon" style="border-color: #ccc; color: #ccc; text-decoration: none;"><i class="fas fa-envelope"></i> EMAIL</a>
             </div>
-            <button class="btn-mini-text" onclick="document.getElementById('modal-help').classList.remove('active')">FECHAR</button>
+            <button type="button" class="btn-mini-text" onclick="document.getElementById('modal-help').classList.remove('active')">FECHAR</button>
         </div>
     </div>
 
@@ -308,29 +392,33 @@
                 <p style="color: #ccc; font-size: 0.9rem;">Você terá que fazer login novamente para acessar seus torneios.</p>
             </div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn-neon" onclick="document.getElementById('logout-modal').classList.remove('active')" style="border-color: #fff; color: #fff;">CANCELAR</button>
-                <button class="btn-neon" onclick="executarLogout()" style="background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444;">SAIR AGORA</button>
+                <button type="button" class="btn-neon" onclick="document.getElementById('logout-modal').classList.remove('active')" style="border-color: #fff; color: #fff;">CANCELAR</button>
+                <button type="button" class="btn-neon" onclick="executarLogout()" style="background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444;">SAIR AGORA</button>
             </div>
         </div>
     </div>
 
     <div id="footbar-container"></div>
 
-    <script src="js/gender-mode.js"></script>
+    <!-- SCRIPT DO BOOTSTRAP 5 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- O SEU ARQUIVO DE SCRIPT GENDER MODE -->
+    <!-- Caso tenha um js/gender-mode.js na sua pasta -->
+    <!-- <script src="js/gender-mode.js"></script> -->
 
     <script>
-		fetch('footbar.html').then(r => r.text()).then(d => {
-		            const container = document.getElementById('footbar-container');
-		            container.innerHTML = d;
-		            
-		            // Extrai e executa o script injetado de forma segura (sem eval)
-		            const scripts = container.querySelectorAll("script");
-		            scripts.forEach(s => {
-		                const novoScript = document.createElement("script");
-		                novoScript.textContent = s.textContent;
-		                document.body.appendChild(novoScript);
-		            });
-		        });
+        fetch('footbar.html').then(r => r.text()).then(d => {
+            const container = document.getElementById('footbar-container');
+            container.innerHTML = d;
+            
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(s => {
+                const novoScript = document.createElement("script");
+                novoScript.textContent = s.textContent;
+                document.body.appendChild(novoScript);
+            });
+        });
    
         let payloadPixString = "";
         let currentDynamicPixValue = "20.00"; 
@@ -338,7 +426,7 @@
 
         async function atualizarInterfaceUsuario() {
             try {
-                const token = localStorage.getItem('futSumulaToken');
+                const token = getTokenGlobal();
                 const res = await fetch('/api/auth/me', { 
                     method: 'GET',
                     headers: { 'Authorization': 'Bearer ' + token }
@@ -402,8 +490,9 @@
                 const isHeader = e.target.closest('header.app-topbar'); 
                 const isModal = e.target.closest('.modal-overlay'); 
                 const isBanner = e.target.closest('#locked-banner');
+                const isBootstrapModal = e.target.closest('.modal'); 
 
-                if (!isHeader && !isModal && !isBanner) {
+                if (!isHeader && !isModal && !isBanner && !isBootstrapModal) {
                     e.preventDefault();
                     e.stopPropagation();
                     document.getElementById('user-dropdown').style.display = 'none';
@@ -443,9 +532,11 @@
         function salvarPerfil() {
             const genero = document.querySelector('input[name="confGenero"]:checked').value;
             const idioma = document.querySelector('input[name="confIdioma"]:checked').value;
-            setPreferencias(idioma, genero);
+            
+            // Aqui você pode chamar a API para atualizar as preferências
+            
             document.getElementById('config-modal').classList.remove('active');
-            alert('Preferências salvas!');
+            alert('Preferências salvas com sucesso!');
         }
 
         function confirmarSaida(e) {
@@ -458,6 +549,8 @@
             sessionStorage.removeItem('futSumulaPerfil');
             localStorage.removeItem('futSumulaPerfil');
             localStorage.removeItem('futSumulaToken');
+            localStorage.removeItem('token');
+            localStorage.removeItem('jwtToken');
             window.location.href = 'login.html';
         }
 

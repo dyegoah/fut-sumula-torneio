@@ -1,77 +1,76 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-	    // Fiscal de Autenticação Automático
-	    async function validarAcesso() {
-	        try {
-	            const res = await fetch('/api/auth/me', { 
-	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
-	            });
-	            
-	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
-	                throw new Error("Sessão inválida ou expirada.");
-	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
-	        } catch (error) {
-	            console.warn(error.message);
-	            // Expulsa para a tela de login
-	            window.location.replace('login.html'); 
-	        }
-	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
-	    validarAcesso();
-	</script>
-	
-	<script>
-	        (function() {
-	            const token = localStorage.getItem('futSumulaToken');
-	            if (!token) {
-	                window.location.href = 'login.html';
-	                return;
-	            }
-	            const originalFetch = window.fetch;
-	            window.fetch = function() {
-	                let args = Array.from(arguments);
-	                let url = args[0];
-	                let options = args[1] || {};
-	                if (url.includes('/api/') && !url.includes('/auth/')) {
-	                    options.headers = options.headers || {};
-	                    options.headers['Authorization'] = 'Bearer ' + token;
-	                }
-	                args[1] = options;
-	                return originalFetch.apply(this, args).then(response => {
-	                    if (response.status === 403 || response.status === 401) {
-	                        alert("Sessão expirada. Por favor, faça login novamente.");
-	                        localStorage.removeItem('futSumulaToken');
-	                        window.location.href = 'login.html';
-	                    }
-	                    return response;
-	                }).catch(err => {
-	                    console.error("Erro na requisição segura:", err);
-	                    throw err;
-	                });
-	            };
-	        })();
-	    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novo Torneio | Fut-Súmula</title>
+
+    <!-- FONTES E CSS DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/cadastro-torneio.css">
+    <link rel="stylesheet" href="css/cadastro-torneio.css">
+
+    <!-- SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', { 
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
+            } catch (error) {
+                console.warn(error.message);
+                localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
+                window.location.replace('login.html'); 
+            }
+        }
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (response.status === 403 || response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
     
     <style>
-        /* ESTILOS ESPECÍFICOS PARA A ESTRUTURA DE COPA */
         .copa-groups-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -96,7 +95,6 @@
         @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-10px);} 60% {transform: translateY(-5px);} }
         .phase-title { text-align: center; font-weight: 800; color: #fff; margin-bottom: 10px; letter-spacing: 2px; }
 
-        /* REUTILIZANDO ESTILOS ANTERIORES */
         .interactive-slot {
             background: rgba(255, 255, 255, 0.05);
             border: 1px dashed rgba(255, 255, 255, 0.3);
@@ -155,7 +153,7 @@
         .btn-tv-calendar:hover, .btn-tv-calendar.active { background: var(--primary-neon); color: #000; box-shadow: 0 0 10px var(--primary-neon-dim); }
         #tv-structure-area { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
         .btn-create-small { width: auto; padding: 10px 40px; margin-top: 0; font-size: 0.9rem; font-weight: 700; }
-		.modal-overlay.active { opacity: 1; visibility: visible; pointer-events: all; }
+        .modal-overlay.active { opacity: 1; visibility: visible; pointer-events: all; }
     </style>
 </head>
 <body>
@@ -204,13 +202,13 @@
 
             <div id="step-2" class="wizard-step">
                 <h3 style="text-align: center; color: var(--primary-neon);">2. CONFIGURAÇÃO</h3>
-				<div class="input-game-group">
-				    <label>Nome do Torneio</label>
-				    <div class="input-wrapper">
-				        <i class="fas fa-trophy"></i>
-				        <input type="text" id="nomeTorneio" maxlength="50" placeholder="Digite o nome...">
-				    </div>
-				</div>
+                <div class="input-game-group">
+                    <label>Nome do Torneio</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-trophy"></i>
+                        <input type="text" id="nomeTorneio" maxlength="50" placeholder="Digite o nome...">
+                    </div>
+                </div>
                 <div class="row-dupla">
                     <div class="input-game-group">
                         <label>Participantes</label>
@@ -347,7 +345,7 @@
         let matchDates = {}; 
         let currentMatchIndex = -1;
 
-		async function init() {
+        async function init() {
             selectedSlots = []; 
             currentSlotIndex = -1;
             matchDates = {}; 
@@ -387,52 +385,52 @@
             }
         }
 
-		function nextStep(step) {
-				            try {
-				                if (step === 2 && !document.getElementById('tipoTorneio').value) { alert("Escolha um formato!"); return; }
-				                
-				                if (step === 3) {
-				                    if (!document.getElementById('nomeTorneio').value) { alert("Nome é obrigatório!"); return; }
-				                    
-				                    const tipo = document.getElementById('tipoTorneio').value;
-				                    const qtd = parseInt(document.getElementById('qtdTimes').value);
+        function nextStep(step) {
+            try {
+                if (step === 2 && !document.getElementById('tipoTorneio').value) { alert("Escolha um formato!"); return; }
+                
+                if (step === 3) {
+                    if (!document.getElementById('nomeTorneio').value) { alert("Nome é obrigatório!"); return; }
+                    
+                    const tipo = document.getElementById('tipoTorneio').value;
+                    const qtd = parseInt(document.getElementById('qtdTimes').value);
 
-				                    // VALIDAÇÕES ATUALIZADAS
-				                    if (tipo === 'COPA') {
-				                        if (qtd < 6) {
-				                            alert("ERRO DE REGRA:\nPara o formato COPA, é necessário no mínimo 6 times.");
-				                            return;
-				                        }
-				                    } else if (tipo === 'MATA_MATA') {
-				                        if (qtd < 2) {
-				                            alert("ERRO DE REGRA:\nPara o formato MATA-MATA, é necessário no mínimo 2 times.");
-				                            return;
-				                        }
-				                    } else if (tipo === 'LIGA') {
-				                        if (qtd < 3) {
-				                            alert("ERRO DE REGRA:\nPara o formato CAMPEONATO (LIGA), é necessário no mínimo 3 times.");
-				                            return;
-				                        }
-				                    }
-				                }
-				                
-				                if (step === 3) initStructureAndSlots();
-				                
-				                if (step === 4) {
-				                    const qtd = parseInt(document.getElementById('qtdTimes').value);
-				                    const filled = selectedSlots.filter(s => s !== null && s.id !== -1).length;
-				                    if (filled < qtd) {
-				                        alert(`Você precisa preencher todos os ${qtd} times antes de continuar!`);
-				                        return;
-				                    }
-				                    generateTVView();
-				                    generateStructureView();
-				                }
+                    // VALIDAÇÕES ATUALIZADAS
+                    if (tipo === 'COPA') {
+                        if (qtd < 6) {
+                            alert("ERRO DE REGRA:\nPara o formato COPA, é necessário no mínimo 6 times.");
+                            return;
+                        }
+                    } else if (tipo === 'MATA_MATA') {
+                        if (qtd < 2) {
+                            alert("ERRO DE REGRA:\nPara o formato MATA-MATA, é necessário no mínimo 2 times.");
+                            return;
+                        }
+                    } else if (tipo === 'LIGA') {
+                        if (qtd < 3) {
+                            alert("ERRO DE REGRA:\nPara o formato CAMPEONATO (LIGA), é necessário no mínimo 3 times.");
+                            return;
+                        }
+                    }
+                }
+                
+                if (step === 3) initStructureAndSlots();
+                
+                if (step === 4) {
+                    const qtd = parseInt(document.getElementById('qtdTimes').value);
+                    const filled = selectedSlots.filter(s => s !== null && s.id !== -1).length;
+                    if (filled < qtd) {
+                        alert(`Você precisa preencher todos os ${qtd} times antes de continuar!`);
+                        return;
+                    }
+                    generateTVView();
+                    generateStructureView();
+                }
 
-				                changeStep(step);
-				            } catch(e) { console.error("Erro navegação", e); }
-				        }
-				
+                changeStep(step);
+            } catch(e) { console.error("Erro navegação", e); }
+        }
+                
         function prevStep(step) { changeStep(step); }
         function changeStep(step) {
             document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
@@ -779,47 +777,47 @@
         function selectCalendarType(v, c) { document.getElementById('tipoCalendario').value = v; document.querySelectorAll('#step-4 .type-card').forEach(x => x.classList.remove('selected')); c.classList.add('selected'); document.getElementById('days-options').classList.toggle('active', v === 'AUTO'); }
 
 		async function salvarTorneio() {
-		            const idsDosTimes = selectedSlots
-		                .filter(t => t !== null && t.id !== undefined && t.id !== -1)
-		                .map(t => t.id);
-		            
-		            const temDatas = Object.keys(matchDates).length > 0;
+            const idsDosTimes = selectedSlots
+                .filter(t => t !== null && t.id !== undefined && t.id !== -1)
+                .map(t => t.id);
+            
+            const temDatas = Object.keys(matchDates).length > 0;
 
-		            const data = {
-		                nome: document.getElementById('nomeTorneio').value,
-		                tipo: document.getElementById('tipoTorneio').value.toUpperCase(),
-		                quantidadeTimes: parseInt(document.getElementById('qtdTimes').value),
-		                idaEVolta: document.getElementById('idaVoltaSel').value === 'true',
-		                usarCalendario: temDatas,
-		                modeloTrofeu: parseInt(document.getElementById('modeloTrofeu').value),
-		                corTrofeu: document.getElementById('corTrofeu').value,
-		                timesIds: idsDosTimes 
-		            };
+            const data = {
+                nome: document.getElementById('nomeTorneio').value,
+                tipo: document.getElementById('tipoTorneio').value.toUpperCase(),
+                quantidadeTimes: parseInt(document.getElementById('qtdTimes').value),
+                idaEVolta: document.getElementById('idaVoltaSel').value === 'true',
+                usarCalendario: temDatas,
+                modeloTrofeu: parseInt(document.getElementById('modeloTrofeu').value),
+                corTrofeu: document.getElementById('corTrofeu').value,
+                timesIds: idsDosTimes 
+            };
 
-		            if(data.timesIds.length < 2) {
-		                alert("Selecione pelo menos 2 times para criar o torneio!");
-		                return;
-		            }
+            if(data.timesIds.length < 2) {
+                alert("Selecione pelo menos 2 times para criar o torneio!");
+                return;
+            }
 
-		            try {
-		                const response = await fetch('/api/torneios/criar', { 
-		                    method: 'POST', 
-		                    headers: {'Content-Type': 'application/json'}, 
-		                    body: JSON.stringify(data) 
-		                });
-		                
-		                if (response.ok) {
-		                    document.getElementById('successModal').classList.add('active');
-		                } else {
-		                    const errorText = await response.text();
-		                    console.error("Erro do Servidor:", errorText);
-		                    alert('Erro ao criar torneio: ' + (errorText || response.status));
-		                }
-		            } catch (e) { 
-		                console.error(e);
-		                alert('Erro de conexão com o servidor.'); 
-		            }
-		        }
+            try {
+                const response = await fetch('/api/torneios/criar', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(data) 
+                });
+                
+                if (response.ok) {
+                    document.getElementById('successModal').classList.add('active');
+                } else {
+                    const errorText = await response.text();
+                    console.error("Erro do Servidor:", errorText);
+                    alert('Erro ao criar torneio: ' + (errorText || response.status));
+                }
+            } catch (e) { 
+                console.error(e);
+                alert('Erro de conexão com o servidor.'); 
+            }
+        }
         init();
     </script>
 </body>

@@ -91,13 +91,15 @@
 
                 <div class="input-box">
                     <i class="fas fa-envelope"></i>
-                    <input type="text" id="loginEmail" placeholder=" " required autocomplete="off" autocapitalize="off">
+                    <!-- Trava no HTML -->
+                    <input type="text" id="loginEmail" placeholder=" " required autocomplete="off" autocapitalize="off" maxlength="100">
                     <label>E-mail ou Usuário</label>
                 </div>
 
                 <div class="input-box">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="loginSenha" placeholder=" " required>
+                    <!-- Trava no HTML -->
+                    <input type="password" id="loginSenha" placeholder=" " required maxlength="64">
                     <label>Sua Senha</label>
                 </div>
 
@@ -118,6 +120,7 @@
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <!-- Trava de 6 dígitos -->
                     <input type="text" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="off" autofocus>
                     <label style="left: 15px;">Código de 6 dígitos</label>
                 </div>
@@ -137,8 +140,9 @@
         let userEmailTemporario = "";
 
         async function fazerLogin() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const senha = document.getElementById('loginSenha').value;
+            // Trava JavaScript (Defesa em Profundidade)
+            const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
+            const senha = document.getElementById('loginSenha').value.substring(0, 64);
             const btn = document.getElementById('btnStep1');
 
             if(!email || !senha) { alert("Preencha todos os campos."); return; }
@@ -157,13 +161,14 @@
                 if (res.ok) {
                     const data = await res.json();
                     
+                    // Vai para a tela de digitar o código 2FA
                     if (data.requires2FA) {
                         userEmailTemporario = data.login; 
                         document.getElementById('step-1').style.display = 'none';
                         document.getElementById('step-2').style.display = 'block';
                         document.getElementById('codigo2FA').focus();
                     } else {
-                        // RESTAURAÇÃO: Salva o token para usuários comuns passarem
+                        // Usuário comum sem 2FA: Passa direto
                         if (data.token) localStorage.setItem('futSumulaToken', data.token);
                         
                         const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
@@ -183,7 +188,8 @@
         }
 
         async function validarCodigo2FA() {
-            const codigo = document.getElementById('codigo2FA').value.trim();
+            // Trava JavaScript de 6 dígitos
+            const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
             const btn = document.getElementById('btnStep2');
 
             if(!codigo || codigo.length !== 6) { alert("Digite os 6 números gerados no aplicativo."); return; }
@@ -202,7 +208,6 @@
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // RESTAURAÇÃO: Salva o token para o Admin passar
                     if (data.token) localStorage.setItem('futSumulaToken', data.token);
                     
                     const perfil = { nome: data.nome, email: userEmailTemporario, liga: "GOD MODE" };
@@ -229,7 +234,7 @@
         document.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 if (document.getElementById('step-1').style.display !== 'none') fazerLogin();
-                else validarCodigo2FA();
+                else if (document.getElementById('step-2').style.display !== 'none') validarCodigo2FA();
             }
         });
     </script>

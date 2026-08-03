@@ -19,7 +19,7 @@ public class DataInitializer implements CommandLineRunner {
     private PasswordEncoder passwordEncoder;
 
     // --- SEGURANÇA: Lendo do cofre do Render ou properties ---
-    @Value("${api.admin.email:admin@futsumula.com}")
+    @Value("${api.admin.email:fut_sumula_pro@hotmail.com}")
     private String adminEmail;
 
     @Value("${api.admin.password:123456}")

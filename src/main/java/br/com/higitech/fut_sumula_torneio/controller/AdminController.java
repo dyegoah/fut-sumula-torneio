@@ -31,7 +31,7 @@ public class AdminController {
     @Autowired private PasswordEncoder passwordEncoder;
 
     // --- SEGURANÇA: Lendo o email oficial do cofre ---
-    @Value("${api.admin.email:admin@futsumula.com}")
+    @Value("${api.admin.email:fut_sumula_pro@hotmail.com}")
     private String adminEmail;
 
     private boolean isAdmin() {

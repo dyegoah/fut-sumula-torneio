@@ -15,8 +15,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.warrenstrange.googleauth.GoogleAuthenticator;
@@ -33,7 +35,7 @@ import br.com.higitech.fut_sumula_torneio.repository.TokenRecuperacaoRepository;
 import br.com.higitech.fut_sumula_torneio.repository.UsuarioRepository;
 import br.com.higitech.fut_sumula_torneio.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid; // IMPORTAÇÃO DA BLINDAGEM
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -77,6 +79,7 @@ public class AutenticacaoController {
 
             Usuario user = (Usuario) auth.getPrincipal();
 
+            // Volta para a lógica pura: apenas checa se o 2FA está ativo no banco
             if (Boolean.TRUE.equals(user.getUsar2fa())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -89,7 +92,7 @@ public class AutenticacaoController {
                     .httpOnly(true)
                     .secure(true)       
                     .path("/")
-                    .maxAge(24 * 60 * 60)
+                    .maxAge(4 * 60 * 60)
                     .sameSite("None")   
                     .build();
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
@@ -119,7 +122,7 @@ public class AutenticacaoController {
 
             if (isValid) {
                 var token = tokenService.gerarToken(user);
-                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token).httpOnly(true).secure(false).path("/").maxAge(24 * 60 * 60).sameSite("Lax").build();
+                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token).httpOnly(true).secure(false).path("/").maxAge(4 * 60 * 60).sameSite("Lax").build();
                 return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
@@ -131,7 +134,8 @@ public class AutenticacaoController {
 
     @GetMapping("/gerar-2fa-admin")
     public ResponseEntity<?> gerarQrCodeAdmin() {
-        Usuario admin = (Usuario) repository.findByLogin("admin@futsumula.com");
+        // A rota oculta continua funcionando com o seu e-mail, caso precise recuperar o QR Code
+        Usuario admin = (Usuario) repository.findByLogin("fut_sumula_pro@hotmail.com");
         if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado!");
 
         String secretKey = admin.getChave2fa();
@@ -155,16 +159,49 @@ public class AutenticacaoController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO data) {
-        if (this.repository.findByLogin(data.login()) != null) return ResponseEntity.badRequest().body("E-mail já cadastrado.");
+        if (this.repository.findByLogin(data.login()) != null) {
+            return ResponseEntity.badRequest().body("E-mail já cadastrado.");
+        }
+        
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.senha());
         Usuario newUser = new Usuario();
-        newUser.setLogin(data.login()); newUser.setSenha(encryptedPassword); newUser.setNome(data.nome()); 
-        newUser.setNomeLiga(data.nomeLiga()); newUser.setCidade(data.cidade()); newUser.setUf(data.uf());
-        newUser.setWhatsapp(data.whatsapp()); newUser.setGenero(data.genero()); newUser.setIdioma(data.idioma());
-        newUser.setDataNascimento(data.dataNascimento()); newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
-        newUser.setStatus("ATIVO"); newUser.setPlano("FREE");
+        newUser.setLogin(data.login()); 
+        newUser.setSenha(encryptedPassword); 
+        newUser.setNome(data.nome()); 
+        newUser.setNomeLiga(data.nomeLiga()); 
+        newUser.setCidade(data.cidade()); 
+        newUser.setUf(data.uf());
+        newUser.setPais(data.pais()); 
+        newUser.setWhatsapp(data.whatsapp()); 
+        newUser.setGenero(data.genero()); 
+        newUser.setIdioma(data.idioma());
+        newUser.setDataNascimento(data.dataNascimento()); 
+        newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
+        
+        newUser.setStatus("PENDENTE"); 
+        newUser.setPlano("FREE");
         this.repository.save(newUser);
-        return ResponseEntity.ok().build();
+
+        String tokenAtivacao = java.util.UUID.randomUUID().toString();
+        TokenRecuperacao token = new TokenRecuperacao(); 
+        token.setToken(tokenAtivacao); 
+        token.setUsuario(newUser); 
+        token.setDataExpiracao(LocalDateTime.now().plusHours(24)); 
+        tokenRecuperacaoRepository.save(token);
+
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setFrom("seu_email_oficial@hotmail.com"); 
+        message.setTo(newUser.getLogin()); 
+        message.setSubject("Bem-vindo ao Fut-Súmula Pro - Confirme seu E-mail");
+        
+        String link = "https://fut-sumula-torneio.onrender.com/api/auth/confirmar-email?token=" + tokenAtivacao;
+        message.setText("Olá, " + newUser.getNome() + "!\n\n"
+                + "Falta apenas um passo para organizar seus torneios.\n"
+                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
+                + link);
+        mailSender.send(message);
+
+        return ResponseEntity.ok("Conta criada! Por favor, verifique sua caixa de e-mail para ativar o acesso.");
     }
 
     @GetMapping("/me")
@@ -179,10 +216,38 @@ public class AutenticacaoController {
         try {
             perfil.put("id", user.getId()); perfil.put("nome", user.getNome()); perfil.put("login", user.getLogin());
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
+            perfil.put("pais", user.getPais());
 
-            if ("Administrador".equals(user.getNome()) || "admin@futsumula.com".equals(user.getLogin())) {
+            String statusReal = user.getStatus();
+            String planoReal = user.getPlano();
+            boolean precisaSalvar = false;
+
+            if (statusReal == null) {
+                statusReal = "ATIVO"; 
+                user.setStatus(statusReal);
+                precisaSalvar = true;
+            }
+            if (planoReal == null) {
+                planoReal = "FREE";
+                user.setPlano(planoReal);
+                precisaSalvar = true;
+            }
+            if (precisaSalvar) {
+                repository.save(user); 
+            }
+
+            boolean cadastroIncompleto = false;
+            if (user.getPais() == null || user.getPais().trim().isEmpty() || 
+                user.getCidade() == null || user.getCidade().trim().isEmpty() || 
+                user.getWhatsapp() == null || user.getWhatsapp().trim().isEmpty()) {
+                cadastroIncompleto = true;
+            }
+            perfil.put("cadastroIncompleto", cadastroIncompleto);
+
+            if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
                 perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);
+                perfil.put("cadastroIncompleto", false); // Admin nunca trava
                 return ResponseEntity.ok(perfil); 
             }
 
@@ -200,18 +265,39 @@ public class AutenticacaoController {
 
             long diasRestantes = Math.max(0, diasTrial - diasUso);
             boolean isLiberado = false;
-            if ("ATIVO".equals(user.getStatus())) {
-                if ("PREMIUM".equals(user.getPlano()) || "CORTESIA".equals(user.getPlano()) || diasRestantes >= 0) isLiberado = true;
+            
+            if ("ATIVO".equals(statusReal)) {
+                if ("PREMIUM".equals(planoReal) || "CORTESIA".equals(planoReal) || diasRestantes >= 0) isLiberado = true;
             }
 
-            perfil.put("status", user.getStatus() != null ? user.getStatus() : "INATIVO");
-            perfil.put("plano", user.getPlano() != null ? user.getPlano() : "FREE");
+            perfil.put("status", statusReal);
+            perfil.put("plano", planoReal);
             perfil.put("notaCortesia", user.getNotaCortesia());
             perfil.put("diasRestantes", diasRestantes);
             perfil.put("acessoLiberado", isLiberado);
 
         } catch (Exception e) { perfil.put("acessoLiberado", false); perfil.put("erro", "Falha interna."); }
         return ResponseEntity.ok(perfil); 
+    }
+
+    @PutMapping("/completar-cadastro")
+    public ResponseEntity<?> completarCadastro(Authentication authentication, @RequestBody Map<String, String> dados) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        Usuario userLogado = (Usuario) authentication.getPrincipal();
+        Usuario dbUser = repository.findById(userLogado.getId()).orElse(null);
+        
+        if (dbUser == null) return ResponseEntity.badRequest().body("Usuário não encontrado.");
+
+        if (dados.containsKey("cidade")) dbUser.setCidade(dados.get("cidade"));
+        if (dados.containsKey("uf")) dbUser.setUf(dados.get("uf"));
+        if (dados.containsKey("pais")) dbUser.setPais(dados.get("pais"));
+        if (dados.containsKey("whatsapp")) dbUser.setWhatsapp(dados.get("whatsapp"));
+
+        repository.save(dbUser);
+        return ResponseEntity.ok("Cadastro atualizado com sucesso!");
     }
 
     @PostMapping("/forgot-password")
@@ -225,8 +311,8 @@ public class AutenticacaoController {
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
         org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom("seu.email@gmail.com"); message.setTo(user.getLogin()); message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
-        String link = "http://localhost:8080/reset-password.html?token=" + token;
+        message.setFrom("seu_email_oficial@hotmail.com"); message.setTo(user.getLogin()); message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
+        String link = "https://fut-sumula-torneio.onrender.com/reset-password.html?token=" + token;
         message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
         mailSender.send(message);
 
@@ -246,5 +332,31 @@ public class AutenticacaoController {
         repository.save(user);
         tokenRecuperacaoRepository.delete(token);
         return ResponseEntity.ok("Senha redefinida com sucesso!");
+    }
+    
+    @GetMapping("/confirmar-email")
+    public ResponseEntity<?> confirmarEmail(@RequestParam String token) {
+        java.util.Optional<TokenRecuperacao> tokenOpt = tokenRecuperacaoRepository.findByToken(token);
+        
+        if (tokenOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Link de ativação inválido ou não encontrado.");
+        }
+        
+        TokenRecuperacao tokenAtivacao = tokenOpt.get();
+        
+        if (tokenAtivacao.getDataExpiracao().isBefore(LocalDateTime.now())) {
+            tokenRecuperacaoRepository.delete(tokenAtivacao); 
+            return ResponseEntity.badRequest().body("Este link de ativação expirou. Solicite um novo.");
+        }
+        
+        Usuario user = tokenAtivacao.getUsuario();
+        user.setStatus("ATIVO");
+        repository.save(user);
+        
+        tokenRecuperacaoRepository.delete(tokenAtivacao);
+        
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, "/login.html?ativado=true")
+                .build();
     }
 }

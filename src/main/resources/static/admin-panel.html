@@ -1,103 +1,186 @@
 <!DOCTYPE html>
 <html lang="pt-br" style="display: none;">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-	<script>
-		async function validarAcessoAdmin() {
-            const token = localStorage.getItem('futSumulaToken'); 
-            if (!token) { window.location.replace('login.html'); return; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin | Fut-Súmula</title>
+
+    <!-- FONTES E CSS DO SISTEMA -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- BIBLIOTECA DE SEGURANÇA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- BLINDAGEM DE SESSÃO GLOBAL E INTERCEPTADOR -->
+    <script>
+        function getTokenGlobal() {
+            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+        }
+
+        async function validarAcesso() {
+            const token = getTokenGlobal();
+            if (!token) {
+                window.location.replace('login.html');
+                return;
+            }
 
             try {
                 const res = await fetch('/api/auth/me', { 
                     method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token } 
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
-                if (!res.ok) throw new Error("Sessão inválida.");
+                if (!res.ok) throw new Error("Sessão inválida ou expirada.");
 
-                const user = await res.json();
-                if (user.nome !== 'Administrador') {
-                    alert("⛔ Acesso Negado: Área restrita.");
-                    window.location.replace('index.html'); 
+                const perfil = await res.json();
+                
+                // SEGURANÇA EXTRA: Verifica no front-end se tem cargo de Admin
+                if (perfil.nome !== 'Administrador' && perfil.login !== 'fut_sumula_pro@hotmail.com') {
+                    alert("Acesso Restrito: Apenas a conta Mestre pode acessar o painel administrativo.");
+                    window.location.replace('index.html');
                     return;
                 }
-                
-                // MÁGICA: O admin é legítimo, pode revelar a tela
+
+                // A tela só aparece se a API confirmar que é um usuário válido
                 document.documentElement.style.display = '';
+
             } catch (error) {
+                console.warn(error.message);
                 localStorage.removeItem('futSumulaToken');
+                localStorage.removeItem('token');
                 window.location.replace('login.html'); 
             }
         }
-	    validarAcessoAdmin();
-	</script>
+        validarAcesso();
+    </script>
+    <script>
+        (function() {
+            const token = getTokenGlobal();
+            const originalFetch = window.fetch;
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Master | Fut-Súmula Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+            window.fetch = function() {
+                let args = Array.from(arguments);
+                let url = args[0];
+                let options = args[1] || {};
+
+                // Injeta o token em todas as chamadas para a API
+                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                args[1] = options;
+
+                return originalFetch.apply(this, args).then(response => {
+                    // Tratamento Inteligente para o Admin
+                    if (response.status === 403) {
+                        alert("Acesso Negado: O seu e-mail não tem autorização no servidor (Obrigatório usar fut_sumula_pro@hotmail.com).");
+                        window.location.href = 'index.html'; 
+                    } else if (response.status === 401) {
+                        alert("Sessão expirada. Por favor, faça login novamente.");
+                        localStorage.removeItem('futSumulaToken');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                    return response;
+                }).catch(err => {
+                    console.error("Erro na requisição segura:", err);
+                    throw err;
+                });
+            };
+        })();
+    </script>
+
+    <!-- ESTILOS EXCLUSIVOS DO PAINEL ADMIN -->
     <style>
-        :root { --dev-color: #00ff88; --bg-dark: #0a0a0a; --panel-bg: rgba(20, 20, 20, 0.95); --border-color: rgba(255, 255, 255, 0.1); }
-        body { margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; background-color: var(--bg-dark); color: #fff; background-image: radial-gradient(circle at 10% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 20%); }
+        :root {
+            --dev-color: #00eaff;
+            --dev-bg: #050505;
+            --panel-bg: rgba(20, 20, 20, 0.95);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
         
-        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
-        .brand-dev { font-size: 1.5rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        /* FORÇANDO O FUNDO ESCURO */
+        html, body { 
+            background-color: var(--dev-bg) !important; 
+            color: #fff !important; 
+            font-family: 'Montserrat', sans-serif; 
+            margin: 0; 
+            padding-bottom: 50px; 
+            min-height: 100vh;
+        }
+        
+        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--dev-color); box-shadow: 0 4px 15px rgba(0, 234, 255, 0.2); position: relative; z-index: 10; backdrop-filter: blur(5px); }
+        .brand-dev { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .brand-dev span { color: var(--dev-color); }
+        
         .admin-actions { display: flex; gap: 15px; }
-        .btn-dev { padding: 10px 20px; border-radius: 6px; border: 1px solid var(--dev-color); background: rgba(0, 255, 136, 0.1); color: var(--dev-color); font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
-        .btn-dev:hover { background: var(--dev-color); color: #000; box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
+        .btn-dev { background: rgba(0, 234, 255, 0.1); border: 1px solid var(--dev-color); color: var(--dev-color); padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .btn-dev:hover { background: var(--dev-color); color: #000; box-shadow: 0 0 15px var(--dev-color); }
         .btn-logout { border-color: #ff4444; color: #ff4444; background: rgba(255, 68, 68, 0.1); }
-        .btn-logout:hover { background: #ff4444; color: #fff; }
+        .btn-logout:hover { background: #ff4444; color: #fff; box-shadow: 0 0 15px #ff4444; }
 
-        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 40px; }
-        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); }
-        .stat-value { font-size: 2.5rem; font-weight: 900; color: #fff; margin: 10px 0; }
-        .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; padding: 30px; position: relative; z-index: 10; }
+        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
+        .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+        .stat-value { font-size: 2.5rem; font-weight: 900; color: #fff; margin-top: 10px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
-        .table-section { padding: 0 40px 40px; }
-        .panel-box { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; backdrop-filter: blur(10px); }
-        .panel-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .search-box { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 20px; color: #fff; display: flex; align-items: center; width: 350px; }
-        .search-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px; }
-
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-        th { color: #888; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
-        tr:hover { background: rgba(255,255,255,0.02); }
+        .table-section { padding: 0 30px; position: relative; z-index: 10; }
+        .panel-box { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; flex-wrap: wrap; gap: 15px; }
         
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
-        .st-ativo { background: rgba(0, 255, 136, 0.15); color: #00ff88; border: 1px solid #00ff88; }
-        .st-inativo { background: rgba(255, 68, 68, 0.15); color: #ff4444; border: 1px solid #ff4444; }
-        .origin-tag { font-size: 0.6rem; padding: 2px 4px; border-radius: 3px; margin-left: 5px; font-weight: bold; }
-        .og-torneio { background: #00eaff; color: #000; }
-        .og-racha { background: #bc13fe; color: #fff; }
+        .search-box { position: relative; width: 100%; max-width: 350px; }
+        .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #888; }
+        .search-box input { width: 100%; padding: 12px 12px 12px 40px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 30px; outline: none; transition: 0.3s; }
+        .search-box input:focus { border-color: var(--dev-color); background: #000; }
 
-        .action-btn { background: transparent; border: 1px solid var(--border-color); color: #ccc; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: 0.2s; margin-right: 5px; }
-        .action-btn:hover { background: #fff; color: #000; }
-        .action-btn.delete:hover { background: #ff4444; color: #fff; border-color: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
+        th { padding: 15px 10px; color: var(--dev-color); font-size: 0.8rem; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,0.1); white-space: nowrap; }
+        td { padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #ddd; vertical-align: middle; }
+        tr:hover td { background: rgba(255,255,255,0.05); }
 
-        .pagination-container { display: flex; justify-content: center; gap: 8px; padding: 20px; border-top: 1px solid var(--border-color); }
-        .page-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; }
-        .page-btn:hover { background: rgba(0, 255, 136, 0.2); border-color: var(--dev-color); color: var(--dev-color); }
-        .page-btn.active { background: var(--dev-color); color: #000; border-color: var(--dev-color); box-shadow: 0 0 10px rgba(0, 255, 136, 0.4); }
+        .origin-tag { font-size: 0.65rem; padding: 3px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 1px; display: inline-block; margin-top: 5px; }
+        .og-racha { background: rgba(255, 140, 0, 0.2); color: #FF8C00; border: 1px solid #FF8C00; }
+        .og-torneio { background: rgba(0, 234, 255, 0.2); color: var(--dev-color); border: 1px solid var(--dev-color); }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .status-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; font-weight: 800; letter-spacing: 1px; }
+        .st-ativo { background: rgba(0, 255, 136, 0.2); color: #00ff88; border: 1px solid #00ff88; }
+        .st-inativo { background: rgba(255, 68, 68, 0.2); color: #ff4444; border: 1px solid #ff4444; }
+
+        .action-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 35px; height: 35px; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-right: 5px; }
+        .action-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--dev-color); transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,234,255,0.2); }
+        .action-btn.delete:hover { border-color: #ff4444; background: rgba(255,68,68,0.1); box-shadow: 0 2px 5px rgba(255,68,68,0.2); }
+
+        .pagination-container { display: flex; justify-content: flex-end; gap: 5px; margin-top: 20px; }
+        .page-btn { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+        .page-btn:hover, .page-btn.active { background: var(--dev-color); color: #000; border-color: var(--dev-color); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .modal-overlay.active { display: flex; }
-        .config-panel { width: 650px; background: #111; border: 1px solid var(--dev-color); border-radius: 12px; padding: 30px; max-height: 90vh; overflow-y: auto; }
-        
+        .config-panel { background: var(--panel-bg); border: 1px solid var(--dev-color); border-radius: 12px; padding: 30px; width: 90%; max-width: 600px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; }
+        .time-box { text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.2); }
+        .time-box h4 { font-size: 2rem; color: var(--dev-color); margin: 0; }
         .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .config-group label { display: block; color: #888; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; }
-        .config-group input, .config-group select, .config-group textarea { width: 100%; padding: 10px; background: #222; border: 1px solid #333; color: #fff; border-radius: 6px; outline: none; box-sizing: border-box; }
-        .config-group input:focus, .config-group textarea:focus { border-color: var(--dev-color); }
+        .config-group label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 5px; font-weight: 600; text-transform: uppercase; }
+        .config-group input, .config-group textarea { width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; outline: none; transition: 0.3s; }
+        .config-group input:focus, .config-group textarea:focus { border-color: var(--dev-color); box-shadow: 0 0 10px rgba(0,234,255,0.1); background: #000; }
         
-        .time-box { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--dev-color); padding: 10px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
-        .time-box h4 { margin: 0; color: var(--dev-color); font-size: 1.2rem; }
-        .time-box small { color: #ccc; font-size: 0.8rem; }
+        /* Ajuste para dispositivos móveis */
+        @media(max-width: 600px) {
+            .config-grid { grid-template-columns: 1fr; }
+            .admin-header { flex-direction: column; gap: 15px; text-align: center; }
+            .admin-actions { width: 100%; justify-content: center; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- O CONTAINER DE FUNDO REQUISITADO -->
+    <div class="bg-carousel-container">
+        <div class="bg-overlay" style="background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.8) 100%);"></div>
+        <div class="bg-image" style="background-image: url('https://images.unsplash.com/photo-1550684376-efcbd6e3f031?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.2) grayscale(0.8);"></div> 
+    </div>
 
     <header class="admin-header">
         <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
@@ -148,7 +231,7 @@
         <div class="config-panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
                 <h3 style="color: var(--dev-color); margin: 0;">FICHA TÉCNICA</h3>
-                <i class="fas fa-times" onclick="document.getElementById('editUserModal').classList.remove('active')" style="cursor:pointer; color:#888;"></i>
+                <i class="fas fa-times" onclick="document.getElementById('editUserModal').classList.remove('active')" style="cursor:pointer; color:#888; font-size:1.2rem;"></i>
             </div>
             
             <div class="time-box">
@@ -183,7 +266,7 @@
             <div class="config-grid">
                 <div class="config-group">
                     <label>Data de Nascimento</label>
-                    <input type="date" id="edit-nasc">
+                    <input type="date" id="edit-nasc" style="color-scheme: dark;">
                 </div>
                 <div class="config-group">
                     <label style="color:#ff4444;">Redefinir Senha (Opcional)</label>
@@ -207,14 +290,14 @@
 
     <!-- MODAL DE CORTESIA -->
     <div id="cortesiaModal" class="modal-overlay">
-        <div class="config-panel" style="border-color: #FFD700; width: 400px;">
-            <h3 style="color: #FFD700; margin-top: 0;">GERENCIAR CORTESIA</h3>
+        <div class="config-panel" style="border-color: #FFD700; width: 400px; text-align: center;">
+            <h3 style="color: #FFD700; margin-top: 0; margin-bottom: 20px;"><i class="fas fa-crown"></i> GERENCIAR CORTESIA</h3>
             <input type="hidden" id="cortesiaUserId">
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 5px;">Nota / Validade</label>
-                <input type="text" id="cortesiaNota" maxlength="20" placeholder="Ex: Vitalício" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff; border-radius: 6px;">
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">Nota / Validade</label>
+                <input type="text" id="cortesiaNota" maxlength="20" placeholder="Ex: Vitalício">
             </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <div style="display: flex; gap: 10px; justify-content: center;">
                 <button class="btn-dev btn-logout" onclick="revogarCortesia()">REMOVER VIP</button>
                 <button class="btn-dev" onclick="salvarCortesia()" style="border-color: #FFD700; color: #FFD700;">SALVAR</button>
             </div>
@@ -226,7 +309,7 @@
         <div class="config-panel" style="max-width: 550px;">
             <h2 style="margin:0 0 20px 0; color:var(--dev-color); font-size: 1.2rem;"><i class="fas fa-cogs"></i> CONFIGURAÇÕES DO SISTEMA</h2>
             
-            <h4 style="color:#888; margin-top:10px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">COBRANÇA & ASSINATURA</h4>
+            <h4 style="color:#888; margin-top:10px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px; font-size:0.9rem;">COBRANÇA & ASSINATURA</h4>
             <div class="config-grid">
                 <div class="config-group">
                     <label>Chave PIX</label>
@@ -248,7 +331,7 @@
                 <input type="text" id="confTrial" placeholder="Ex: 15">
             </div>
 
-            <h4 style="color:#888; margin-top:20px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">CONTATOS & REDES SOCIAIS</h4>
+            <h4 style="color:#888; margin-top:20px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px; font-size:0.9rem;">CONTATOS & REDES SOCIAIS</h4>
             <div class="config-grid">
                 <div class="config-group">
                     <label>WhatsApp (Ex: 5585999999999)</label>
@@ -332,7 +415,7 @@
 
         async function carregarUsuarios() {
             try {
-                const token = localStorage.getItem('futSumulaToken');
+                const token = getTokenGlobal();
                 const res = await fetch('/api/admin/users', { 
                     method: 'GET',
                     headers: { 'Authorization': 'Bearer ' + token }
@@ -455,7 +538,7 @@
         async function toggleStatus(id) {
             const index = allUsers.findIndex(u => u.id === id);
             if (index !== -1) { allUsers[index].status = allUsers[index].status === 'ATIVO' ? 'INATIVO' : 'ATIVO'; filtrarTabela(); }
-            const token = localStorage.getItem('futSumulaToken');
+            const token = getTokenGlobal();
             await fetch(`/api/admin/users/${id}/status`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } });
         }
 
@@ -467,14 +550,14 @@
                 else { allUsers[index].plano = 'PREMIUM'; allUsers[index].status = 'ATIVO'; }
                 filtrarTabela();
             }
-            const token = localStorage.getItem('futSumulaToken');
+            const token = getTokenGlobal();
             await fetch(`/api/admin/users/${id}/premium`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } });
         }
 
         async function deletarUsuario(id) {
             if(!confirm("⚠️ ALERTA CRÍTICO: Tem certeza que deseja APAGAR este usuário permanentemente?")) return;
             try {
-                const token = localStorage.getItem('futSumulaToken');
+                const token = getTokenGlobal();
                 const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
                 if (res.ok) {
                     allUsers = allUsers.filter(u => u.id !== id);
@@ -531,7 +614,7 @@
             document.getElementById('editUserModal').classList.remove('active');
 
             try {
-                const token = localStorage.getItem('futSumulaToken');
+                const token = getTokenGlobal();
                 await fetch(`/api/admin/users/${currentEditingId}/update`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify(payload)
@@ -552,7 +635,7 @@
             }
             document.getElementById('cortesiaModal').classList.remove('active');
 
-            const token = localStorage.getItem('futSumulaToken');
+            const token = getTokenGlobal();
             await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ acao: 'CONCEDER', nota: nota })
@@ -567,7 +650,7 @@
             }
             document.getElementById('cortesiaModal').classList.remove('active');
 
-            const token = localStorage.getItem('futSumulaToken');
+            const token = getTokenGlobal();
             await fetch(`/api/admin/users/${currentEditingId}/cortesia`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ acao: 'REVOGAR' })
@@ -580,7 +663,7 @@
 
         function carregarConfigs() {
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
-            document.getElementById('confPixKey').value = cfg.pixKey || 'admin@futsumula.com';
+            document.getElementById('confPixKey').value = cfg.pixKey || 'fut_sumula_pro@hotmail.com';
             document.getElementById('confPixValue').value = cfg.pixValue || '20.00';
             document.getElementById('confPixQr').value = cfg.pixQr || '';
             document.getElementById('confTrial').value = cfg.trialDays || '15';

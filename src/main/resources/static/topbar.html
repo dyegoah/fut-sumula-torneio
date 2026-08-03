@@ -1,27 +1,209 @@
-<header class="app-topbar">
-    <div class="brand-area">
-        <div class="logo-icon">
+<style>
+    /* Garante que o menu fique no topo */
+    .float-menu { z-index: 1100 !important; }
+    
+    /* Estilos do Modal de Compartilhamento Global */
+    .share-global-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+    .share-global-modal.active { display: flex; }
+    .share-global-box { background: #111; border: 1px solid var(--primary-neon); border-radius: 15px; width: 90%; max-width: 400px; padding: 25px; text-align: center; position: relative; box-shadow: 0 10px 30px rgba(0,255,136,0.2); }
+    
+    .social-btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+    .btn-soc { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 5px; border-radius: 10px; color: #fff; text-decoration: none; font-size: 0.75rem; font-weight: 700; transition: 0.3s; cursor: pointer; border: none; }
+    .btn-soc:hover { transform: translateY(-3px); filter: brightness(1.2); }
+    .btn-soc i { font-size: 1.8rem; }
+    
+    .bg-wa { background: #25D366; } .bg-fb { background: #1877F2; } .bg-ig { background: linear-gradient(45deg, #f09433, #dc2743, #bc1888); }
+    .bg-tk { background: #000; border: 1px solid #333; } .bg-kw { background: #ff7700; } .bg-em { background: #ea4335; }
+    .bg-cp { background: #333; grid-column: 1 / -1; flex-direction: row; justify-content: center; }
+</style>
+
+<div id="menu-ver" class="float-menu">
+    <div class="float-header">Visualizar</div>
+    <div class="menu-grid">
+        <a href="times.html" class="menu-option">
+            <i class="fas fa-users"></i>
+            <span>Times</span>
+        </a>
+        <a href="jogadores.html" class="menu-option">
+            <i class="fas fa-user-friends"></i>
+            <span>Jogadores</span>
+        </a>
+        <a href="torneios.html" class="menu-option">
             <i class="fas fa-trophy"></i>
-        </div>
-        <div class="logo-text">
-            <h2>Fut-Súmula</h2>
-            <span>Torneio</span>
-        </div>
+            <span>Galeria</span>
+        </a>
+		<a href="historico.html" class="menu-option">
+            <i class="fas fa-history"></i>
+            <span>Histórico</span>
+        </a>
+    </div>
+</div>
+
+<div id="menu-cadastrar" class="float-menu">
+    <div class="float-header">Gerenciar & Criar</div>
+    <div class="menu-grid">
+        <a href="cadastro-time.html" class="menu-option">
+            <i class="fas fa-shield-alt"></i>
+            <span>Novo Time</span>
+        </a>
+        <a href="cadastro-jogador.html" class="menu-option">
+            <i class="fas fa-user-plus"></i>
+            <span>Novo Jogador</span>
+        </a>
+        <a href="cadastro-torneio.html" class="menu-option">
+            <i class="fas fa-plus-circle"></i>
+            <span>Criar Torneio</span>
+        </a>
+        
+        <a href="#" class="menu-option" onclick="window.abrirShareGlobal(event)">
+            <i class="fas fa-share-alt" style="color: var(--primary-neon);"></i>
+            <span style="color: var(--primary-neon); font-weight: bold;">Página Pública</span>
+        </a>
+        
+        <a href="#" class="menu-option">
+            <i class="fas fa-cog"></i>
+            <span>Configurações</span>
+        </a>
+    </div>
+</div>
+
+<nav class="app-footbar">
+    <a href="index.html" class="nav-item" id="nav-home">
+        <i class="fas fa-gamepad"></i>
+        <span>HOME</span>
+    </a>
+
+    <a href="stats.html" class="nav-item">
+        <i class="fas fa-chart-bar"></i>
+        <span>Stats</span>
+    </a>
+
+    <div class="nav-item" onclick="window.toggleMenu('menu-ver', this)">
+        <i class="fas fa-eye"></i>
+        <span>Ver</span>
     </div>
 
-    <div class="user-profile-widget">
-        <div class="user-info">
-            <span class="user-name">Dyego Higino</span>
-            <span class="user-role">Organizador</span>
-        </div>
-        
-        <div class="user-avatar">
-            <img src="https://ui-avatars.com/api/?name=Dyego+Higino&background=FFD700&color=000&bold=true" alt="User">
-            <div class="status-indicator"></div>
-        </div>
-        
-        <button class="settings-btn">
-            <i class="fas fa-cog"></i>
-        </button>
+    <div class="nav-item" onclick="window.toggleMenu('menu-cadastrar', this)">
+        <i class="fas fa-plus-circle"></i>
+        <span>Criar</span>
     </div>
-</header>
+</nav>
+
+<div id="globalShareModal" class="share-global-modal">
+    <div class="share-global-box">
+        <div style="position: absolute; top: 10px; right: 15px; cursor: pointer; color: #ff4444;" onclick="document.getElementById('globalShareModal').classList.remove('active')">
+            <i class="fas fa-times" style="font-size: 1.2rem;"></i>
+        </div>
+        <i class="fas fa-broadcast-tower" style="font-size: 2.5rem; color: var(--primary-neon); margin-bottom: 10px;"></i>
+        <h3 style="margin: 0 0 10px 0; color: #fff;">COMPARTILHAR TORNEIO</h3>
+        <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 15px;">Selecione o torneio para gerar o link da página pública (Tabela, Súmulas e Stats).</p>
+        
+        <select id="share-tourney-select" style="width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: #fff; border-radius: 8px; margin-bottom: 15px;">
+            <option value="">Carregando torneios...</option>
+        </select>
+
+        <div class="social-btn-grid">
+            <button class="btn-soc bg-wa" onclick="window.sharePublico('whatsapp')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+            <button class="btn-soc bg-fb" onclick="window.sharePublico('facebook')"><i class="fab fa-facebook-f"></i> Facebook</button>
+            <button class="btn-soc bg-em" onclick="window.sharePublico('email')"><i class="fas fa-envelope"></i> E-mail</button>
+            <button class="btn-soc bg-ig" onclick="window.sharePublico('instagram')"><i class="fab fa-instagram"></i> Instagram</button>
+            <button class="btn-soc bg-tk" onclick="window.sharePublico('tiktok')"><i class="fab fa-tiktok"></i> TikTok</button>
+            <button class="btn-soc bg-kw" onclick="window.sharePublico('kwai')"><i class="fas fa-video"></i> Kwai</button>
+            <button class="btn-soc bg-cp" onclick="window.sharePublico('copy')"><i class="fas fa-link"></i> COPIAR LINK OFICIAL</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // PADRONIZAÇÃO GLOBAL DE TOKENS: O Footbar vai ensinar as outras páginas a pegar o token certo!
+    window.getTokenGlobal = function() {
+        return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
+    };
+
+    window.toggleMenu = function(menuId, btnElement) {
+        const allMenus = document.querySelectorAll('.float-menu');
+        const allBtns = document.querySelectorAll('.nav-item');
+        const menu = document.getElementById(menuId);
+        
+        if (!menu) return;
+
+        const isOpen = menu.classList.contains('show');
+
+        allMenus.forEach(m => m.classList.remove('show'));
+        allBtns.forEach(b => b.classList.remove('active'));
+
+        if (!isOpen) {
+            menu.classList.add('show');
+            btnElement.classList.add('active');
+        } else {
+            window.highlightCurrentPage();
+        }
+    };
+
+    window.highlightCurrentPage = function() {
+        const path = window.location.pathname;
+        const homeBtn = document.getElementById('nav-home');
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+
+        if (path.includes("index") || path === "/") {
+            if(homeBtn) homeBtn.classList.add('active');
+        }
+    };
+
+    window.highlightCurrentPage();
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.app-footbar') && !e.target.closest('.float-menu') && !e.target.closest('.share-global-modal')) {
+            document.querySelectorAll('.float-menu').forEach(m => m.classList.remove('show'));
+            window.highlightCurrentPage();
+        }
+    });
+
+    window.abrirShareGlobal = async function(e) {
+        e.preventDefault(); e.stopPropagation();
+        document.querySelectorAll('.float-menu').forEach(m => m.classList.remove('show'));
+        document.getElementById('globalShareModal').classList.add('active');
+        
+        try {
+            // Adicionado o token explícito para garantir que o Java libere os torneios do usuário
+            const res = await fetch('/api/torneios', {
+                headers: { 'Authorization': 'Bearer ' + window.getTokenGlobal() }
+            });
+            if(res.ok) {
+                const torneios = await res.json();
+                const select = document.getElementById('share-tourney-select');
+                select.innerHTML = '<option value="">Selecione o Torneio...</option>';
+                torneios.forEach(t => {
+                    select.innerHTML += `<option value="${t.id}">${t.nome}</option>`;
+                });
+            }
+        } catch(e) { console.error("Erro ao carregar torneios para share"); }
+    };
+
+    window.sharePublico = function(plataforma) {
+        const select = document.getElementById('share-tourney-select');
+        const tId = select.value;
+        const tName = select.options[select.selectedIndex].text;
+        
+        if(!tId) { alert("Por favor, selecione um torneio primeiro!"); return; }
+
+        const baseUrl = window.location.origin;
+        const publicUrl = `${baseUrl}/public-torneio.html?id=${tId}`;
+        
+        const mensagemCompleta = `🏆 Acompanhe ao vivo o torneio *${tName}*! Tabela, Súmulas e Estatísticas oficiais:\n\n${publicUrl}`;
+
+        if(plataforma === 'copy' || plataforma === 'instagram' || plataforma === 'tiktok' || plataforma === 'kwai') {
+            navigator.clipboard.writeText(publicUrl).then(() => {
+                let msgSocial = "";
+                if(plataforma !== 'copy') msgSocial = `\nAbra o ${plataforma.toUpperCase()} e cole o link na sua Bio ou Stories!`;
+                alert("✅ Link oficial copiado com sucesso!" + msgSocial);
+            });
+        } else if (plataforma === 'whatsapp') {
+            window.open(`https://wa.me/?text=${encodeURIComponent(mensagemCompleta)}`, '_blank');
+        } else if (plataforma === 'facebook') {
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`, '_blank');
+        } else if (plataforma === 'email') {
+            window.open(`mailto:?subject=Acompanhe o Torneio ${encodeURIComponent(tName)}&body=${encodeURIComponent(mensagemCompleta)}`, '_self');
+        }
+    };
+</script>

@@ -25,10 +25,8 @@ import com.warrenstrange.googleauth.GoogleAuthenticator;
 import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
 
 import br.com.higitech.fut_sumula_torneio.dto.AuthenticationDTO;
-import br.com.higitech.fut_sumula_torneio.dto.ForgotPasswordDTO;
 import br.com.higitech.fut_sumula_torneio.dto.LoginResponseDTO;
 import br.com.higitech.fut_sumula_torneio.dto.RegisterDTO;
-import br.com.higitech.fut_sumula_torneio.dto.ResetPasswordDTO;
 import br.com.higitech.fut_sumula_torneio.model.TokenRecuperacao;
 import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.TokenRecuperacaoRepository;
@@ -176,7 +174,6 @@ public class AutenticacaoController {
         newUser.setDataNascimento(data.dataNascimento()); 
         newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
         
-        // --- MODIFICADO: Status alterado para ATIVO ---
         newUser.setStatus("ATIVO"); 
         newUser.setPlano("FREE");
         this.repository.save(newUser);
@@ -187,20 +184,6 @@ public class AutenticacaoController {
         token.setUsuario(newUser); 
         token.setDataExpiracao(LocalDateTime.now().plusHours(24)); 
         tokenRecuperacaoRepository.save(token);
-
-        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom("seu_email_oficial@hotmail.com"); 
-        message.setTo(newUser.getLogin()); 
-        message.setSubject("Bem-vindo ao Fut-Súmula Pro - Confirme seu E-mail");
-        
-        String link = "https://fut-sumula-torneio.onrender.com/api/auth/confirmar-email?token=" + tokenAtivacao;
-        message.setText("Olá, " + newUser.getNome() + "!\n\n"
-                + "Falta apenas um passo para organizar seus torneios.\n"
-                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
-                + link);
-        
-        // --- MODIFICADO: O envio de e-mail foi comentado para não travar o cadastro ---
-        // mailSender.send(message);
 
         return ResponseEntity.ok("Conta criada com sucesso! Você já pode fazer login.");
     }
@@ -302,61 +285,120 @@ public class AutenticacaoController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordDTO data) {
-        Usuario user = (Usuario) repository.findByLogin(data.email());
-        if (user == null) return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> data) {
+        String email = data.get("email");
+        Usuario user = (Usuario) repository.findByLogin(email);
+        
+        if (user == null) {
+            return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+        }
 
-        String token = java.util.UUID.randomUUID().toString();
-        TokenRecuperacao tokenRecuperacao = new TokenRecuperacao();
-        tokenRecuperacao.setToken(token); tokenRecuperacao.setUsuario(user); tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusMinutes(15));
+        // --- SOLUÇÃO: ATUALIZAR EM VEZ DE APAGAR E CRIAR ---
+        TokenRecuperacao tokenRecuperacao = null;
+        
+        try {
+            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
+            for (TokenRecuperacao t : tokens) {
+                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
+                    tokenRecuperacao = t; // Pega o token que já existe no banco
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Erro ao buscar token: " + e.getMessage());
+        }
+
+        // Se o usuário não tiver token nenhum (nunca pediu), cria a gaveta
+        if (tokenRecuperacao == null) {
+            tokenRecuperacao = new TokenRecuperacao();
+            tokenRecuperacao.setUsuario(user);
+        }
+
+        String novoToken = java.util.UUID.randomUUID().toString().trim();
+        
+        // Atualiza a gaveta com a senha nova e expiração nova
+        tokenRecuperacao.setToken(novoToken); 
+        tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusMinutes(15));
+        
+        // Salva com segurança, sem conflito de exclusão
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
-        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom("seu_email_oficial@hotmail.com"); message.setTo(user.getLogin()); message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
-        String link = "https://fut-sumula-torneio.onrender.com/reset-password.html?token=" + token;
-        message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
+        String link = "http://localhost:8080/reset-password.html?token=" + novoToken;
         
-        // Também comentado aqui para não quebrar testes de recuperação de senha futuramente
-        // mailSender.send(message);
+        System.out.println("\n========================================================");
+        System.out.println("TESTE MODO DESENVOLVEDOR - LINK DE RECUPERACAO DE SENHA:");
+        System.out.println(link);
+        System.out.println("========================================================\n");
 
-        return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+        return ResponseEntity.ok("Ambiente de Teste: O link de recuperação foi impresso no Console do Java.");
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordDTO data) {
-        java.util.Optional<TokenRecuperacao> tokenOpt = tokenRecuperacaoRepository.findByToken(data.token());
-        if (tokenOpt.isEmpty()) return ResponseEntity.badRequest().body("Token inválido ou não encontrado.");
-        TokenRecuperacao token = tokenOpt.get();
-        if (token.getDataExpiracao().isBefore(LocalDateTime.now())) {
-            tokenRecuperacaoRepository.delete(token); return ResponseEntity.badRequest().body("Este link expirou.");
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> data) {
+        String tokenRecebido = data.get("token");
+        String novaSenha = data.get("novaSenha");
+
+        if (tokenRecebido == null || tokenRecebido.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Token ausente na requisição.");
         }
-        Usuario user = token.getUsuario();
-        user.setSenha(new BCryptPasswordEncoder().encode(data.novaSenha()));
+
+        String cleanToken = tokenRecebido.trim();
+        TokenRecuperacao tokenValido = null;
+        
+        Iterable<TokenRecuperacao> todosTokens = tokenRecuperacaoRepository.findAll();
+        for (TokenRecuperacao t : todosTokens) {
+            if (t.getToken() != null && t.getToken().trim().equals(cleanToken)) {
+                tokenValido = t;
+                break;
+            }
+        }
+        
+        if (tokenValido == null) {
+            System.out.println("-> ERRO FINAL: Token [" + cleanToken + "] realmente não está no banco.");
+            return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
+        }
+        
+        if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
+            tokenRecuperacaoRepository.delete(tokenValido); 
+            return ResponseEntity.badRequest().body("Este link de recuperação expirou.");
+        }
+        
+        Usuario user = tokenValido.getUsuario();
+        user.setSenha(new BCryptPasswordEncoder().encode(novaSenha));
         repository.save(user);
-        tokenRecuperacaoRepository.delete(token);
+        
+        tokenRecuperacaoRepository.delete(tokenValido);
+        
         return ResponseEntity.ok("Senha redefinida com sucesso!");
     }
     
     @GetMapping("/confirmar-email")
     public ResponseEntity<?> confirmarEmail(@RequestParam String token) {
-        java.util.Optional<TokenRecuperacao> tokenOpt = tokenRecuperacaoRepository.findByToken(token);
+        String cleanToken = token.trim();
+        TokenRecuperacao tokenValido = null;
         
-        if (tokenOpt.isEmpty()) {
+        Iterable<TokenRecuperacao> todosTokens = tokenRecuperacaoRepository.findAll();
+        for (TokenRecuperacao t : todosTokens) {
+            if (t.getToken() != null && t.getToken().trim().equals(cleanToken)) {
+                tokenValido = t;
+                break;
+            }
+        }
+        
+        if (tokenValido == null) {
             return ResponseEntity.badRequest().body("Link de ativação inválido ou não encontrado.");
         }
         
-        TokenRecuperacao tokenAtivacao = tokenOpt.get();
-        
-        if (tokenAtivacao.getDataExpiracao().isBefore(LocalDateTime.now())) {
-            tokenRecuperacaoRepository.delete(tokenAtivacao); 
+        if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
+            tokenRecuperacaoRepository.delete(tokenValido); 
             return ResponseEntity.badRequest().body("Este link de ativação expirou. Solicite um novo.");
         }
         
-        Usuario user = tokenAtivacao.getUsuario();
+        Usuario user = tokenValido.getUsuario();
         user.setStatus("ATIVO");
         repository.save(user);
         
-        tokenRecuperacaoRepository.delete(tokenAtivacao);
+        tokenRecuperacaoRepository.delete(tokenValido);
         
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, "/login.html?ativado=true")

@@ -57,10 +57,12 @@
         .btn-register { display: block; width: 100%; text-align: center; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #ccc; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: 0.3s; }
         .btn-register:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.05); }
 
-        /* Estilos do Campo 2FA */
         .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
         .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
         
+        .forgot-link { display: block; text-align: right; color: var(--primary-neon); font-size: 0.8rem; text-decoration: none; margin-top: -10px; margin-bottom: 20px; font-weight: 600; }
+        .forgot-link:hover { text-decoration: underline; }
+
         @media (max-width: 900px) { body { flex-direction: column; height: auto; overflow-y: auto; } .info-side { display: none; } .login-side { height: 100vh; padding: 20px; } }
     </style>
 </head>
@@ -91,17 +93,18 @@
 
                 <div class="input-box">
                     <i class="fas fa-envelope"></i>
-                    <!-- Trava no HTML -->
                     <input type="text" id="loginEmail" placeholder=" " required autocomplete="off" autocapitalize="off" maxlength="100">
                     <label>E-mail ou Usuário</label>
                 </div>
 
                 <div class="input-box">
                     <i class="fas fa-lock"></i>
-                    <!-- Trava no HTML -->
                     <input type="password" id="loginSenha" placeholder=" " required maxlength="64">
                     <label>Sua Senha</label>
                 </div>
+
+                <!-- NOVA LINHA: ESQUECI A SENHA -->
+                <a href="#" class="forgot-link" onclick="abrirEsqueciSenha()">Esqueceu a senha?</a>
 
                 <button class="btn-submit" id="btnStep1" onclick="fazerLogin()">
                     ACESSAR PAINEL <i class="fas fa-arrow-right" style="margin-left:5px;"></i>
@@ -120,7 +123,6 @@
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
-                    <!-- Trava de 6 dígitos -->
                     <input type="text" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="off" autofocus>
                     <label style="left: 15px;">Código de 6 dígitos</label>
                 </div>
@@ -133,6 +135,30 @@
                     <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar e trocar usuário</a>
                 </div>
             </div>
+
+            <!-- ETAPA 4: ESQUECI A SENHA -->
+            <div id="step-forgot" style="display: none;">
+                <div class="form-header">
+                    <i class="fas fa-key auth-icon"></i>
+                    <h2>Recuperar Senha</h2>
+                    <p>Digite o e-mail cadastrado na conta</p>
+                </div>
+
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="forgotEmail" placeholder=" " required maxlength="100">
+                    <label>Seu e-mail</label>
+                </div>
+
+                <button class="btn-submit" id="btnForgot" onclick="enviarRecuperacao()">
+                    ENVIAR LINK <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
+                </button>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -140,7 +166,6 @@
         let userEmailTemporario = "";
 
         async function fazerLogin() {
-            // Trava JavaScript (Defesa em Profundidade)
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
             const senha = document.getElementById('loginSenha').value.substring(0, 64);
             const btn = document.getElementById('btnStep1');
@@ -161,14 +186,12 @@
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Vai para a tela de digitar o código 2FA
                     if (data.requires2FA) {
                         userEmailTemporario = data.login; 
                         document.getElementById('step-1').style.display = 'none';
                         document.getElementById('step-2').style.display = 'block';
                         document.getElementById('codigo2FA').focus();
                     } else {
-                        // Usuário comum sem 2FA: Passa direto
                         if (data.token) localStorage.setItem('futSumulaToken', data.token);
                         
                         const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
@@ -188,7 +211,6 @@
         }
 
         async function validarCodigo2FA() {
-            // Trava JavaScript de 6 dígitos
             const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
             const btn = document.getElementById('btnStep2');
 
@@ -225,16 +247,56 @@
             }
         }
 
+        function abrirEsqueciSenha() {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'block';
+        }
+
         function voltarEtapa1() {
             document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'none';
             document.getElementById('step-1').style.display = 'block';
             document.getElementById('codigo2FA').value = "";
+            document.getElementById('forgotEmail').value = "";
+        }
+
+        async function enviarRecuperacao() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            if(!email) { alert("Preencha seu e-mail."); return; }
+
+            const btn = document.getElementById('btnForgot');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ENVIANDO...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+
+                if (res.ok) {
+                    alert("Se o e-mail estiver cadastrado, você receberá um link de recuperação em instantes.");
+                    voltarEtapa1();
+                } else {
+                    alert("Erro ao processar a solicitação.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Servidor indisponível no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         document.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 if (document.getElementById('step-1').style.display !== 'none') fazerLogin();
                 else if (document.getElementById('step-2').style.display !== 'none') validarCodigo2FA();
+                else if (document.getElementById('step-forgot').style.display !== 'none') enviarRecuperacao();
             }
         });
     </script>

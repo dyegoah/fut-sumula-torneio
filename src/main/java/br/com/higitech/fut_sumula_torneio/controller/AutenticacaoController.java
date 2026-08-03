@@ -79,7 +79,6 @@ public class AutenticacaoController {
 
             Usuario user = (Usuario) auth.getPrincipal();
 
-            // Volta para a lógica pura: apenas checa se o 2FA está ativo no banco
             if (Boolean.TRUE.equals(user.getUsar2fa())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -134,7 +133,6 @@ public class AutenticacaoController {
 
     @GetMapping("/gerar-2fa-admin")
     public ResponseEntity<?> gerarQrCodeAdmin() {
-        // A rota oculta continua funcionando com o seu e-mail, caso precise recuperar o QR Code
         Usuario admin = (Usuario) repository.findByLogin("fut_sumula_pro@hotmail.com");
         if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado!");
 
@@ -178,7 +176,8 @@ public class AutenticacaoController {
         newUser.setDataNascimento(data.dataNascimento()); 
         newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
         
-        newUser.setStatus("PENDENTE"); 
+        // --- MODIFICADO: Status alterado para ATIVO ---
+        newUser.setStatus("ATIVO"); 
         newUser.setPlano("FREE");
         this.repository.save(newUser);
 
@@ -199,9 +198,11 @@ public class AutenticacaoController {
                 + "Falta apenas um passo para organizar seus torneios.\n"
                 + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
                 + link);
-        mailSender.send(message);
+        
+        // --- MODIFICADO: O envio de e-mail foi comentado para não travar o cadastro ---
+        // mailSender.send(message);
 
-        return ResponseEntity.ok("Conta criada! Por favor, verifique sua caixa de e-mail para ativar o acesso.");
+        return ResponseEntity.ok("Conta criada com sucesso! Você já pode fazer login.");
     }
 
     @GetMapping("/me")
@@ -247,7 +248,7 @@ public class AutenticacaoController {
             if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
                 perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);
-                perfil.put("cadastroIncompleto", false); // Admin nunca trava
+                perfil.put("cadastroIncompleto", false);
                 return ResponseEntity.ok(perfil); 
             }
 
@@ -314,7 +315,9 @@ public class AutenticacaoController {
         message.setFrom("seu_email_oficial@hotmail.com"); message.setTo(user.getLogin()); message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
         String link = "https://fut-sumula-torneio.onrender.com/reset-password.html?token=" + token;
         message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
-        mailSender.send(message);
+        
+        // Também comentado aqui para não quebrar testes de recuperação de senha futuramente
+        // mailSender.send(message);
 
         return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
     }

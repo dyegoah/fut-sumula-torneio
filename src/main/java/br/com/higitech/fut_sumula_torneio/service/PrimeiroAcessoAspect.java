@@ -13,6 +13,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.higitech.fut_sumula_torneio.dto.AuthenticationDTO;
 import br.com.higitech.fut_sumula_torneio.dto.RegisterDTO;
 import br.com.higitech.fut_sumula_torneio.model.TokenRecuperacao;
 import br.com.higitech.fut_sumula_torneio.model.Usuario;
@@ -40,6 +41,19 @@ public class PrimeiroAcessoAspect {
         this.usuarioRepository = usuarioRepository;
         this.tokenRepository = tokenRepository;
         this.mailSender = mailSender;
+    }
+
+    @Around("execution(* br.com.higitech.fut_sumula_torneio.controller.AutenticacaoController.login(..)) && args(data,request)")
+    public Object bloquearLoginPendente(
+            ProceedingJoinPoint joinPoint,
+            AuthenticationDTO data,
+            Object request) throws Throwable {
+        Usuario usuario = (Usuario) usuarioRepository.findByLogin(data.login());
+        if (usuario != null && "PENDENTE".equals(usuario.getStatus())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Confirme o link enviado ao seu e-mail antes do primeiro acesso.");
+        }
+        return joinPoint.proceed();
     }
 
     @Around("execution(* br.com.higitech.fut_sumula_torneio.controller.AutenticacaoController.register(..)) && args(data)")

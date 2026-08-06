@@ -25,11 +25,6 @@
         .big-title { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 20px; background: linear-gradient(to right, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .big-title span { color: var(--primary-neon); -webkit-text-fill-color: var(--primary-neon); }
         .description { font-size: 1.1rem; color: #ccc; line-height: 1.6; margin-bottom: 40px; font-weight: 300; }
-        .features-list { display: flex; flex-direction: column; gap: 20px; }
-        .feature-item { display: flex; align-items: center; gap: 15px; }
-        .f-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: var(--primary-neon); font-size: 1.2rem; }
-        .f-text h4 { margin: 0; font-size: 1rem; font-weight: 700; }
-        .f-text p { margin: 0; font-size: 0.8rem; color: #888; }
 
         .login-side { flex: 0.8; background: #0b0b0f; display: flex; align-items: center; justify-content: center; position: relative; }
         .glow-circle { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; }
@@ -56,8 +51,11 @@
         .divider { margin: 25px 0; border-top: 1px solid rgba(255,255,255,0.1); position: relative; }
         .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0b0b0f; padding: 0 10px; color: #666; font-size: 0.8rem; }
         
-        .btn-register { display: block; width: 100%; text-align: center; padding: 12px; border: 1px solid rgba(37, 211, 102, 0.5); border-radius: 8px; color: #25D366; background: rgba(37, 211, 102, 0.05); text-decoration: none; font-size: 0.9rem; font-weight: 700; transition: 0.3s; cursor: pointer; }
-        .btn-register:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.15); color: #fff; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.2); }
+        .btn-register { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 700; transition: 0.3s; cursor: pointer; }
+        .btn-outline-light { border-color: rgba(255,255,255,0.2); color: #ccc; background: rgba(255,255,255,0.02); }
+        .btn-outline-light:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); }
+        .btn-whatsapp { border-color: rgba(37, 211, 102, 0.5); color: #25D366; background: rgba(37, 211, 102, 0.05); margin-top: 10px; }
+        .btn-whatsapp:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.15); color: #fff; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.2); }
 
         .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
         .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
@@ -116,10 +114,14 @@
 
                 <div class="divider"><span>OU</span></div>
                 
-                <!-- BOTÃO CONSULTIVO: Vai direto pro WhatsApp -->
-                <button class="btn-register" onclick="solicitarAcessoWhatsApp()">
-                    <i class="fab fa-whatsapp"></i> Fale com a Equipe
-                </button>
+                <div style="display: flex; flex-direction: column;">
+                    <a href="cadastro-usuario.html" class="btn-register btn-outline-light">
+                        <i class="fas fa-user-plus"></i> Criar Nova Conta
+                    </a>
+                    <button class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> Fale com a Equipe
+                    </button>
+                </div>
             </div>
 
             <!-- ETAPA 2: CÓDIGO GOOGLE AUTHENTICATOR -->
@@ -196,7 +198,6 @@
     <script>
         let userEmailTemporario = "";
 
-        // FUNÇÃO NOVA: Pega o seu número do Painel Admin e abre o WhatsApp
         function solicitarAcessoWhatsApp() {
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
             const numero = cfg.whatsApp || "5511999999999";

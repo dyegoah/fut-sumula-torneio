@@ -48,7 +48,7 @@ public class AutenticacaoController {
     private static final int LOCK_TIME_MINUTES = 1;
 
     // NÚMERO OFICIAL DO SUPORTE/ADMIN (Coloque o código do país + DDD + Número)
-    private final String WHATSAPP_ADMIN = "5511999999999"; 
+    private final String WHATSAPP_ADMIN = "5588996312358"; 
 
     private static class LoginAttempt {
         int attempts;

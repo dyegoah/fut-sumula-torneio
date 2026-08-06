@@ -306,17 +306,14 @@
                     body: JSON.stringify(payload)
                 });
 
-                if(res.ok) {
-                    localStorage.setItem('futSumulaGender', genero);
-                    localStorage.setItem('futSumulaLang', idioma);
-                    alert("Sucesso! Conta criada. Verifique sua caixa de e-mail para ativar o acesso.");
-                    window.location.href = 'login.html';
-                } else {
-                    const txt = await res.text();
-                    alert("Erro ao criar conta: " + txt);
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
+				if(res.ok) {
+				                    localStorage.setItem('futSumulaGender', genero);
+				                    localStorage.setItem('futSumulaLang', idioma);
+				                    
+				                    // Aviso simples focado no fluxo consultivo B2B
+				                    alert("✅ Cadastro recebido com sucesso!\n\nPor favor, retorne ao WhatsApp e avise nossa equipe para liberarmos o seu acesso imediatamente.");
+				                    window.location.href = 'login.html';
+				                }
             } catch(e) { 
                 console.error(e);
                 alert("Erro de conexão com o servidor.");

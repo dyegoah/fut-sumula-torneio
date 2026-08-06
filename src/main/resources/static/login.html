@@ -55,8 +55,9 @@
 
         .divider { margin: 25px 0; border-top: 1px solid rgba(255,255,255,0.1); position: relative; }
         .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0b0b0f; padding: 0 10px; color: #666; font-size: 0.8rem; }
-        .btn-register { display: block; width: 100%; text-align: center; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #ccc; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: 0.3s; }
-        .btn-register:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.05); }
+        
+        .btn-register { display: block; width: 100%; text-align: center; padding: 12px; border: 1px solid rgba(37, 211, 102, 0.5); border-radius: 8px; color: #25D366; background: rgba(37, 211, 102, 0.05); text-decoration: none; font-size: 0.9rem; font-weight: 700; transition: 0.3s; cursor: pointer; }
+        .btn-register:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.15); color: #fff; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.2); }
 
         .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
         .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
@@ -104,10 +105,9 @@
                     <label>Sua Senha</label>
                 </div>
 
-                <!-- LINKS DE RECUPERAÇÃO LADO A LADO -->
                 <div style="display: flex; justify-content: space-between; margin-top: -10px; margin-bottom: 20px;">
                     <a href="#" class="forgot-link" onclick="abrirEsqueciSenha()">Esqueceu a senha?</a>
-                    <a href="#" class="forgot-link" onclick="abrirReenviarAtivacao()">Reenviar ativação?</a>
+                    <a href="#" class="forgot-link" onclick="abrirReenviarAtivacao()">Acesso não liberado?</a>
                 </div>
 
                 <button class="btn-submit" id="btnStep1" onclick="fazerLogin()">
@@ -115,7 +115,11 @@
                 </button>
 
                 <div class="divider"><span>OU</span></div>
-                <a href="cadastro-usuario.html" class="btn-register">Criar Nova Conta</a>
+                
+                <!-- BOTÃO CONSULTIVO: Vai direto pro WhatsApp -->
+                <button class="btn-register" onclick="solicitarAcessoWhatsApp()">
+                    <i class="fab fa-whatsapp"></i> Fale com a Equipe
+                </button>
             </div>
 
             <!-- ETAPA 2: CÓDIGO GOOGLE AUTHENTICATOR -->
@@ -140,12 +144,12 @@
                 </div>
             </div>
             
-            <!-- ETAPA 3: REENVIAR ATIVAÇÃO (NOVO) -->
+            <!-- ETAPA 3: REENVIAR ATIVAÇÃO -->
             <div id="step-resend" style="display: none;">
                 <div class="form-header">
-                    <i class="fas fa-envelope-open-text auth-icon"></i>
-                    <h2>Ativar Conta</h2>
-                    <p>Reenviaremos o link de confirmação para você</p>
+                    <i class="fab fa-whatsapp auth-icon" style="color: #25D366;"></i>
+                    <h2>Liberação de Acesso</h2>
+                    <p>Verifique o status do seu cadastro</p>
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
@@ -154,8 +158,8 @@
                     <label>Seu e-mail cadastrado</label>
                 </div>
 
-                <button class="btn-submit" id="btnResend" onclick="reenviarAtivacao()">
-                    REENVIAR E-MAIL <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
+                <button class="btn-submit" id="btnResend" onclick="reenviarAtivacao()" style="background: linear-gradient(90deg, #1ebea5, #00e676); box-shadow: 0 5px 20px rgba(37, 211, 102, 0.3);">
+                    VERIFICAR AGORA <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
                 </button>
                 
                 <div style="text-align: center; margin-top: 20px;">
@@ -178,7 +182,7 @@
                 </div>
 
                 <button class="btn-submit" id="btnForgot" onclick="enviarRecuperacao()">
-                    ENVIAR LINK <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
+                    SOLICITAR SUPORTE <i class="fab fa-whatsapp" style="margin-left:5px;"></i>
                 </button>
                 
                 <div style="text-align: center; margin-top: 20px;">
@@ -191,6 +195,14 @@
 
     <script>
         let userEmailTemporario = "";
+
+        // FUNÇÃO NOVA: Pega o seu número do Painel Admin e abre o WhatsApp
+        function solicitarAcessoWhatsApp() {
+            const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
+            const numero = cfg.whatsApp || "5511999999999";
+            const texto = encodeURIComponent("Olá! Gostaria de saber os valores e como funciona o acesso ao Fut-Súmula Pro.");
+            window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
+        }
 
         async function fazerLogin() {
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
@@ -226,7 +238,8 @@
                         window.location.href = 'index.html'; 
                     }
                 } else {
-                    alert("Acesso negado. Verifique seu e-mail e senha. Se sua conta for nova, confirme o e-mail de ativação.");
+                    const errorText = await res.text();
+                    alert("Acesso negado: " + errorText);
                 }
             } catch(e) {
                 console.error(e);
@@ -256,7 +269,6 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    
                     if (data.token) localStorage.setItem('futSumulaToken', data.token);
                     
                     const perfil = { nome: data.nome, email: userEmailTemporario, liga: "GOD MODE" };
@@ -305,7 +317,7 @@
 
             const btn = document.getElementById('btnForgot');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ENVIANDO...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> VERIFICANDO...';
             btn.disabled = true;
 
             try {
@@ -316,7 +328,11 @@
                 });
 
                 if (res.ok) {
-                    alert("Se o e-mail estiver cadastrado, você receberá um link de recuperação em instantes.");
+                    const data = await res.json();
+                    alert(data.mensagem);
+                    
+                    const textoCodificado = encodeURIComponent(data.textoPronto);
+                    window.open(`https://wa.me/${data.numeroAdmin}?text=${textoCodificado}`, '_blank');
                     voltarEtapa1();
                 } else {
                     alert("Erro ao processar a solicitação.");
@@ -336,7 +352,7 @@
 
             const btn = document.getElementById('btnResend');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ENVIANDO...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> VERIFICANDO...';
             btn.disabled = true;
 
             try {
@@ -346,13 +362,16 @@
                     body: JSON.stringify({ email: email })
                 });
 
-                const resposta = await res.text();
-                
                 if (res.ok) {
-                    alert("✅ " + resposta);
+                    const data = await res.json();
+                    alert(data.mensagem);
+                    
+                    const textoCodificado = encodeURIComponent(data.textoPronto);
+                    window.open(`https://wa.me/${data.numeroAdmin}?text=${textoCodificado}`, '_blank');
                     voltarEtapa1();
                 } else {
-                    alert("❌ " + resposta);
+                    const respostaErro = await res.text();
+                    alert("❌ " + respostaErro);
                 }
             } catch(e) {
                 console.error(e);

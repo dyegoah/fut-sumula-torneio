@@ -147,7 +147,8 @@
         .status-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; font-weight: 800; letter-spacing: 1px; }
         .st-ativo { background: rgba(0, 255, 136, 0.2); color: #00ff88; border: 1px solid #00ff88; }
         .st-inativo { background: rgba(255, 68, 68, 0.2); color: #ff4444; border: 1px solid #ff4444; }
-
+		.st-pendente { background: rgba(255, 165, 0, 0.2); color: #ffa500; border: 1px solid #ffa500; }
+		
         .action-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 35px; height: 35px; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-right: 5px; }
         .action-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--dev-color); transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,234,255,0.2); }
         .action-btn.delete:hover { border-color: #ff4444; background: rgba(255,68,68,0.1); box-shadow: 0 2px 5px rgba(255,68,68,0.2); }
@@ -446,7 +447,7 @@
                     ? '<span class="origin-tag og-racha">RACHA</span>' 
                     : '<span class="origin-tag og-torneio">TORNEIO</span>';
                 
-                const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : 'st-inativo';
+               const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : (u.status === 'PENDENTE' ? 'st-pendente' : 'st-inativo');
                 const dataCadastroFormatada = formatarDataHoraBR(u.dataCadastro);
 
                 let planoHTML = '';

@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.warrenstrange.googleauth.GoogleAuthenticator;
@@ -43,14 +42,13 @@ public class AutenticacaoController {
     @Autowired private UsuarioRepository repository;
     @Autowired private TokenService tokenService;
     @Autowired private TokenRecuperacaoRepository tokenRecuperacaoRepository;
-    @Autowired private org.springframework.mail.javamail.JavaMailSender mailSender;
 
     private final Map<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
     private static final int MAX_ATTEMPTS = 5;
     private static final int LOCK_TIME_MINUTES = 1;
 
-    // E-MAIL CADASTRADO COMO REMETENTE OFICIAL
-    private final String emailOficial = "fut_sumula_pro@hotmail.com";
+    // NÚMERO OFICIAL DO SUPORTE/ADMIN (Coloque o código do país + DDD + Número)
+    private final String WHATSAPP_ADMIN = "5511999999999"; 
 
     private static class LoginAttempt {
         int attempts;
@@ -79,6 +77,11 @@ public class AutenticacaoController {
             loginAttempts.remove(clientIP);
 
             Usuario user = (Usuario) auth.getPrincipal();
+
+            // Bloqueio extra: Verifica se a conta não está pendente de aprovação via WhatsApp
+            if ("PENDENTE".equals(user.getStatus())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
+            }
 
             if (Boolean.TRUE.equals(user.getUsar2fa())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
@@ -113,6 +116,10 @@ public class AutenticacaoController {
         Usuario user = (Usuario) repository.findByLogin(login);
         if (user == null || !Boolean.TRUE.equals(user.getUsar2fa())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário inválido ou 2FA não ativado.");
+        }
+
+        if ("PENDENTE".equals(user.getStatus())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Conta pendente de liberação.");
         }
 
         try {
@@ -177,17 +184,15 @@ public class AutenticacaoController {
         newUser.setDataNascimento(data.dataNascimento()); 
         newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
         
-        // A CONTA NASCE BLOQUEADA (Fricção de Segurança)
+        // A CONTA NASCE BLOQUEADA (Fricção de Segurança B2B)
         newUser.setStatus("PENDENTE"); 
         newUser.setPlano("FREE");
         this.repository.save(newUser);
 
-        // O SISTEMA NÃO MANDA MAIS E-MAIL.
-        // Ele devolve uma resposta estruturada para a sua tela de frontend.
         java.util.Map<String, String> resposta = new java.util.HashMap<>();
         resposta.put("status", "sucesso");
         resposta.put("mensagem", "Cadastro recebido! Como somos uma plataforma exclusiva, a liberação é feita via WhatsApp.");
-        resposta.put("numeroAdmin", "5511999999999"); // COLOQUE SEU NÚMERO AQUI (Com código do país 55 e DDD)
+        resposta.put("numeroAdmin", WHATSAPP_ADMIN);
         resposta.put("textoPronto", "Olá! Acabei de criar minha conta no Fut-Súmula Pro com o e-mail " + newUser.getLogin() + " e gostaria de liberar meu acesso.");
 
         return ResponseEntity.ok(resposta);
@@ -211,47 +216,13 @@ public class AutenticacaoController {
             return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
         }
 
-        TokenRecuperacao tokenAtivacao = null;
-        try {
-            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
-            for (TokenRecuperacao t : tokens) {
-                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
-                    tokenAtivacao = t;
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar token: " + e.getMessage());
-        }
+        java.util.Map<String, String> resposta = new java.util.HashMap<>();
+        resposta.put("status", "sucesso");
+        resposta.put("mensagem", "Sua conta continua em análise. Por favor, envie uma mensagem no WhatsApp para liberação.");
+        resposta.put("numeroAdmin", WHATSAPP_ADMIN);
+        resposta.put("textoPronto", "Olá! Quero liberar o acesso da minha conta com o e-mail " + user.getLogin() + " no Fut-Súmula Pro.");
 
-        if (tokenAtivacao == null) {
-            tokenAtivacao = new TokenRecuperacao();
-            tokenAtivacao.setUsuario(user);
-        }
-
-        String novoToken = java.util.UUID.randomUUID().toString().trim();
-        tokenAtivacao.setToken(novoToken);
-        tokenAtivacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
-        tokenRecuperacaoRepository.save(tokenAtivacao);
-
-        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom(emailOficial); 
-        message.setTo(user.getLogin()); 
-        message.setSubject("Reenvio: Confirme seu E-mail - Fut-Súmula Torneio");
-        
-        String link = "http://localhost:8012/api/auth/confirmar-email?token=" + novoToken;
-        message.setText("Olá, " + user.getNome() + "!\n\n"
-                + "Você solicitou o reenvio do link de ativação.\n"
-                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
-                + link);
-        
-        try {
-            mailSender.send(message);
-            return ResponseEntity.ok("E-mail de ativação reenviado com sucesso! Verifique sua caixa de entrada.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao reenviar o e-mail de ativação. Detalhes: " + e.getMessage());
-        }
+        return ResponseEntity.ok(resposta);
     }
 
     @GetMapping("/me")
@@ -356,50 +327,24 @@ public class AutenticacaoController {
         Usuario user = (Usuario) repository.findByLogin(email);
         
         if (user == null) {
-            return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+            return ResponseEntity.ok("Solicitação recebida.");
         }
 
-        TokenRecuperacao tokenRecuperacao = null;
-        
-        try {
-            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
-            for (TokenRecuperacao t : tokens) {
-                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
-                    tokenRecuperacao = t; 
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar token: " + e.getMessage());
-        }
-
-        if (tokenRecuperacao == null) {
-            tokenRecuperacao = new TokenRecuperacao();
-            tokenRecuperacao.setUsuario(user);
-        }
-
+        // Gera token no banco, mas não envia e-mail. A recuperação será guiada.
+        TokenRecuperacao tokenRecuperacao = new TokenRecuperacao();
+        tokenRecuperacao.setUsuario(user);
         String novoToken = java.util.UUID.randomUUID().toString().trim();
-        
         tokenRecuperacao.setToken(novoToken); 
-        tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusMinutes(15));
-        
+        tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
-        String link = "http://localhost:8012/reset-password.html?token=" + novoToken;
-        
-        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom(emailOficial); 
-        message.setTo(user.getLogin()); 
-        message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
-        message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
+        java.util.Map<String, String> resposta = new java.util.HashMap<>();
+        resposta.put("status", "sucesso");
+        resposta.put("mensagem", "Para garantir a segurança, a redefinição de senha é feita com nossa equipe de suporte. Chame no WhatsApp.");
+        resposta.put("numeroAdmin", WHATSAPP_ADMIN);
+        resposta.put("textoPronto", "Olá Suporte! Solicitei a recuperação de senha para o e-mail: " + user.getLogin());
 
-        try {
-            mailSender.send(message);
-            return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao enviar o e-mail de recuperação. Detalhes: " + e.getMessage());
-        }
+        return ResponseEntity.ok(resposta);
     }
 
     @PostMapping("/reset-password")
@@ -440,62 +385,33 @@ public class AutenticacaoController {
         return ResponseEntity.ok("Senha redefinida com sucesso!");
     }
     
-    @GetMapping("/confirmar-email")
-    public ResponseEntity<?> confirmarEmail(@RequestParam String token) {
-        String cleanToken = token.trim();
-        TokenRecuperacao tokenValido = null;
-        
-        Iterable<TokenRecuperacao> todosTokens = tokenRecuperacaoRepository.findAll();
-        for (TokenRecuperacao t : todosTokens) {
-            if (t.getToken() != null && t.getToken().trim().equals(cleanToken)) {
-                tokenValido = t;
-                break;
-            }
+    // --- ROTA EXCLUSIVA PARA O ADMINISTRADOR ATIVAR USUÁRIOS MANAULMENTE ---
+    @PutMapping("/admin/ativar-usuario")
+    public ResponseEntity<?> ativarUsuarioAdmin(@RequestBody Map<String, String> data, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
         }
+
+        Usuario adminLogado = (Usuario) authentication.getPrincipal();
         
-        if (tokenValido == null) {
-            return ResponseEntity.badRequest().body("Link de ativação inválido ou não encontrado.");
+        // Proteção: Apenas a conta Mestre pode aprovar.
+        if (!"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o administrador mestre pode aprovar contas.");
         }
-        
-        if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
-            tokenRecuperacaoRepository.delete(tokenValido); 
-            return ResponseEntity.badRequest().body("Este link de ativação expirou. Solicite um novo.");
+
+        String emailUsuario = data.get("email");
+        if (emailUsuario == null || emailUsuario.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("E-mail não fornecido.");
         }
-        
-        Usuario user = tokenValido.getUsuario();
+
+        Usuario user = (Usuario) repository.findByLogin(emailUsuario.trim());
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        }
+
         user.setStatus("ATIVO");
         repository.save(user);
-        
-        tokenRecuperacaoRepository.delete(tokenValido);
-        
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .header(HttpHeaders.LOCATION, "/login.html?ativado=true")
-                .build();
-    }
-    
-    // --- ROTA EXCLUSIVA PARA TESTE DE E-MAIL (DEBUG) ---
-    @GetMapping("/test-email")
-    public ResponseEntity<?> testarEmailHotmail() {
-        try {
-            org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-            message.setFrom(emailOficial); 
-            // Vai mandar um e-mail para você mesmo para testar
-            message.setTo(emailOficial); 
-            message.setSubject("Teste de Conexão Hotmail - Fut-Súmula");
-            message.setText("Se você recebeu isso, a conexão SMTP do Hotmail está funcionando perfeitamente pelo Spring Boot com a Senha de Aplicativo!");
 
-            System.out.println("\n========== INICIANDO TESTE DE E-MAIL ==========");
-            mailSender.send(message);
-            System.out.println("========== TESTE FINALIZADO COM SUCESSO ==========\n");
-
-            return ResponseEntity.ok("E-mail de teste enviado! Verifique sua caixa de entrada e o console do Spring Boot.");
-        } catch (Exception e) {
-            System.out.println("\n========== FALHA NO TESTE DE E-MAIL ==========");
-            e.printStackTrace(); 
-            System.out.println("==============================================\n");
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Falha ao enviar o e-mail de teste. Olhe o console para ver o erro exato: " + e.getMessage());
-        }
+        return ResponseEntity.ok("O usuário " + user.getNome() + " (" + user.getLogin() + ") foi ATIVADO com sucesso e já pode fazer login.");
     }
 }

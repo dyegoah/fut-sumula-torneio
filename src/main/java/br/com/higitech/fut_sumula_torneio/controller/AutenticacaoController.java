@@ -49,6 +49,9 @@ public class AutenticacaoController {
     private static final int MAX_ATTEMPTS = 5;
     private static final int LOCK_TIME_MINUTES = 1;
 
+    // E-MAIL CADASTRADO COMO REMETENTE OFICIAL
+    private final String emailOficial = "fut_sumula_pro@hotmail.com";
+
     private static class LoginAttempt {
         int attempts;
         LocalDateTime lockTime;
@@ -174,18 +177,81 @@ public class AutenticacaoController {
         newUser.setDataNascimento(data.dataNascimento()); 
         newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
         
-        newUser.setStatus("ATIVO"); 
+        // A CONTA NASCE BLOQUEADA (Fricção de Segurança)
+        newUser.setStatus("PENDENTE"); 
         newUser.setPlano("FREE");
         this.repository.save(newUser);
 
-        String tokenAtivacao = java.util.UUID.randomUUID().toString();
-        TokenRecuperacao token = new TokenRecuperacao(); 
-        token.setToken(tokenAtivacao); 
-        token.setUsuario(newUser); 
-        token.setDataExpiracao(LocalDateTime.now().plusHours(24)); 
-        tokenRecuperacaoRepository.save(token);
+        // O SISTEMA NÃO MANDA MAIS E-MAIL.
+        // Ele devolve uma resposta estruturada para a sua tela de frontend.
+        java.util.Map<String, String> resposta = new java.util.HashMap<>();
+        resposta.put("status", "sucesso");
+        resposta.put("mensagem", "Cadastro recebido! Como somos uma plataforma exclusiva, a liberação é feita via WhatsApp.");
+        resposta.put("numeroAdmin", "5511999999999"); // COLOQUE SEU NÚMERO AQUI (Com código do país 55 e DDD)
+        resposta.put("textoPronto", "Olá! Acabei de criar minha conta no Fut-Súmula Pro com o e-mail " + newUser.getLogin() + " e gostaria de liberar meu acesso.");
 
-        return ResponseEntity.ok("Conta criada com sucesso! Você já pode fazer login.");
+        return ResponseEntity.ok(resposta);
+    }
+
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> reenviarEmailAtivacao(@RequestBody Map<String, String> data) {
+        String email = data.get("email");
+        
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("E-mail não fornecido.");
+        }
+
+        Usuario user = (Usuario) repository.findByLogin(email.trim());
+        
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        }
+
+        if ("ATIVO".equals(user.getStatus())) {
+            return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
+        }
+
+        TokenRecuperacao tokenAtivacao = null;
+        try {
+            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
+            for (TokenRecuperacao t : tokens) {
+                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
+                    tokenAtivacao = t;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Erro ao buscar token: " + e.getMessage());
+        }
+
+        if (tokenAtivacao == null) {
+            tokenAtivacao = new TokenRecuperacao();
+            tokenAtivacao.setUsuario(user);
+        }
+
+        String novoToken = java.util.UUID.randomUUID().toString().trim();
+        tokenAtivacao.setToken(novoToken);
+        tokenAtivacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
+        tokenRecuperacaoRepository.save(tokenAtivacao);
+
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setFrom(emailOficial); 
+        message.setTo(user.getLogin()); 
+        message.setSubject("Reenvio: Confirme seu E-mail - Fut-Súmula Torneio");
+        
+        String link = "http://localhost:8012/api/auth/confirmar-email?token=" + novoToken;
+        message.setText("Olá, " + user.getNome() + "!\n\n"
+                + "Você solicitou o reenvio do link de ativação.\n"
+                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
+                + link);
+        
+        try {
+            mailSender.send(message);
+            return ResponseEntity.ok("E-mail de ativação reenviado com sucesso! Verifique sua caixa de entrada.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erro ao reenviar o e-mail de ativação. Detalhes: " + e.getMessage());
+        }
     }
 
     @GetMapping("/me")
@@ -319,20 +385,21 @@ public class AutenticacaoController {
         
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
-        // Link alterado para o seu domínio oficial de produção
-        String link = "https://fut-sumula-torneio.onrender.com/reset-password.html?token=" + novoToken;
+        String link = "http://localhost:8012/reset-password.html?token=" + novoToken;
         
-        // Criando a mensagem de e-mail oficial
         org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom("fut_sumula_pro@hotmail.com"); 
+        message.setFrom(emailOficial); 
         message.setTo(user.getLogin()); 
         message.setSubject("Recuperação de Senha - Fut-Súmula Torneio");
         message.setText("Olá, " + user.getNome() + "!\n\nVocê solicitou a redefinição de sua senha.\nClique no link abaixo para criar uma nova senha.\n\n" + link);
 
-        // --- DISPARO DE E-MAIL RELIGADO ---
-        mailSender.send(message);
-
-        return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+        try {
+            mailSender.send(message);
+            return ResponseEntity.ok("Se o e-mail existir, um link de recuperação foi enviado.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erro ao enviar o e-mail de recuperação. Detalhes: " + e.getMessage());
+        }
     }
 
     @PostMapping("/reset-password")
@@ -405,67 +472,30 @@ public class AutenticacaoController {
                 .header(HttpHeaders.LOCATION, "/login.html?ativado=true")
                 .build();
     }
-    @PostMapping("/resend-activation")
-    public ResponseEntity<?> reenviarEmailAtivacao(@RequestBody Map<String, String> data) {
-        String email = data.get("email");
-        
-        if (email == null || email.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("E-mail não fornecido.");
-        }
-
-        Usuario user = (Usuario) repository.findByLogin(email.trim());
-        
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Usuário não encontrado.");
-        }
-
-        if ("ATIVO".equals(user.getStatus())) {
-            return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
-        }
-
-        // Lógica blindada: Reaproveita a gaveta de token se já existir
-        TokenRecuperacao tokenAtivacao = null;
+    
+    // --- ROTA EXCLUSIVA PARA TESTE DE E-MAIL (DEBUG) ---
+    @GetMapping("/test-email")
+    public ResponseEntity<?> testarEmailHotmail() {
         try {
-            Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
-            for (TokenRecuperacao t : tokens) {
-                if (t.getUsuario() != null && t.getUsuario().getId().equals(user.getId())) {
-                    tokenAtivacao = t;
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar token: " + e.getMessage());
-        }
+            org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+            message.setFrom(emailOficial); 
+            // Vai mandar um e-mail para você mesmo para testar
+            message.setTo(emailOficial); 
+            message.setSubject("Teste de Conexão Hotmail - Fut-Súmula");
+            message.setText("Se você recebeu isso, a conexão SMTP do Hotmail está funcionando perfeitamente pelo Spring Boot com a Senha de Aplicativo!");
 
-        if (tokenAtivacao == null) {
-            tokenAtivacao = new TokenRecuperacao();
-            tokenAtivacao.setUsuario(user);
-        }
-
-        // Gera um novo token válido por 24 horas
-        String novoToken = java.util.UUID.randomUUID().toString().trim();
-        tokenAtivacao.setToken(novoToken);
-        tokenAtivacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
-        tokenRecuperacaoRepository.save(tokenAtivacao);
-
-        // Prepara e envia o e-mail
-        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
-        message.setFrom("fut_sumula_pro@hotmail.com"); 
-        message.setTo(user.getLogin()); 
-        message.setSubject("Reenvio: Confirme seu E-mail - Fut-Súmula Torneio");
-        
-        String link = "https://fut-sumula-torneio.onrender.com/api/auth/confirmar-email?token=" + novoToken;
-        message.setText("Olá, " + user.getNome() + "!\n\n"
-                + "Você solicitou o reenvio do link de ativação.\n"
-                + "Clique no link abaixo para validar seu e-mail e ativar sua conta:\n\n" 
-                + link);
-        
-        try {
+            System.out.println("\n========== INICIANDO TESTE DE E-MAIL ==========");
             mailSender.send(message);
-            return ResponseEntity.ok("E-mail de ativação reenviado com sucesso! Verifique sua caixa de entrada.");
+            System.out.println("========== TESTE FINALIZADO COM SUCESSO ==========\n");
+
+            return ResponseEntity.ok("E-mail de teste enviado! Verifique sua caixa de entrada e o console do Spring Boot.");
         } catch (Exception e) {
-            System.out.println("Erro ao enviar e-mail: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao tentar enviar o e-mail. Verifique as configurações do servidor.");
+            System.out.println("\n========== FALHA NO TESTE DE E-MAIL ==========");
+            e.printStackTrace(); 
+            System.out.println("==============================================\n");
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Falha ao enviar o e-mail de teste. Olhe o console para ver o erro exato: " + e.getMessage());
         }
     }
 }

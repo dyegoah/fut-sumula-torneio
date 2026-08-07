@@ -89,7 +89,8 @@ public class TimeController {
                 }
 
                 Map uploadResult = cloudinary.uploader().upload(escudo.getBytes(), ObjectUtils.emptyMap());
-                time.setEscudoUrl(uploadResult.get("url").toString());
+                // UTILIZANDO SECURE_URL PARA EVITAR BLOQUEIO MIXED CONTENT NOS CELULARES
+                time.setEscudoUrl(uploadResult.get("secure_url").toString());
             } else {
                 time.setCustomShape(customShape);
                 time.setCustomMascot(customMascot);
@@ -101,7 +102,6 @@ public class TimeController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao processar imagem.");
         } catch (Exception e) {
              e.printStackTrace();
-             // --- TRAVA DE SEGURANÇA 4: OCULTANDO O MAPA DO BANCO DE DADOS ---
              return ResponseEntity.badRequest().body("Erro interno ao processar a requisição.");
         }
     }

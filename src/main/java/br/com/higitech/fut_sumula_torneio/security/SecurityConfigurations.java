@@ -40,21 +40,23 @@ public class SecurityConfigurations {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
-                    // 1. REGRAS DE LIBERAÇÃO TOTAL
+                    // 1. REGRAS DE LIBERAÇÃO TOTAL (Login, Cadastro, Integração)
                     req.requestMatchers("/api/auth/**").permitAll();       
                     req.requestMatchers("/api/integracao/**").permitAll(); 
                     
-                    // --- LEITURA PÚBLICA ---
-                    req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
+                    // --- LEITURA PÚBLICA ESTRITA (Apenas as telas de compartilhamento para fãs) ---
+                    // Agora usamos /publico/** para garantir que hackers não acessem rotas privadas via GET
+                    req.requestMatchers(HttpMethod.GET, "/api/torneios/publico/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/partidas/publico/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/estatisticas/**").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/times/**").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/jogadores/**").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); 
                     
-                    // 2. REGRAS DE BLOQUEIO
+                    // 2. REGRAS DE BLOQUEIO DE ALTO NÍVEL (A Trava do Admin)
+                    req.requestMatchers("/api/admin/**").hasRole("ADMIN"); 
+                    
+                    // 3. REGRAS DE BLOQUEIO GERAL (Toda a gestão interna exige login)
                     req.requestMatchers("/api/**").authenticated();        
                     
-                    // 3. REGRA FINAL (HTML/CSS/JS)
+                    // 4. REGRA FINAL (Permite carregar o layout HTML, CSS e imagens do site)
                     req.anyRequest().permitAll();                          
                 })
                 .authenticationProvider(authenticationProvider())
@@ -66,15 +68,11 @@ public class SecurityConfigurations {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // =========================================================================
-        // A PORTA ESTÁ ABERTA PARA O SEU AMBIENTE DE PRODUÇÃO (RENDER) E LOCAL
-        // =========================================================================
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:5500", 
             "http://127.0.0.1:5500",
-            "https://fut-sumula-torneio.onrender.com" // <- SEU ENDEREÇO DE PRODUÇÃO AQUI
+            "https://fut-sumula-torneio.onrender.com"
         ));
-        // =========================================================================
 
         configuration.setAllowCredentials(true); 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

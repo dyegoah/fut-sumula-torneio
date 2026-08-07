@@ -47,7 +47,7 @@ public class AutenticacaoController {
     private static final int MAX_ATTEMPTS = 5;
     private static final int LOCK_TIME_MINUTES = 1;
 
-    // NÚMERO OFICIAL DO SUPORTE/ADMIN (Coloque o código do país + DDD + Número)
+    // NÚMERO OFICIAL DO SUPORTE/ADMIN
     private final String WHATSAPP_ADMIN = "5588996312358"; 
 
     private static class LoginAttempt {
@@ -59,7 +59,14 @@ public class AutenticacaoController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
         
-        String clientIP = request.getRemoteAddr();
+        // Proteção contra bloqueio em massa na Nuvem (Render)
+        String clientIP = request.getHeader("X-Forwarded-For");
+        if (clientIP == null || clientIP.isEmpty()) {
+            clientIP = request.getRemoteAddr();
+        } else {
+            clientIP = clientIP.split(",")[0].trim(); 
+        }
+
         LoginAttempt attempt = loginAttempts.getOrDefault(clientIP, new LoginAttempt());
 
         if (attempt.lockTime != null) {
@@ -140,7 +147,18 @@ public class AutenticacaoController {
     }
 
     @GetMapping("/gerar-2fa-admin")
-    public ResponseEntity<?> gerarQrCodeAdmin() {
+    public ResponseEntity<?> gerarQrCodeAdmin(Authentication authentication) {
+        // Proteção total: Só autenticado e apenas o administrador mestre
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
+        }
+        
+        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
+        
+        if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+        }
+
         Usuario admin = (Usuario) repository.findByLogin("fut_sumula_pro@hotmail.com");
         if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado!");
 
@@ -184,7 +202,6 @@ public class AutenticacaoController {
         newUser.setDataNascimento(data.dataNascimento()); 
         newUser.setSistemaOrigem(data.sistemaOrigem() != null ? data.sistemaOrigem() : "TORNEIO");
         
-        // A CONTA NASCE BLOQUEADA (Fricção de Segurança B2B)
         newUser.setStatus("PENDENTE"); 
         newUser.setPlano("FREE");
         this.repository.save(newUser);
@@ -330,7 +347,6 @@ public class AutenticacaoController {
             return ResponseEntity.ok("Solicitação recebida.");
         }
 
-        // Gera token no banco, mas não envia e-mail. A recuperação será guiada.
         TokenRecuperacao tokenRecuperacao = new TokenRecuperacao();
         tokenRecuperacao.setUsuario(user);
         String novoToken = java.util.UUID.randomUUID().toString().trim();
@@ -385,7 +401,6 @@ public class AutenticacaoController {
         return ResponseEntity.ok("Senha redefinida com sucesso!");
     }
     
-    // --- ROTA EXCLUSIVA PARA O ADMINISTRADOR ATIVAR USUÁRIOS MANAULMENTE ---
     @PutMapping("/admin/ativar-usuario")
     public ResponseEntity<?> ativarUsuarioAdmin(@RequestBody Map<String, String> data, Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -394,7 +409,6 @@ public class AutenticacaoController {
 
         Usuario adminLogado = (Usuario) authentication.getPrincipal();
         
-        // Proteção: Apenas a conta Mestre pode aprovar.
         if (!"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o administrador mestre pode aprovar contas.");
         }

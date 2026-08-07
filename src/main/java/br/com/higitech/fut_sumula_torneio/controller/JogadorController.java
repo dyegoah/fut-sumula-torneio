@@ -114,7 +114,8 @@ public class JogadorController {
                 }
 
                 Map uploadResult = cloudinary.uploader().upload(foto.getBytes(), ObjectUtils.emptyMap());
-                j.setFotoUrl(uploadResult.get("url").toString());
+                // UTILIZANDO SECURE_URL PARA EVITAR BLOQUEIO MIXED CONTENT NOS CELULARES
+                j.setFotoUrl(uploadResult.get("secure_url").toString());
             }
 
             return ResponseEntity.ok(repository.save(j));
@@ -123,7 +124,6 @@ public class JogadorController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro no upload da foto.");
         } catch (Exception e) {
             e.printStackTrace();
-            // --- TRAVA DE SEGURANÇA 4: OCULTANDO O MAPA DO BANCO DE DADOS ---
             return ResponseEntity.badRequest().body("Erro interno ao processar a requisição.");
         }
     }
@@ -169,7 +169,8 @@ public class JogadorController {
 
             try {
                 Map uploadResult = cloudinary.uploader().upload(foto.getBytes(), ObjectUtils.emptyMap());
-                j.setFotoUrl(uploadResult.get("url").toString());
+                // UTILIZANDO SECURE_URL PARA EVITAR BLOQUEIO MIXED CONTENT NOS CELULARES
+                j.setFotoUrl(uploadResult.get("secure_url").toString());
             } catch (IOException e) {
                 e.printStackTrace();
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro no upload da foto.");

@@ -371,21 +371,26 @@
         
         function generateMockPlayers() { return Array.from({length: 11}, (_, i) => ({ id: i+100, nome: `Jogador ${i+1}`, numero: i+1, foto: window.AppImages.defaultAvatar, posicao: (i===0?'GOLEIRO':'LINHA') })); }
         
+        // --- BLINDAGEM DE IMAGENS E CORES CONTRA XSS ---
         function getCrestHTML(t) {
-            if(t.escudoUrl) return `<img src="${t.escudoUrl}" class="sb-crest">`;
-            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
-            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
-            return `<div class="tiny-crest" style="width:70px; height:70px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:3px solid ${t.corTerciaria || '#fff'};"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:30px; color:${t.corTerciaria || '#fff'};"></i></div>`;
+            if(t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" class="sb-crest">`;
+            const icon = DOMPurify.sanitize(mascotsMap[t.customMascot] || 'fa-shield-alt');
+            const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(t.corPrimaria || '#333')}, ${DOMPurify.sanitize(t.corSecundaria || '#000')})`;
+            return `<div class="tiny-crest" style="width:70px; height:70px;"><div class="tiny-custom-shape shape-${DOMPurify.sanitize(t.customShape || 'shield')}" style="background:${grad}; border:3px solid ${DOMPurify.sanitize(t.corTerciaria || '#fff')};"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:30px; color:${DOMPurify.sanitize(t.corTerciaria || '#fff')};"></i></div>`;
         }
         
         function getMiniCrestHTML(t) {
-            if(t.escudoUrl) return `<img src="${t.escudoUrl}" style="width:30px; height:30px;">`;
-            const icon = mascotsMap[t.customMascot] || 'fa-shield-alt';
-            const grad = `linear-gradient(135deg, ${t.corPrimaria || '#333'}, ${t.corSecundaria || '#000'})`;
-            return `<div class="mini-crest-wrapper"><div class="tiny-crest" style="width:30px; height:30px;"><div class="tiny-custom-shape shape-${t.customShape || 'shield'}" style="background:${grad}; border:1px solid #fff;"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:12px; color:#fff;"></i></div></div>`;
+            if(t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" style="width:30px; height:30px;">`;
+            const icon = DOMPurify.sanitize(mascotsMap[t.customMascot] || 'fa-shield-alt');
+            const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(t.corPrimaria || '#333')}, ${DOMPurify.sanitize(t.corSecundaria || '#000')})`;
+            return `<div class="mini-crest-wrapper"><div class="tiny-crest" style="width:30px; height:30px;"><div class="tiny-custom-shape shape-${DOMPurify.sanitize(t.customShape || 'shield')}" style="background:${grad}; border:1px solid #fff;"></div><i class="fas ${icon} tiny-custom-mascot" style="font-size:12px; color:#fff;"></i></div></div>`;
         }
         
-        function renderHeader(t, type) { document.getElementById(`${type}-crest-area`).innerHTML = getCrestHTML(t); document.getElementById(`${type}-name`).innerText = t.nome; }
+        function renderHeader(t, type) { 
+            document.getElementById(`${type}-crest-area`).innerHTML = getCrestHTML(t); 
+            // innerText já é seguro nativamente
+            document.getElementById(`${type}-name`).innerText = t.nome; 
+        }
         
         function populatePreMatchList(team, el, type) {
             const c = document.getElementById(el);
@@ -399,8 +404,8 @@
             let gkCount = 0;
 
             team.jogadores.forEach(p => {
-                const pid = p.id || Math.floor(Math.random()*99999);
-                const pos = p.posicao ? p.posicao.toUpperCase() : 'LINHA';
+                const pid = DOMPurify.sanitize(p.id || Math.floor(Math.random()*99999));
+                const pos = DOMPurify.sanitize(p.posicao ? p.posicao.toUpperCase() : 'LINHA');
                 
                 let isChecked = "checked";
                 if (pos === 'GOLEIRO') {
@@ -413,8 +418,10 @@
 
                 const nomeSeguro = DOMPurify.sanitize(p.nome);
                 const fotoSegura = DOMPurify.sanitize(p.foto);
+                const numSeguro = DOMPurify.sanitize(p.numero);
 
-                c.innerHTML += `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${fotoSegura}"><span><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`;
+                // --- OTIMIZANDO PERFOMANCE COM insertAdjacentHTML EM VEZ DE += innerHTML ---
+                c.insertAdjacentHTML('beforeend', `<label class="check-player"><input type="checkbox" ${isChecked} value="${pid}" data-team="${type}" data-pos="${pos}" onchange="updateLineupCounts()"><img src="${fotoSegura}"><span><strong style="color:var(--primary-neon)">${numSeguro}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.65rem; margin-left:5px;">${pos}</small></span></label>`);
             });
         }
 
@@ -505,16 +512,20 @@
 
         function renderList(id, sList, bList, type) {
             const col = document.getElementById(id); col.innerHTML = '';
-            sList.forEach(p => col.innerHTML += createPlayerStrip(p, type, false));
-            if(bList.length>0) { col.innerHTML += `<div class="bench-divider">BANCO</div>`; bList.forEach(p => col.innerHTML += createPlayerStrip(p, type, true)); }
+            sList.forEach(p => col.insertAdjacentHTML('beforeend', createPlayerStrip(p, type, false)));
+            if(bList.length>0) { 
+                col.insertAdjacentHTML('beforeend', `<div class="bench-divider">BANCO</div>`); 
+                bList.forEach(p => col.insertAdjacentHTML('beforeend', createPlayerStrip(p, type, true))); 
+            }
         }
         
         function createPlayerStrip(p, type, isBench) {
-            const bClass = isBench ? 'bench-player' : ''; const pid = p.id;
+            const bClass = isBench ? 'bench-player' : ''; const pid = DOMPurify.sanitize(p.id);
             const nomeSeguro = DOMPurify.sanitize(p.nome);
             const fotoSegura = DOMPurify.sanitize(p.foto);
+            const numSeguro = DOMPurify.sanitize(p.numero);
 
-            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${type}', ${isBench})"><img src="${fotoSegura}" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${p.numero}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
+            return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${DOMPurify.sanitize(type)}', ${isBench})"><img src="${fotoSegura}" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${numSeguro}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
         }
 
         function restorePlayerIcons() {
@@ -564,7 +575,7 @@
 
                 item.innerHTML = `
                     <img src="${fotoSegura}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
-                    <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${p.numero}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${p.posicao || 'LINHA'}</small></span>
+                    <span style="font-size:1rem;"><strong style="color:var(--primary-neon)">${DOMPurify.sanitize(p.numero)}</strong> ${nomeSeguro} <small style="color:#888; font-size:0.6rem; margin-left:5px;">${DOMPurify.sanitize(p.posicao || 'LINHA')}</small></span>
                 `;
                 item.onclick = () => executeSubstitution(p.id);
                 listContainer.appendChild(item);
@@ -620,6 +631,7 @@
             const eventId = Date.now() + Math.random().toString(16).slice(2);
             
             let cssClass = ''; let icon = ''; let color = ''; let text = '';
+            // Os nomes são enviados brutos para o evento, e sanitizados apenas na hora de renderizar na tela ou banco
             if(type === 'GOAL') { if(teamKey === 'home') matchState.scoreHome++; else matchState.scoreAway++; updateScoreboard(); cssClass = 'evt-goal'; icon = 'fa-futbol'; color = '#00ff88'; text = `GOL de <strong>${p.nome}</strong>`; } 
             else if(type === 'OWN_GOAL') { if(teamKey === 'home') matchState.scoreAway++; else matchState.scoreHome++; updateScoreboard(); cssClass = 'evt-red'; icon = 'fa-futbol'; color = '#ff4444'; text = `GOL CONTRA de <strong>${p.nome}</strong>`; } 
             else if(type === 'YELLOW') { if(teamKey === 'home') matchState.homeYellow++; else matchState.awayYellow++; cssClass = 'evt-yellow'; icon = 'fa-square'; color = '#FFD700'; text = `Cartão Amarelo: <strong>${p.nome}</strong>`; } 
@@ -664,10 +676,13 @@
 
         function addFeedItemHTML(id, time, cls, icon, text) { 
             const textoSeguro = DOMPurify.sanitize(text);
-            document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${id}"><div class="feed-time">${time}</div><div class="feed-icon ${cls}"><i class="fas ${icon}"></i></div><div class="feed-text">${textoSeguro}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${id}')" title="Excluir evento"></i></div>`); 
+            document.getElementById('match-feed').insertAdjacentHTML('afterbegin', `<div class="feed-item" id="feed-item-${DOMPurify.sanitize(id)}"><div class="feed-time">${DOMPurify.sanitize(time)}</div><div class="feed-icon ${DOMPurify.sanitize(cls)}"><i class="fas ${DOMPurify.sanitize(icon)}"></i></div><div class="feed-text">${textoSeguro}</div><i class="fas fa-times feed-remove-btn" onclick="undoEvent('${DOMPurify.sanitize(id)}')" title="Excluir evento"></i></div>`); 
         }
         
-        function addPlayerEventIcon(container, iconClass, color, eventId) { if(container) container.innerHTML += `<span id="icon-event-${eventId}"><i class="fas ${iconClass} mini-event-icon" style="color:${color}; margin-left:2px;"></i></span>`; }
+        function addPlayerEventIcon(container, iconClass, color, eventId) { 
+            if(container) container.insertAdjacentHTML('beforeend', `<span id="icon-event-${DOMPurify.sanitize(eventId)}"><i class="fas ${DOMPurify.sanitize(iconClass)} mini-event-icon" style="color:${DOMPurify.sanitize(color)}; margin-left:2px;"></i></span>`); 
+        }
+        
         function updateScoreboard() { document.getElementById('score-home').innerText = matchState.scoreHome; document.getElementById('score-away').innerText = matchState.scoreAway; }
         function toggleTimer() { const btn = document.getElementById('btn-timer-toggle'); if(matchState.isRunning){ clearInterval(matchState.interval); matchState.isRunning=false; btn.className='fas fa-play'; document.querySelector('.btn-play-big').classList.add('paused'); } else { matchState.interval=setInterval(tick,1000); matchState.isRunning=true; btn.className='fas fa-pause'; document.querySelector('.btn-play-big').classList.remove('paused'); } saveLiveState(); }
         function tick() { matchState.timer++; updateTimerDisplay(); if(matchState.timer % 5 === 0) saveLiveState(); }
@@ -708,11 +723,28 @@
             .catch(err => { console.error("Erro de conexão:", err); window.history.back(); });
         }
 
+        // --- A GRANDE PROTEÇÃO DE XSS ARMAZENADO (BANCO DE DADOS) ---
         function generateRichSummary() {
-            const t1 = matchData.t1; const t2 = matchData.t2; const params = new URLSearchParams(window.location.search); const tourneyName = decodeURIComponent(params.get('tName') || 'TORNEIO OFICIAL');
-            const getSheetCrest = (team) => { if(team.escudoUrl) return `<img src="${team.escudoUrl}" class="sh-crest-img">`; const icon = mascotsMap[team.customMascot] || 'fa-shield-alt'; const grad = `linear-gradient(135deg, ${team.corPrimaria}, ${team.corSecundaria})`; return `<div class="sh-crest-box" style="background:${grad}; border-color:${team.corTerciaria||'#fff'}"><i class="fas ${icon}" style="color:${team.corTerciaria||'#fff'}"></i></div>`; };
-            const getTeamName = (id) => (id == t1.id ? t1.nome : t2.nome);
-            const generateListHTML = (title, events, iconClass, color, printColor) => { if (events.length === 0) return ''; let listItems = events.map(e => { const tName = getTeamName(e.teamId); return `<li style="border-bottom: 1px dashed #ddd;"><span class="s-time" style="color:#000;">${e.time}'</span> <span class="s-player">${e.playerName}</span> <span class="s-team">(${tName})</span>${e.type === 'OWN_GOAL' ? '<span class="og-tag">(CONTRA)</span>' : ''}</li>`; }).join(''); return `<div class="sumula-category" style="border-left: 4px solid ${printColor}; padding-left: 10px; margin-bottom:15px;"><h3 style="color:${color} !important; border-bottom: 1px solid #ccc; padding-bottom:5px;"><i class="fas ${iconClass}"></i> ${title}</h3><ul class="cat-list">${listItems}</ul></div>`; };
+            const t1 = matchData.t1; const t2 = matchData.t2; const params = new URLSearchParams(window.location.search); 
+            const tourneyName = DOMPurify.sanitize(decodeURIComponent(params.get('tName') || 'TORNEIO OFICIAL'));
+            
+            const getSheetCrest = (team) => { 
+                if(team.escudoUrl) return `<img src="${DOMPurify.sanitize(team.escudoUrl)}" class="sh-crest-img">`; 
+                const icon = DOMPurify.sanitize(mascotsMap[team.customMascot] || 'fa-shield-alt'); 
+                const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(team.corPrimaria)}, ${DOMPurify.sanitize(team.corSecundaria)})`; 
+                return `<div class="sh-crest-box" style="background:${grad}; border-color:${DOMPurify.sanitize(team.corTerciaria||'#fff')}"><i class="fas ${icon}" style="color:${DOMPurify.sanitize(team.corTerciaria||'#fff')}"></i></div>`; 
+            };
+            
+            const getTeamName = (id) => DOMPurify.sanitize(id == t1.id ? t1.nome : t2.nome);
+            
+            const generateListHTML = (title, events, iconClass, color, printColor) => { 
+                if (events.length === 0) return ''; 
+                let listItems = events.map(e => { 
+                    const tName = getTeamName(e.teamId); 
+                    return `<li style="border-bottom: 1px dashed #ddd;"><span class="s-time" style="color:#000;">${DOMPurify.sanitize(e.time)}'</span> <span class="s-player">${DOMPurify.sanitize(e.playerName)}</span> <span class="s-team">(${tName})</span>${e.type === 'OWN_GOAL' ? '<span class="og-tag">(CONTRA)</span>' : ''}</li>`; 
+                }).join(''); 
+                return `<div class="sumula-category" style="border-left: 4px solid ${printColor}; padding-left: 10px; margin-bottom:15px;"><h3 style="color:${color} !important; border-bottom: 1px solid #ccc; padding-bottom:5px;"><i class="fas ${iconClass}"></i> ${title}</h3><ul class="cat-list">${listItems}</ul></div>`; 
+            };
             
             const goals = matchEvents.filter(e => e.type === 'GOAL' || e.type === 'OWN_GOAL'); const fouls = matchEvents.filter(e => e.type === 'FOUL'); const yellows = matchEvents.filter(e => e.type === 'YELLOW'); const reds = matchEvents.filter(e => e.type === 'RED');
             const goalsHTML = generateListHTML('GOLS', goals, 'fa-futbol', '#000', '#00cc6a'); const foulsHTML = generateListHTML('FALTAS', fouls, 'fa-exclamation-circle', '#000', '#666'); const yellowHTML = generateListHTML('CARTÃO AMARELO', yellows, 'fa-square', '#daa520', '#daa520'); const redHTML = generateListHTML('CARTÃO VERMELHO', reds, 'fa-square', '#ff4444', '#ff4444');
@@ -731,12 +763,13 @@
                 if(e.type === 'SUB') { icon = 'fa-exchange-alt'; bgStyle = 'background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;'; }
                 if(e.type === 'FOUL') { icon = 'fa-exclamation-circle'; }
                 
-                let pText = e.playerName;
-                if(e.type === 'SUB') pText = `Sai ${e.outPlayerName} <br> Entra ${e.playerName}`;
+                let pText = DOMPurify.sanitize(e.playerName);
+                if(e.type === 'SUB') pText = `Sai ${DOMPurify.sanitize(e.outPlayerName)} <br> Entra ${DOMPurify.sanitize(e.playerName)}`;
 
-                timelineHTML += `<div class="tl-item ${sideClass}" style="margin-bottom:5px;"><div class="tl-time" style="background:#000; color:#fff;">${e.time}'</div><div class="tl-content" style="${bgStyle} -webkit-print-color-adjust: exact;"><i class="fas ${icon}"></i> <strong>${pText}</strong></div></div>`; 
+                timelineHTML += `<div class="tl-item ${sideClass}" style="margin-bottom:5px;"><div class="tl-time" style="background:#000; color:#fff;">${DOMPurify.sanitize(e.time)}'</div><div class="tl-content" style="${bgStyle} -webkit-print-color-adjust: exact;"><i class="fas ${icon}"></i> <strong>${pText}</strong></div></div>`; 
             });
-            return `<div class="official-sheet"><div class="sheet-branding"><div class="sb-top-row">FUT-SÚMULA PRO | HIGTECH SYSTEMS</div><div class="sb-tournament-title">${tourneyName}</div></div><div class="sheet-header"><div class="sh-team"><div class="sh-crest-wrapper">${getSheetCrest(t1)}</div><h2>${t1.nome}</h2></div><div class="sh-score-box"><div class="sh-final-score">${matchState.scoreHome} x ${matchState.scoreAway}</div><div class="sh-date">${new Date().toLocaleDateString()}</div></div><div class="sh-team"><div class=\"sh-crest-wrapper\">${getSheetCrest(t2)}</div><h2>${t2.nome}</h2></div></div><div class=\"sheet-body-grid\"><div class=\"col-left\">${goalsHTML || emptyBlock('GOLS')}${foulsHTML || emptyBlock('FALTAS')}</div><div class=\"col-right\">${yellowHTML || emptyBlock('CARTÃO AMARELO')}${redHTML || emptyBlock('CARTÃO VERMELHO')}</div></div><div class=\"sheet-timeline-title\">CRONOLOGIA DA PARTIDA</div><div class=\"sheet-timeline-container\">${timelineHTML || '<p style=\"text-align:center; color:#999;\">Sem eventos registrados.</p>'}</div><div class=\"sheet-footer\">Documento gerado eletronicamente por Fut-Súmula Pro - HigTech Systems.<br>${new Date().toLocaleString()}</div></div>`;
+            
+            return `<div class="official-sheet"><div class="sheet-branding"><div class="sb-top-row">FUT-SÚMULA PRO | HIGTECH SYSTEMS</div><div class="sb-tournament-title">${tourneyName}</div></div><div class="sheet-header"><div class="sh-team"><div class="sh-crest-wrapper">${getSheetCrest(t1)}</div><h2>${DOMPurify.sanitize(t1.nome)}</h2></div><div class="sh-score-box"><div class="sh-final-score">${matchState.scoreHome} x ${matchState.scoreAway}</div><div class="sh-date">${DOMPurify.sanitize(new Date().toLocaleDateString())}</div></div><div class="sh-team"><div class=\"sh-crest-wrapper\">${getSheetCrest(t2)}</div><h2>${DOMPurify.sanitize(t2.nome)}</h2></div></div><div class=\"sheet-body-grid\"><div class=\"col-left\">${goalsHTML || emptyBlock('GOLS')}${foulsHTML || emptyBlock('FALTAS')}</div><div class=\"col-right\">${yellowHTML || emptyBlock('CARTÃO AMARELO')}${redHTML || emptyBlock('CARTÃO VERMELHO')}</div></div><div class=\"sheet-timeline-title\">CRONOLOGIA DA PARTIDA</div><div class=\"sheet-timeline-container\">${timelineHTML || '<p style=\"text-align:center; color:#999;\">Sem eventos registrados.</p>'}</div><div class=\"sheet-footer\">Documento gerado eletronicamente por Fut-Súmula Pro - HigTech Systems.<br>${DOMPurify.sanitize(new Date().toLocaleString())}</div></div>`;
         }
         init();
     </script>

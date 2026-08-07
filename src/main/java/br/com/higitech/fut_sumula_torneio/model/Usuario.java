@@ -8,6 +8,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -29,6 +31,7 @@ public class Usuario implements UserDetails {
     @Column(unique = true)
     private String login; // Email
     
+    @JsonIgnore
     private String senha;
     
     // --- DADOS COMPLETOS PARA O ADMIN ---
@@ -73,6 +76,7 @@ public class Usuario implements UserDetails {
     private Boolean usar2fa = false; // Por padrão, usuários comuns não usam 2FA
 
     @Column(name = "chave_2fa")
+    @JsonIgnore
     private String chave2fa; // Guarda o código secreto do aplicativo
 
     // --- LÓGICA DEFINITIVA DE SEGURANÇA DE ACESSO ---

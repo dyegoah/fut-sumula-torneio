@@ -20,7 +20,7 @@ import br.com.higitech.fut_sumula_torneio.model.EventoPartida;
 import br.com.higitech.fut_sumula_torneio.model.Partida;
 import br.com.higitech.fut_sumula_torneio.model.Time;
 import br.com.higitech.fut_sumula_torneio.model.Torneio;
-import br.com.higitech.fut_sumula_torneio.model.Usuario; // IMPORTAÇÃO NECESSÁRIA PARA A SEGURANÇA
+import br.com.higitech.fut_sumula_torneio.model.Usuario;
 import br.com.higitech.fut_sumula_torneio.repository.EventoPartidaRepository;
 import br.com.higitech.fut_sumula_torneio.repository.JogadorRepository;
 import br.com.higitech.fut_sumula_torneio.repository.PartidaRepository;
@@ -51,14 +51,12 @@ public class PartidaController {
             return ResponseEntity.notFound().build();
         }
 
-        // TRAVA DE SEGURANÇA: Só o dono do torneio pode gerar a tabela
         if (!t.getOrganizador().getId().equals(usuarioLogado.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado: Você não é o dono deste torneio.");
         }
 
         List<Partida> partidas = torneioService.gerarTabela(t);
         
-        // PÓS-PROCESSAMENTO MATA-MATA (Transforma índices temp em IDs reais)
         if("MATA_MATA".equalsIgnoreCase(t.getTipo())) {
             boolean changed = false;
             for(Partida p : partidas) {
@@ -76,10 +74,17 @@ public class PartidaController {
         return ResponseEntity.ok(partidas);
     }
 
-    // LEITURA PÚBLICA (Permitido para carregar na página de fãs, segurança tratada no Cors/Config)
+    // --- LEITURA PRIVADA (Painel do Organizador com Trava IDOR) ---
     @GetMapping("/{id}")
-    public ResponseEntity<Partida> getPartida(@PathVariable Long id) {
-        return partidaRepo.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> getPartida(@PathVariable Long id) {
+        Usuario usuarioLogado = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        
+        return partidaRepo.findById(id).map(partida -> {
+            if(!partida.getTorneio().getOrganizador().getId().equals(usuarioLogado.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+            }
+            return ResponseEntity.ok(partida);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // --- FINALIZA E AVANÇA O VENCEDOR (BLINDADO CONTRA IDOR E HACKERS) ---
@@ -94,7 +99,6 @@ public class PartidaController {
                 return ResponseEntity.notFound().build();
             }
 
-            // TRAVA DE SEGURANÇA MÁXIMA: Ninguém altera placar do torneio dos outros!
             if (!p.getTorneio().getOrganizador().getId().equals(usuarioLogado.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado: Essa partida pertence a outro organizador.");
             }
@@ -105,12 +109,10 @@ public class PartidaController {
             p.setFinalizada(true);
             partidaRepo.save(p);
 
-            // Quem ganhou?
             Time vencedor = null;
             if (p.getPlacarCasa() > p.getPlacarVisitante()) vencedor = p.getTimeCasa();
             else if (p.getPlacarVisitante() > p.getPlacarCasa()) vencedor = p.getTimeVisitante();
 
-            // Atualiza os jogos futuros
             if (vencedor != null) {
                 for (Partida prox : partidaRepo.findByPartidaOrigemCasaId(p.getId())) {
                     prox.setTimeCasa(vencedor); partidaRepo.save(prox);
@@ -120,7 +122,6 @@ public class PartidaController {
                 }
             }
             
-            // Salva estatísticas (gols/cartões)
             if (dto.getEventos() != null) {
                 for (FinalizarPartidaDTO.EventoDTO evDto : dto.getEventos()) {
                     EventoPartida ev = new EventoPartida();
@@ -139,17 +140,15 @@ public class PartidaController {
         }
     }
     
-    // Endpoint legado (para compatibilidade com chamadas manuais antigas)
     @PostMapping("/{id}/definir-confronto")
     public ResponseEntity<?> definirConfronto(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
         return ResponseEntity.ok().build();
     }
     
- // NOVA ROTA PÚBLICA (ANTI-VAZAMENTO)
+    // --- LEITURA PÚBLICA BLINDADA (Compartilhamento para os Fãs) ---
     @GetMapping("/publico/{codigo}")
     public ResponseEntity<?> getPartidaPublica(@PathVariable String codigo) {
         return partidaRepo.findByCodigoPublico(codigo).map(partida -> {
-            // Opcional: Ocultar dados do organizador do torneio para proteger a privacidade
             if (partida.getTorneio() != null) {
                 partida.getTorneio().setOrganizador(null); 
             }

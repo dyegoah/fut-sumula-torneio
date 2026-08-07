@@ -1,6 +1,7 @@
 package br.com.higitech.fut_sumula_torneio.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -8,12 +9,17 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "tb_usuarios")
@@ -60,12 +66,11 @@ public class Usuario implements UserDetails {
     // NOVO CAMPO: Dias de teste específicos do usuário
     private Integer trialDays;
 
-    
- // --- VARIÁVEIS TRANSIENTES (Calculadas na hora, não vão para o banco) ---
-    @jakarta.persistence.Transient
+    // --- VARIÁVEIS TRANSIENTES (Calculadas na hora, não vão para o banco) ---
+    @Transient
     private boolean acessoLiberado;
     
-    @jakarta.persistence.Transient
+    @Transient
     private long diasRestantes;
     
     @Column(name = "usar_2fa")
@@ -73,6 +78,17 @@ public class Usuario implements UserDetails {
 
     @Column(name = "chave_2fa")
     private String chave2fa; // Guarda o código secreto do aplicativo
+
+    // --- RELACIONAMENTOS DE CASCATA PARA EXCLUSÃO (LIMPEZA AUTOMÁTICA) ---
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<TokenRecuperacao> tokensSeguranca = new ArrayList<>();
+
+    // Se sua entidade Torneio possui um campo "private Usuario usuario;", descomente as linhas abaixo para limpar os torneios ao excluir o usuário:
+    // @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    // @JsonIgnore
+    // private List<Torneio> torneios = new ArrayList<>();
+
 
     // --- LÓGICA DEFINITIVA DE SEGURANÇA DE ACESSO ---
     public boolean isAcessoLiberado() {
@@ -157,10 +173,12 @@ public class Usuario implements UserDetails {
     public Integer getTrialDays() { return trialDays; }
     public void setTrialDays(Integer trialDays) { this.trialDays = trialDays; }
 
+    public List<TokenRecuperacao> getTokensSeguranca() { return tokensSeguranca; }
+    public void setTokensSeguranca(List<TokenRecuperacao> tokensSeguranca) { this.tokensSeguranca = tokensSeguranca; }
+
     // --- SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // CORRIGIDO PARA O SEU E-MAIL
         if ("fut_sumula_pro@hotmail.com".equals(this.login)) {
             return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"));
         }

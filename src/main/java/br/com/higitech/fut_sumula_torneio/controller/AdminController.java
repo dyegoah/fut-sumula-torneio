@@ -2,8 +2,11 @@ package br.com.higitech.fut_sumula_torneio.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -110,26 +113,42 @@ public class AdminController {
     @Transactional
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> excluirUsuario(@PathVariable Long id) {
-        Usuario user = usuarioRepository.findById(id).orElse(null);
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        Optional<Usuario> usuarioOpt = usuarioRepository.findById(id);
+        
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("erro", "Usuário não encontrado."));
         }
 
-        // --- SOLUÇÃO DO ERRO 500: LIMPANDO A CHAVE ESTRANGEIRA ---
-        // Apaga os tokens amarrados a este usuário antes de excluí-lo
+        Usuario user = usuarioOpt.get();
+
+        // Trava de segurança absoluta: Nunca permitir a exclusão do Admin Mestre
+        if ("fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("erro", "O Administrador Mestre não pode ser excluído!"));
+        }
+
         try {
+            // Limpa tokens de recuperação pendentes antes de excluir
             Iterable<TokenRecuperacao> tokens = tokenRecuperacaoRepository.findAll();
             for (TokenRecuperacao t : tokens) {
                 if (t.getUsuario() != null && t.getUsuario().getId().equals(id)) {
                     tokenRecuperacaoRepository.delete(t);
                 }
             }
-        } catch (Exception e) {
-            System.out.println("Aviso ao limpar tokens: " + e.getMessage());
-        }
 
-        // Agora o PostgreSQL permite deletar o usuário tranquilamente!
-        usuarioRepository.deleteById(id);
-        return ResponseEntity.ok().build();
+            // Exclusão do usuário
+            usuarioRepository.delete(user);
+            return ResponseEntity.ok(Map.of("mensagem", "Conta estranha excluída e faxina realizada com sucesso!"));
+
+        } catch (DataIntegrityViolationException e) {
+            // Intercepta a Violação de Chave Estrangeira do PostgreSQL (Impede o Erro 500)
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("erro", "Atenção: Este usuário possui dados amarrados a ele no sistema (Torneios, Partidas ou Times). O banco de dados bloqueou a exclusão. Para apagá-lo, exclua primeiro os torneios dele."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("erro", "Erro interno no servidor ao tentar excluir a conta."));
+        }
     }
 }

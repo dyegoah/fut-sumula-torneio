@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.warrenstrange.googleauth.GoogleAuthenticator;
+import com.warrenstrange.googleauth.GoogleAuthenticatorConfig;
 import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
 
 import br.com.higitech.fut_sumula_torneio.dto.AuthenticationDTO;
@@ -56,17 +57,30 @@ public class AutenticacaoController {
         LoginAttempt() { this.attempts = 1; this.lockTime = null; }
     }
 
+    // --- MÉTODOS AUXILIARES DE SEGURANÇA E AMBIENTE ---
+    private String getClientIP(HttpServletRequest request) {
+        String clientIP = request.getHeader("X-Forwarded-For");
+        if (clientIP == null || clientIP.isEmpty()) {
+            return request.getRemoteAddr();
+        }
+        return clientIP.split(",")[0].trim();
+    }
+
+    private boolean isRequestSecure(HttpServletRequest request) {
+        return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
+    }
+    
+    // NOVO: Detector de ambiente local para pular o 2FA
+    private boolean isLocalEnvironment(HttpServletRequest request) {
+        String serverName = request.getServerName();
+        return "localhost".equals(serverName) || "127.0.0.1".equals(serverName) || "0:0:0:0:0:0:0:1".equals(serverName);
+    }
+    // --------------------------------------------------
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
         
-        // Proteção contra bloqueio em massa na Nuvem (Render)
-        String clientIP = request.getHeader("X-Forwarded-For");
-        if (clientIP == null || clientIP.isEmpty()) {
-            clientIP = request.getRemoteAddr();
-        } else {
-            clientIP = clientIP.split(",")[0].trim(); 
-        }
-
+        String clientIP = getClientIP(request);
         LoginAttempt attempt = loginAttempts.getOrDefault(clientIP, new LoginAttempt());
 
         if (attempt.lockTime != null) {
@@ -85,12 +99,12 @@ public class AutenticacaoController {
 
             Usuario user = (Usuario) auth.getPrincipal();
 
-            // Bloqueio extra: Verifica se a conta não está pendente de aprovação via WhatsApp
             if ("PENDENTE".equals(user.getStatus())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            if (Boolean.TRUE.equals(user.getUsar2fa())) {
+            // MÁGICA ACONTECE AQUI: Só exige 2FA se estiver ativado E NÃO for localhost
+            if (Boolean.TRUE.equals(user.getUsar2fa()) && !isLocalEnvironment(request)) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
                 response.put("login", user.getLogin());
@@ -98,13 +112,17 @@ public class AutenticacaoController {
             }
 
             var token = tokenService.gerarToken(user);
+            
+            // COOCkIE DINÂMICO
+            boolean isSecure = isRequestSecure(request);
             ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
                     .httpOnly(true)
-                    .secure(true)       
+                    .secure(isSecure)       
                     .path("/")
                     .maxAge(4 * 60 * 60)
-                    .sameSite("None")   
+                    .sameSite(isSecure ? "None" : "Lax")   
                     .build();
+            
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
 
         } catch (org.springframework.security.core.AuthenticationException e) {
@@ -116,7 +134,19 @@ public class AutenticacaoController {
     }
 
     @PostMapping("/login/validar-2fa")
-    public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data) {
+    public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
+        String clientIP = getClientIP(request);
+        
+        LoginAttempt attempt = loginAttempts.getOrDefault(clientIP + "_2fa", new LoginAttempt());
+        if (attempt.lockTime != null) {
+            if (attempt.lockTime.plusMinutes(LOCK_TIME_MINUTES).isAfter(LocalDateTime.now())) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Muitas tentativas. Aguarde 1 minuto.");
+            } else {
+                attempt.lockTime = null;
+                attempt.attempts = 0;
+            }
+        }
+
         String login = data.get("login");
         String codigoStr = data.get("codigo");
 
@@ -131,14 +161,33 @@ public class AutenticacaoController {
 
         try {
             int codigo = Integer.parseInt(codigoStr);
-            GoogleAuthenticator gAuth = new GoogleAuthenticator();
+            
+            GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
+                .setWindowSize(3) 
+                .build();
+            GoogleAuthenticator gAuth = new GoogleAuthenticator(config);
+            
             boolean isValid = gAuth.authorize(user.getChave2fa(), codigo);
 
             if (isValid) {
+                loginAttempts.remove(clientIP + "_2fa"); 
                 var token = tokenService.gerarToken(user);
-                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token).httpOnly(true).secure(false).path("/").maxAge(4 * 60 * 60).sameSite("Lax").build();
+                
+                boolean isSecure = isRequestSecure(request);
+                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
+                        .httpOnly(true)
+                        .secure(isSecure)
+                        .path("/")
+                        .maxAge(4 * 60 * 60)
+                        .sameSite(isSecure ? "None" : "Lax")
+                        .build();
+                        
                 return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
             } else {
+                attempt.attempts++;
+                if (attempt.attempts >= MAX_ATTEMPTS) attempt.lockTime = LocalDateTime.now();
+                loginAttempts.put(clientIP + "_2fa", attempt);
+                
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
             }
         } catch (NumberFormatException e) {
@@ -148,7 +197,6 @@ public class AutenticacaoController {
 
     @GetMapping("/gerar-2fa-admin")
     public ResponseEntity<?> gerarQrCodeAdmin(Authentication authentication) {
-        // Proteção total: Só autenticado e apenas o administrador mestre
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
         }

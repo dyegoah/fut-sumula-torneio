@@ -5,16 +5,13 @@
 	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	    <title>Clubes | Fut-Súmula</title>
 
-	    <!-- FONTES E CSS DO SISTEMA -->
 	    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 	    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 	    <link rel="stylesheet" href="css/style.css">
 	    <link rel="stylesheet" href="css/times.css">
 
-	    <!-- BIBLIOTECA DE SEGURANÇA -->
 	    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
-	    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
 	    <script>
 	        function getTokenGlobal() {
 	            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
@@ -76,7 +73,6 @@
 	        })();
 	    </script>
 
-	    <!-- ESTILOS EXCLUSIVOS DE TIME -->
 	    <style>
 	        .modal-sidebar {
 	            position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh;
@@ -252,12 +248,9 @@
     <script src="js/mascotes.js"></script>
 
     <script>
-        // LÓGICA DO FOOTBAR
 		fetch('footbar.html').then(r => r.text()).then(d => {
 		            const container = document.getElementById('footbar-container');
 		            container.innerHTML = d;
-		            
-		            // Extrai e executa o script injetado de forma segura (sem eval)
 		            const scripts = container.querySelectorAll("script");
 		            scripts.forEach(s => {
 		                const novoScript = document.createElement("script");
@@ -282,19 +275,22 @@
             try {
                 const response = await fetch('/api/times');
                 allTimes = await response.json();
-                document.getElementById('total-times').innerText = `${allTimes.length} CLUBES REGISTRADOS`;
+                document.getElementById('total-times').innerText = `${DOMPurify.sanitize(allTimes.length)} CLUBES REGISTRADOS`;
                 renderizarGrid(allTimes);
             } catch (error) { console.error(error); }
         }
 
         function renderizarGrid(lista) {
             const grid = document.getElementById('teams-grid');
-            grid.innerHTML = '';
             if (lista.length === 0) {
                 grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; background: rgba(0,0,0,0.5); border-radius: 15px;"><i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--text-gray); margin-bottom: 15px;"></i><h3>Nenhum clube encontrado</h3><br><button class="modal-btn btn-success" onclick="window.location.href='cadastro-time.html'">CRIAR PRIMEIRO CLUBE</button></div>`;
                 return;
             }
-            lista.forEach(time => grid.innerHTML += criarCardTime(time));
+            
+            // OTIMIZAÇÃO: Concatenação antes de injetar no DOM
+            let htmlCards = '';
+            lista.forEach(time => htmlCards += criarCardTime(time));
+            grid.innerHTML = htmlCards;
         }
 
         function filtrarTimes() {
@@ -305,26 +301,30 @@
 
         function buildCrestHTML(time) {
             if (time.tipoEscudo === 'UPLOAD' && time.escudoUrl) {
-                return `<img src="${time.escudoUrl}" class="team-crest-img">`;
+                return `<img src="${DOMPurify.sanitize(time.escudoUrl)}" loading="lazy" class="team-crest-img">`; // OTIMIZAÇÃO: Lazy load
             } else {
-                const icon = mascotsMap[time.customMascot] || 'fa-shield-alt';
-                const grad = `linear-gradient(135deg, ${time.corPrimaria}, ${time.corSecundaria})`;
-                const border = time.corTerciaria || '#fff';
-                const color = (time.corTerciaria === '#ffffff') ? '#fff' : time.corTerciaria;
+                const icon = DOMPurify.sanitize(mascotsMap[time.customMascot] || 'fa-shield-alt');
+                const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(time.corPrimaria)}, ${DOMPurify.sanitize(time.corSecundaria)})`;
+                const border = DOMPurify.sanitize(time.corTerciaria || '#fff');
+                const color = (time.corTerciaria === '#ffffff') ? '#fff' : border;
                 const emerg = ['dragon', 'eagle', 'horse', 'poo'].includes(time.customMascot) ? 'transform: scale(1.2) translateY(-5px);' : '';
-                return `<div class="mini-crest-shape shape-${time.customShape}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} mini-crest-mascot" style="color: ${color}; ${emerg}"></i>`;
+                return `<div class="mini-crest-shape shape-${DOMPurify.sanitize(time.customShape)}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} mini-crest-mascot" style="color: ${color}; ${emerg}"></i>`;
             }
         }
 
         function criarCardTime(time) {
             const count = time.jogadores ? time.jogadores.length : 0;
+            const nomeSeguro = DOMPurify.sanitize(time.nome); // SEGURANÇA
+            const corPrimariaSegura = DOMPurify.sanitize(time.corPrimaria);
+            const corSecundariaSegura = DOMPurify.sanitize(time.corSecundaria);
+
             return `
-                <div class="fut-card team-card" style="border-color: rgba(255,255,255,0.1); --bg-color-1: ${time.corPrimaria};" onclick="abrirRoster(${time.id})">
+                <div class="fut-card team-card" style="border-color: rgba(255,255,255,0.1); --bg-color-1: ${corPrimariaSegura};" onclick="abrirRoster(${DOMPurify.sanitize(time.id)})">
                     <div class="team-card-bg"></div>
-                    <div class="team-player-count"><i class="fas fa-users"></i> ${count}</div>
+                    <div class="team-player-count"><i class="fas fa-users"></i> ${DOMPurify.sanitize(count)}</div>
                     <div class="team-crest-area">${buildCrestHTML(time)}</div>
-                    <div class="team-name">${time.nome}</div>
-                    <div style="display:flex; gap:5px; margin-top:10px; opacity:0.8;"><div style="width:20px; height:6px; background:${time.corPrimaria}; border-radius:2px;"></div><div style="width:20px; height:6px; background:${time.corSecundaria}; border-radius:2px;"></div></div>
+                    <div class="team-name">${nomeSeguro}</div>
+                    <div style="display:flex; gap:5px; margin-top:10px; opacity:0.8;"><div style="width:20px; height:6px; background:${corPrimariaSegura}; border-radius:2px;"></div><div style="width:20px; height:6px; background:${corSecundariaSegura}; border-radius:2px;"></div></div>
                 </div>
             `;
         }
@@ -333,7 +333,7 @@
             const time = allTimes.find(t => t.id === timeId);
             if(!time) return;
             document.getElementById('current-time-id').value = timeId;
-            document.getElementById('modal-team-name').innerText = time.nome;
+            document.getElementById('modal-team-name').innerText = time.nome; // innerText é seguro
             document.getElementById('modal-crest-container').innerHTML = buildCrestHTML(time);
             renderizarListaJogadores(time);
             document.getElementById('rosterModal').classList.add('active');
@@ -341,7 +341,6 @@
 
         function renderizarListaJogadores(time) {
             const list = document.getElementById('modal-roster-list');
-            list.innerHTML = '';
             if(!time.jogadores || time.jogadores.length === 0) {
                 list.innerHTML = `<div style="text-align: center; padding: 20px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 10px;"><p style="color: var(--text-gray);">Nenhum jogador no elenco.</p><small style="color: var(--primary-neon);">Use os botões abaixo para contratar.</small></div>`;
             } else {
@@ -350,17 +349,26 @@
                     if (a.posicao !== 'GOLEIRO' && b.posicao === 'GOLEIRO') return 1;
                     return a.nome.localeCompare(b.nome);
                 });
+
+                // OTIMIZAÇÃO: Concatenação antes de injetar
+                let htmlJogadores = '';
                 time.jogadores.forEach(jog => {
-                    const foto = jog.fotoUrl || AppImages.defaultAvatar;
-                    const pos = jog.posicao === 'GOLEIRO' ? 'GOL' : 'LIN';
-                    list.innerHTML += `
+                    const foto = DOMPurify.sanitize(jog.fotoUrl || AppImages.defaultAvatar);
+                    const pos = DOMPurify.sanitize(jog.posicao === 'GOLEIRO' ? 'GOL' : 'LIN');
+                    const nomeSeguro = DOMPurify.sanitize(jog.nome);
+                    const numeroSeguro = DOMPurify.sanitize(jog.numeroCamisa);
+                    const timeIdSeguro = DOMPurify.sanitize(time.id);
+                    const jogIdSeguro = DOMPurify.sanitize(jog.id);
+
+                    htmlJogadores += `
                         <div class="roster-item" style="cursor: default;">
-                            <img src="${foto}" class="roster-img" onclick="window.location.href='cadastro-jogador.html?timeId=${time.id}'" style="cursor: pointer;">
-                            <div class="roster-info"><div class="roster-name">${jog.nome}</div><div class="roster-pos">${pos}</div></div>
-                            <div class="roster-num">${jog.numeroCamisa}</div>
-                            <div class="remove-btn" onclick="dispensarJogador(${time.id}, ${jog.id})" title="Dispensar Jogador"><i class="fas fa-times"></i></div>
+                            <img src="${foto}" loading="lazy" class="roster-img" onclick="window.location.href='cadastro-jogador.html?timeId=${timeIdSeguro}'" style="cursor: pointer;">
+                            <div class="roster-info"><div class="roster-name">${nomeSeguro}</div><div class="roster-pos">${pos}</div></div>
+                            <div class="roster-num">${numeroSeguro}</div>
+                            <div class="remove-btn" onclick="dispensarJogador(${timeIdSeguro}, ${jogIdSeguro})" title="Dispensar Jogador"><i class="fas fa-times"></i></div>
                         </div>`;
                 });
+                list.innerHTML = htmlJogadores;
             }
         }
 
@@ -426,14 +434,18 @@
                 return a.nome.localeCompare(b.nome);
             });
 
+            // Usando fragmento de documento ou laço otimizado para não forçar reflow
             jogadores.forEach(jog => {
                 if (jog.time && jog.time.id == timeIdAtual) return;
 
-                const foto = jog.fotoUrl || AppImages.defaultAvatar;
+                const foto = DOMPurify.sanitize(jog.fotoUrl || AppImages.defaultAvatar);
+                const nomeSeguro = DOMPurify.sanitize(jog.nome);
+                const numeroSeguro = DOMPurify.sanitize(jog.numeroCamisa);
+
                 let statusTime, statusClass;
 
                 if (jog.time) {
-                    statusTime = `<i class="fas fa-shield-alt"></i> ${jog.time.nome}`;
+                    statusTime = `<i class="fas fa-shield-alt"></i> ${DOMPurify.sanitize(jog.time.nome)}`;
                     statusClass = 'color: #ffcc00; font-size: 0.7rem;'; 
                 } else {
                     statusTime = `<i class="fas fa-check-circle"></i> LIVRE`;
@@ -443,13 +455,14 @@
                 const item = document.createElement('div');
                 item.className = 'select-player-item';
                 item.dataset.id = jog.id; 
+                // OTIMIZAÇÃO: loading="lazy" no avatar do mercado da bola
                 item.innerHTML = `
-                    <img src="${foto}"> 
+                    <img src="${foto}" loading="lazy"> 
                     <div style="flex:1;">
-                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${jog.nome}</div> 
+                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${nomeSeguro}</div> 
                         <div style="${statusClass}">${statusTime}</div>
                     </div>
-                    <div style="font-size:0.8rem; color:#aaa; font-weight:bold;">${jog.numeroCamisa}</div>
+                    <div style="font-size:0.8rem; color:#aaa; font-weight:bold;">${numeroSeguro}</div>
                 `;
                 
                 item.onclick = () => {
@@ -470,7 +483,7 @@
             const termo = document.getElementById('search-mercado').value.toLowerCase();
             const filtrados = marketPlayers.filter(j => 
                 j.nome.toLowerCase().includes(termo) || 
-                j.numeroCamisa.includes(termo)
+                (j.numeroCamisa && j.numeroCamisa.includes(termo))
             );
             renderizarMercado(filtrados);
         }

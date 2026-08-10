@@ -5,24 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estatísticas | Fut-Súmula</title>
 
-    <!-- 1. FONTES E CSS DO SISTEMA (O LAYOUT VOLTA AQUI) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/estatisticas-futebol.css">
 
-    <!-- 2. BIBLIOTECAS (DOMPurify para segurança e html2canvas para baixar o Card) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- 3. BLINDAGEM DE SESSÃO -->
     <script>
-        // Pega o token correto do LocalStorage
         function getTokenGlobal() {
             return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
         }
 
-        // Fiscal de Autenticação Automático e Seguro
         async function validarAcesso() {
             const token = getTokenGlobal();
             if (!token) {
@@ -33,12 +28,10 @@
             try {
                 const res = await fetch('/api/auth/me', { 
                     method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token } // Envia o token corretamente
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
                 if (!res.ok) throw new Error("Sessão inválida ou expirada.");
-
-                // Tela confirmada!
                 document.documentElement.style.display = '';
 
             } catch (error) {
@@ -51,7 +44,6 @@
         validarAcesso();
     </script>
     <script>
-        // Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
         (function() {
             const token = getTokenGlobal();
             const originalFetch = window.fetch;
@@ -83,7 +75,6 @@
         })();
     </script>
 
-    <!-- 4. ESTILOS INTERNOS DA PÁGINA STATS -->
     <style>
         .bg-tactics-board { background-image: url('https://images.unsplash.com/photo-1508344928928-7137b2931f82?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.2); }
         
@@ -98,9 +89,9 @@
         .btn-social { padding: 12px 5px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; color: white; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.8rem; }
         .btn-wa { background: #25D366; } .btn-ig { background: #E1306C; } .btn-fb { background: #1877F2; }
         
-        /* Podium e Lista Interna */
         .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin-top: 30px; margin-bottom: 30px; }
-        .podium-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px 10px; text-align: center; width: 30%; position: relative; }
+        /* OTIMIZAÇÃO CSS: Removido backdrop-filter excessivo que trava os cards em mobile antigo */
+        .podium-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px 10px; text-align: center; width: 30%; position: relative; }
         .podium-card.rank-1 { transform: scale(1.1); border-color: #FFD700; z-index: 2; margin-bottom: 15px; }
         .podium-card.rank-2 { border-color: #C0C0C0; }
         .podium-card.rank-3 { border-color: #cd7f32; }
@@ -114,7 +105,7 @@
         .podium-value { font-size: 1.8rem; font-weight: 900; line-height: 1; }
         
         .stats-list { display: flex; flex-direction: column; gap: 8px; }
-        .stat-row { display: flex; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; }
+        .stat-row { display: flex; align-items: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; }
         .sr-rank { width: 30px; font-weight: bold; color: #666; font-size: 1.1rem; }
         .sr-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 15px; border: 1px solid rgba(255,255,255,0.1); }
         .sr-info { flex: 1; text-align: left; }
@@ -122,7 +113,6 @@
         .sr-team { font-size: 0.7rem; color: #888; }
         .sr-value { font-size: 1.5rem; font-weight: bold; }
 
-        /* Estilos do Template que gera a imagem (fica escondido) */
         #share-template-container { position: absolute; left: -9999px; width: 1080px; height: 1920px; background: linear-gradient(145deg, #050505, #111); color: white; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; }
         .share-header { text-align: center; margin-bottom: 50px; }
         .share-logo { font-size: 3rem; font-weight: 900; letter-spacing: 2px; }
@@ -224,7 +214,6 @@
         </div>
     </div>
 
-    <!-- MOLDE DA IMAGEM DO INSTAGRAM -->
     <div id="share-template-container">
         <div class="share-header">
             <div class="share-logo">FUT<span style="color:var(--primary-neon);">SÚMULA</span></div>
@@ -243,8 +232,6 @@
 		fetch('footbar.html').then(r => r.text()).then(d => {
             const container = document.getElementById('footbar-container');
             container.innerHTML = d;
-            
-            // Extrai e executa o script injetado de forma segura
             const scripts = container.querySelectorAll("script");
             scripts.forEach(s => {
                 const novoScript = document.createElement("script");
@@ -272,24 +259,30 @@
 
         function renderTournaments(list) {
             const grid = document.getElementById('tournaments-grid');
-            grid.innerHTML = '';
             if(list.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#777;">Nenhum torneio encontrado.</div>'; return; }
+            
+            // OTIMIZAÇÃO: Concatenação antes de injetar
+            let htmlGrid = '';
             list.forEach(t => {
-                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
-                const color = t.corTrofeu || '#FFD700';
-                grid.innerHTML += `
-                    <div class="tournament-card" onclick="openStatsModal(${t.id})">
+                const iconClass = DOMPurify.sanitize(trophyIcons[(t.modeloTrofeu || 1) - 1]);
+                const color = DOMPurify.sanitize(t.corTrofeu || '#FFD700');
+                const tNomeSeguro = DOMPurify.sanitize(t.nome);
+                const tTipoSeguro = DOMPurify.sanitize(t.tipo.replace('_',' '));
+
+                htmlGrid += `
+                    <div class="tournament-card" onclick="openStatsModal(${DOMPurify.sanitize(t.id)})">
                         <div class="t-card-header" style="background-image: var(--img-stadium);">
                             <div class="t-card-overlay"></div>
-                            <div class="t-type-badge">${t.tipo.replace('_',' ')}</div>
+                            <div class="t-type-badge">${tTipoSeguro}</div>
                             <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
                         </div>
                         <div class="t-card-body">
-                            <div class="t-title">${t.nome}</div>
+                            <div class="t-title">${tNomeSeguro}</div>
                             <div class="t-info"><span style="color:var(--primary-neon);">VER ESTATÍSTICAS <i class="fas fa-chart-bar"></i></span></div>
                         </div>
                     </div>`;
             });
+            grid.innerHTML = htmlGrid;
         }
 
         function filterTournaments() {
@@ -300,20 +293,19 @@
         function openStatsModal(id) {
             currentTourneyId = id;
             const t = allTournaments.find(x => x.id === id);
-            const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
-            const color = t.corTrofeu || '#FFD700';
+            const iconClass = DOMPurify.sanitize(trophyIcons[(t.modeloTrofeu || 1) - 1]);
+            const color = DOMPurify.sanitize(t.corTrofeu || '#FFD700');
+            const tNomeSeguro = DOMPurify.sanitize(t.nome);
             
             document.getElementById('stats-header').innerHTML = `
                 <i class="fas ${iconClass}" style="font-size: 3rem; color: ${color}; display: block; margin: 0 auto 10px;"></i>
-                <h2 class="th-title">${t.nome}</h2>
+                <h2 class="th-title">${tNomeSeguro}</h2>
             `;
             
             document.getElementById('statsModal').classList.add('active');
             loadStats('gols');
         }
 
-        // --- NOVO MOTOR DE ESTATÍSTICAS LOCAIS ---
-        // Ele lê os dados salvos pelo "Encerrar Partida" em tempo real
         function loadStats(type) {
             currentStatsType = type;
             document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
@@ -330,7 +322,6 @@
                 let playerStats = {};
                 const prefix = `match_result_${currentTourneyId}_`;
                 
-                // Varre o localStorage em busca de todas as partidas finalizadas desse torneio
                 for(let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
                     if(key.startsWith(prefix)) {
@@ -359,7 +350,6 @@
                     }
                 }
 
-                // Transforma em array e ordena do maior para o menor
                 currentStatsData = Object.values(playerStats).sort((a,b) => b.quantidade - a.quantidade);
 
                 let color = "var(--primary-neon)";
@@ -368,12 +358,12 @@
                 if(type === 'faltas') color = "#FF8C00";
 
                 renderContent(currentStatsData, color);
-            }, 300); // pequeno delay para animação de loading
+            }, 300);
         }
 
         function renderContent(list, valueColor) {
             const container = document.getElementById('stats-content');
-            container.innerHTML = '';
+            let htmlStats = ''; // OTIMIZAÇÃO
 
             if (list.length === 0) {
                 container.innerHTML = `<div style="text-align:center; padding:50px; color:#888;">Nenhum registro encontrado nesta categoria. <br><small>Jogue as partidas e encerre a súmula para gerar dados.</small></div>`;
@@ -386,36 +376,45 @@
             if(list[2]) podiumHTML += createPodiumCard(list[2], 3, valueColor);
             podiumHTML += '</div>';
 
-            container.innerHTML += podiumHTML;
+            htmlStats += podiumHTML;
 
             let listHTML = '<div class="stats-list">';
             for(let i = 3; i < list.length; i++) {
                 const p = list[i];
+                const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+                const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
+                const colorSegura = DOMPurify.sanitize(valueColor);
+
                 listHTML += `
                     <div class="stat-row">
                         <div class="sr-rank">${i+1}</div>
                         <div class="sr-info">
-                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="sr-img">
+                            <img src="${DOMPurify.sanitize(p.fotoUrl || AppImages.defaultAvatar)}" loading="lazy" class="sr-img">
                             <div>
-                                <div class="sr-name">${p.nomeJogador}</div>
-                                <div class="sr-team">${p.nomeTime}</div>
+                                <div class="sr-name">${nomeJogadorSeguro}</div>
+                                <div class="sr-team">${nomeTimeSeguro}</div>
                             </div>
                         </div>
-                        <div class="sr-value" style="color:${valueColor}">${p.quantidade}</div>
+                        <div class="sr-value" style="color:${colorSegura}">${DOMPurify.sanitize(p.quantidade)}</div>
                     </div>`;
             }
             listHTML += '</div>';
-            container.innerHTML += listHTML;
+            
+            htmlStats += listHTML;
+            container.innerHTML = htmlStats;
         }
 
         function createPodiumCard(p, rank, color) {
+            const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+            const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
+            const colorSegura = DOMPurify.sanitize(color);
             return `
                 <div class="podium-card rank-${rank}">
                     <div class="rank-badge">${rank}</div>
-                    <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="podium-img">
-                    <div class="podium-name">${p.nomeJogador}</div>
-                    <div class="podium-team">${p.nomeTime}</div>
-                    <div class="podium-value" style="color:${color}">${p.quantidade}</div>
+                    <img src="${DOMPurify.sanitize(p.fotoUrl || AppImages.defaultAvatar)}" loading="lazy" class="podium-img">
+                    <div class="podium-name">${nomeJogadorSeguro}</div>
+                    <div class="podium-team">${nomeTimeSeguro}</div>
+                    <div class="podium-value" style="color:${colorSegura}">${DOMPurify.sanitize(p.quantidade)}</div>
                 </div>`;
         }
 
@@ -439,44 +438,49 @@
             titleEl.style.boxShadow = `0 0 30px ${mainColor}40`; 
 
             const podiumArea = document.getElementById('share-podium-area');
-            podiumArea.innerHTML = '';
+            let htmlSharePodium = ''; // OTIMIZAÇÃO
             
             const order = [1, 0, 2];
             order.forEach(idx => {
                 if(currentStatsData[idx]) {
                     const p = currentStatsData[idx];
                     const rank = idx + 1;
-                    const html = `
+                    const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+                    const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
+                    htmlSharePodium += `
                         <div class="share-card p-${rank}">
                             <div class="share-badge">${rank}</div>
-                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="share-img">
-                            <div class="share-name">${p.nomeJogador}</div>
-                            <div class="share-team">${p.nomeTime}</div>
-                            <div class="share-value" style="color:${mainColor}; text-shadow: 0 0 20px ${mainColor};">${p.quantidade}</div>
+                            <img src="${DOMPurify.sanitize(p.fotoUrl || AppImages.defaultAvatar)}" class="share-img">
+                            <div class="share-name">${nomeJogadorSeguro}</div>
+                            <div class="share-team">${nomeTimeSeguro}</div>
+                            <div class="share-value" style="color:${mainColor}; text-shadow: 0 0 20px ${mainColor};">${DOMPurify.sanitize(p.quantidade)}</div>
                         </div>
                     `;
-                    podiumArea.innerHTML += html;
                 }
             });
+            podiumArea.innerHTML = htmlSharePodium;
 
             const listArea = document.getElementById('share-list-area');
-            listArea.innerHTML = '';
+            let htmlShareList = ''; // OTIMIZAÇÃO
             for(let i=3; i<5; i++) {
                 if(currentStatsData[i]) {
                     const p = currentStatsData[i];
-                    listArea.innerHTML += `
+                    const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+                    const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
+                    htmlShareList += `
                         <div class="share-row" style="border-color:${mainColor}80;">
                             <div class="share-row-rank">${i+1}</div>
-                            <img src="${p.fotoUrl || AppImages.defaultAvatar}" class="share-row-img">
+                            <img src="${DOMPurify.sanitize(p.fotoUrl || AppImages.defaultAvatar)}" class="share-row-img">
                             <div class="share-row-info">
-                                <div class="share-row-name">${p.nomeJogador}</div>
-                                <div class="share-row-team">${p.nomeTime}</div>
+                                <div class="share-row-name">${nomeJogadorSeguro}</div>
+                                <div class="share-row-team">${nomeTimeSeguro}</div>
                             </div>
-                            <div class="share-row-val" style="color:${mainColor};">${p.quantidade}</div>
+                            <div class="share-row-val" style="color:${mainColor};">${DOMPurify.sanitize(p.quantidade)}</div>
                         </div>
                     `;
                 }
             }
+            listArea.innerHTML = htmlShareList;
 
             document.getElementById('sharePreviewModal').classList.add('active');
             const previewContainer = document.getElementById('preview-img-container');

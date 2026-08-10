@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Galeria de Troféus | Fut-Súmula</title>
 
-    <!-- FONTES E CSS GERAL DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- BIBLIOTECA DE SEGURANÇA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
-    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
     <script>
         function getTokenGlobal() {
             return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
@@ -34,7 +31,6 @@
                 
                 if (!res.ok) throw new Error("Sessão inválida ou expirada.");
 
-                // Tela liberada!
                 document.documentElement.style.display = '';
 
             } catch (error) {
@@ -78,9 +74,7 @@
         })();
     </script>
 
-    <!-- ESTILOS VISUAIS EXCLUSIVOS DO TORNEIOS.HTML -->
     <style>
-        /* Barra de Busca e Filtros */
         .filters-area { display: flex; gap: 15px; justify-content: center; align-items: center; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
         .search-box-ph { flex: 2; position: relative; }
         .search-input-ph { width: 100%; padding: 12px 15px 12px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; transition: 0.3s; }
@@ -89,7 +83,6 @@
         .status-select-ph { flex: 1; padding: 12px 15px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: #fff; outline: none; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; font-weight: 700; }
         .status-select-ph option { background: #111; color: #fff; }
 
-        /* Cards de Torneio (Mesmo visual da Home/PlayHub) */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .tournament-card { background: linear-gradient(145deg, #111, #1a1a1a); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .tournament-card:hover { transform: translateY(-5px); border-color: var(--primary-neon); box-shadow: 0 10px 25px rgba(0, 234, 255, 0.2); }
@@ -104,7 +97,6 @@
         .t-status { font-weight: bold; }
         .champion-banner { background: linear-gradient(90deg, #FFD700, #FFA500); color: #000; font-weight: 900; text-align: center; padding: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-        /* Modal Full e Header do Torneio */
         .modal-box.modal-full { max-width: 950px; width: 95%; height: 90vh; padding: 0; background: rgba(15, 15, 15, 0.98); display: flex; flex-direction: column; overflow: hidden; }
         .modal-content-pad { padding: 20px; overflow-y: auto; flex: 1; }
         .close-btn-fixed { position: absolute; top: 15px; right: 15px; z-index: 200; cursor: pointer; color: #fff; background: rgba(0,0,0,0.5); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.3s; }
@@ -117,7 +109,6 @@
         .rules-popover { display: none; position: absolute; top: 60px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 1px solid var(--primary-neon); padding: 15px; border-radius: 10px; font-size: 0.8rem; text-align: left; z-index: 300; color: #ccc; }
         .rules-popover.active { display: block; }
         
-        /* Seção TV / Jogos e Tabela */
         .tv-section-title { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin: 25px 0 15px 0; color: var(--primary-neon); font-size: 1rem; text-transform: uppercase; font-weight: 700; }
         .tv-count-badge { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; color: #fff; }
         .tv-broadcast-container { display: flex; flex-direction: column; gap: 10px; }
@@ -129,7 +120,6 @@
         .tv-vs { font-weight: 900; font-size: 1.1rem; color: #888; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; min-width: 60px; text-align: center; }
         .tv-crest-wrapper { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
 
-        /* Tabela de Classificação */
         .responsive-table-wrapper { overflow-x: auto; background: rgba(0,0,0,0.4); border-radius: 10px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); margin-top: 10px; }
         .big-table { width: 100%; border-collapse: collapse; color: #fff; font-size: 0.85rem; }
         .big-table th { padding: 10px; color: #888; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; font-size: 0.75rem; text-align: center; }
@@ -142,7 +132,6 @@
         .val-warn { color: #FFD700; }
         .val-bad { color: #ff4444; }
 
-        /* Escudos SVG/Imagem Dinâmicos */
         .tiny-crest { width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
         .tiny-crest img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
         .tiny-custom-shape { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
@@ -219,12 +208,9 @@
 
     <script src="js/images.js"></script>
     <script>
-        // Carregador do Footbar
 		fetch('footbar.html').then(r => r.text()).then(d => {
             const container = document.getElementById('footbar-container');
             container.innerHTML = d;
-            
-            // Extrai e executa o script injetado de forma segura
             const scripts = container.querySelectorAll("script");
             scripts.forEach(s => {
                 const novoScript = document.createElement("script");
@@ -273,7 +259,7 @@
                 });
 
                 const totalEl = document.getElementById('total-tournaments');
-                if (totalEl) totalEl.innerText = `${processedTournaments.length} TORNEIOS`;
+                if (totalEl) totalEl.innerText = `${DOMPurify.sanitize(processedTournaments.length)} TORNEIOS`;
                 
                 filtrarTorneios();
             } catch(e) { console.error(e); }
@@ -361,57 +347,62 @@
 
         function renderGrid(list) {
             const grid = document.getElementById('tournaments-grid');
-            grid.innerHTML = '';
             if(list.length === 0) { grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-gray);">Nenhum torneio encontrado.</div>`; return; }
             
+            // OTIMIZAÇÃO: Concatenação antes de injetar
+            let htmlGrid = '';
+            
             list.forEach(t => {
-                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
-                const color = t.corTrofeu || '#FFD700';
+                const iconClass = DOMPurify.sanitize(trophyIcons[(t.modeloTrofeu || 1) - 1]);
+                const color = DOMPurify.sanitize(t.corTrofeu || '#FFD700');
+                const tNomeSeguro = DOMPurify.sanitize(t.nome);
+                const tTipoSeguro = DOMPurify.sanitize(t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO');
                 
                 let footerHTML = '';
                 let statusClass = '';
-                let statusText = `<span class="t-status" style="color:var(--success-color);">EM ANDAMENTO (${t.completedMatches}/${t.totalMatches})</span>`;
+                let statusText = `<span class="t-status" style="color:var(--success-color);">EM ANDAMENTO (${DOMPurify.sanitize(t.completedMatches)}/${DOMPurify.sanitize(t.totalMatches)})</span>`;
 
                 if(t.isFinished) {
                     statusClass = 'finished';
                     statusText = `<span class="t-status" style="color:#aaa;">FINALIZADO</span>`;
-                    footerHTML = `<div class="champion-banner"><i class="fas fa-crown"></i> CAMPEÃO: ${t.champion}</div>`;
+                    footerHTML = `<div class="champion-banner"><i class="fas fa-crown"></i> CAMPEÃO: ${DOMPurify.sanitize(t.champion)}</div>`;
                 }
 
-                grid.innerHTML += `
-                    <div class="tournament-card ${statusClass}" onclick="abrirMapa(${t.id})">
+                htmlGrid += `
+                    <div class="tournament-card ${statusClass}" onclick="abrirMapa(${DOMPurify.sanitize(t.id)})">
                         <div class="t-card-header" style="background-image: var(--img-stadium);">
                             <div class="t-card-overlay"></div>
-                            <div class="t-type-badge">${t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO'}</div>
+                            <div class="t-type-badge">${tTipoSeguro}</div>
                             <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
                         </div>
                         <div class="t-card-body">
-                            <div class="t-title">${t.nome}</div>
+                            <div class="t-title">${tNomeSeguro}</div>
                             <div class="t-info">
-                                <span><i class="fas fa-users"></i> ${t.quantidadeTimes} Times</span>
+                                <span><i class="fas fa-users"></i> ${DOMPurify.sanitize(t.quantidadeTimes)} Times</span>
                                 ${statusText}
                             </div>
                         </div>
                         ${footerHTML}
                     </div>`;
             });
+            
+            grid.innerHTML = htmlGrid;
         }
 
         function getTeamIconHTML(team) {
             if (!team) return '';
-            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${team.escudoUrl}"></div>`;
-            const icon = mascotsMap[team.customMascot] || 'fa-shield-alt';
-            const grad = `linear-gradient(135deg, ${team.corPrimaria || '#333'}, ${team.corSecundaria || '#000'})`;
-            const border = team.corTerciaria || '#fff';
-            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${team.customShape || 'shield'}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${border};"></i></div>`;
+            // OTIMIZAÇÃO: Lazy load aplicado
+            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${DOMPurify.sanitize(team.escudoUrl)}" loading="lazy"></div>`;
+            const icon = DOMPurify.sanitize(mascotsMap[team.customMascot] || 'fa-shield-alt');
+            const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(team.corPrimaria || '#333')}, ${DOMPurify.sanitize(team.corSecundaria || '#000')})`;
+            const border = DOMPurify.sanitize(team.corTerciaria || '#fff');
+            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${DOMPurify.sanitize(team.customShape || 'shield')}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${border};"></i></div>`;
         }
 
-        // ROTEADOR QUE ENVIA A FLAG "source=torneios"
         function abrirMapa(id) {
             currentTourneyId = id;
             const t = processedTournaments.find(x => x.id === id);
 
-            // Redireciona com o parâmetro indicando que veio da Galeria
             if (t.tipo === 'COPA') {
                 window.location.href = `copadomundo.html?id=${t.id}&source=torneios`;
                 return;
@@ -420,9 +411,10 @@
                 return;
             }
 
-            // SE FOR LIGA (Modo Visual apenas)
-            const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
-            const color = t.corTrofeu || '#FFD700';
+            const iconClass = DOMPurify.sanitize(trophyIcons[(t.modeloTrofeu || 1) - 1]);
+            const color = DOMPurify.sanitize(t.corTrofeu || '#FFD700');
+            const tNomeSeguro = DOMPurify.sanitize(t.nome);
+            const tTipoSeguro = DOMPurify.sanitize(t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO');
             let matches = getMatches(t);
 
             document.getElementById('modal-header-area').innerHTML = `
@@ -430,8 +422,8 @@
                     <div class="rules-trigger" onclick="toggleRules(this)"><i class="fas fa-question"></i></div>
                     <div class="rules-popover" id="rulesPopover"><strong>Regulamento:</strong> LIGA - Pontos Corridos</div>
                     <i class="fas ${iconClass} th-trophy-icon" style="color: ${color}; filter: drop-shadow(0 0 10px ${color});"></i>
-                    <h2 class="th-title">${t.nome}</h2>
-                    <div class="th-subtitle">${t.tipo ? t.tipo.replace('_', ' ') : 'TORNEIO'} • ${t.quantidadeTimes} TIMES</div>
+                    <h2 class="th-title">${tNomeSeguro}</h2>
+                    <div class="th-subtitle">${tTipoSeguro} • ${DOMPurify.sanitize(t.quantidadeTimes)} TIMES</div>
                 </div>`;
 
             renderTVView(t, matches);
@@ -442,36 +434,42 @@
 
         function renderTVView(tournament, matches) {
             const container = document.getElementById('tv-broadcast-area');
-            container.innerHTML = '';
+            // OTIMIZAÇÃO: HTML na memória
+            let htmlTV = '';
 
-            document.getElementById('tv-matches-title').innerHTML = `<span><i class="fas fa-tv"></i> CALENDÁRIO DE JOGOS</span> <span class="tv-count-badge">${matches.length} CONFRONTOS</span>`;
+            document.getElementById('tv-matches-title').innerHTML = `<span><i class="fas fa-tv"></i> CALENDÁRIO DE JOGOS</span> <span class="tv-count-badge">${DOMPurify.sanitize(matches.length)} CONFRONTOS</span>`;
             if(matches.length === 0) { container.innerHTML = '<p style="text-align:center; color:#888;">Sem confrontos gerados.</p>'; return; }
 
             matches.forEach((m, idx) => {
                 const icon1 = `<div class="tv-crest-wrapper">${getTeamIconHTML(m.t1)}</div>`;
                 const icon2 = `<div class="tv-crest-wrapper">${getTeamIconHTML(m.t2)}</div>`;
                 
+                const t1NomeSeguro = DOMPurify.sanitize(m.t1.nome);
+                const t2NomeSeguro = DOMPurify.sanitize(m.t2.nome);
+                const labelSeguro = DOMPurify.sanitize(m.label);
+
                 const resKey = `match_result_${tournament.id}_${m.id}`;
                 const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
 
                 if(result) {
-                    container.innerHTML += `
+                    htmlTV += `
                         <div class="tv-match-card" style="opacity: 0.8; cursor: default;">
                             <div class="tv-match-id" style="background:#555; color:#fff;">FIM</div>
-                            <div class="tv-team home"><span>${m.t1.nome}</span> ${icon1}</div>
-                            <div class="tv-vs" style="color:var(--primary-neon);">${result.scoreHome} - ${result.scoreAway}</div>
-                            <div class="tv-team away">${icon2} <span>${m.t2.nome}</span></div>
+                            <div class="tv-team home"><span>${t1NomeSeguro}</span> ${icon1}</div>
+                            <div class="tv-vs" style="color:var(--primary-neon);">${DOMPurify.sanitize(result.scoreHome)} - ${DOMPurify.sanitize(result.scoreAway)}</div>
+                            <div class="tv-team away">${icon2} <span>${t2NomeSeguro}</span></div>
                         </div>`;
                 } else {
-                    container.innerHTML += `
+                    htmlTV += `
                         <div class="tv-match-card" style="cursor: default;">
-                            <div class="tv-match-id">${m.label}</div>
-                            <div class="tv-team home"><span>${m.t1.nome}</span> ${icon1}</div>
+                            <div class="tv-match-id">${labelSeguro}</div>
+                            <div class="tv-team home"><span>${t1NomeSeguro}</span> ${icon1}</div>
                             <div class="tv-vs">VS</div>
-                            <div class="tv-team away">${icon2} <span>${m.t2.nome}</span></div>
+                            <div class="tv-team away">${icon2} <span>${t2NomeSeguro}</span></div>
                         </div>`;
                 }
             });
+            container.innerHTML = htmlTV;
         }
 
         function gerarTabelaPontosCorridos(tournament, matches) {
@@ -480,7 +478,9 @@
             sortedStats.forEach((t, i) => {
                 const icon = getTeamIconHTML(t);
                 let rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : ''));
-                rows += `<tr><td><span class="pos-rank ${rankClass}">${i+1}</span></td><td class="td-left" style="display:flex; align-items:center;">${icon} <span style="margin-left:5px;">${t.nome}</span></td><td class="val-pts" style="color:var(--primary-neon); font-weight:900;">${t.P}</td><td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td><td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td><td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td></tr>`;
+                const tNomeSeguro = DOMPurify.sanitize(t.nome);
+                
+                rows += `<tr><td><span class="pos-rank ${rankClass}">${i+1}</span></td><td class="td-left" style="display:flex; align-items:center;">${icon} <span style="margin-left:5px;">${tNomeSeguro}</span></td><td class="val-pts" style="color:var(--primary-neon); font-weight:900;">${t.P}</td><td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td><td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td><td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td></tr>`;
             });
             return `<div class="responsive-table-wrapper" style="overflow-x:auto;"><table class="big-table" style="width:100%; text-align:center; color:#fff;"><thead><tr><th style="text-align:center;">#</th><th style="text-align:left;">CLUBE</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th><i class="fas fa-square val-warn"></i></th><th><i class="fas fa-square val-bad"></i></th></tr></thead><tbody>${rows}</tbody></table></div>`;
         }

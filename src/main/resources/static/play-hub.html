@@ -272,43 +272,49 @@
             renderGrid(filtered);
         }
 
-        function renderGrid(list) {
-            const grid = document.getElementById('active-tournaments-grid');
-            grid.innerHTML = '';
-            if(list.length === 0) { grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-gray);">Nenhum torneio encontrado.</div>`; return; }
-            
-            list.forEach(t => {
-                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
-                const color = t.corTrofeu || '#FFD700';
-                
-                let footerHTML = '';
-                let statusClass = '';
-                let statusText = `<span class="t-status" style="color:var(--success-color);">EM ANDAMENTO (${t.completedMatches}/${t.totalMatches})</span>`;
+		function renderGrid(list) {
+		            const grid = document.getElementById('active-tournaments-grid');
+		            let htmlGrid = ''; // OTIMIZAÇÃO
+		            if(list.length === 0) { grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-gray);">Nenhum torneio encontrado.</div>`; return; }
+		            
+		            list.forEach(t => {
+		                const iconClass = trophyIcons[(t.modeloTrofeu || 1) - 1];
+		                const color = DOMPurify.sanitize(t.corTrofeu || '#FFD700');
+		                
+		                // BLINDAGEM XSS
+		                const nomeTorneioSeguro = DOMPurify.sanitize(t.nome);
+		                const tipoSeguro = DOMPurify.sanitize(t.tipo.replace('_', ' '));
+		                const campeaoSeguro = DOMPurify.sanitize(t.champion);
 
-                if(t.isFinished) {
-                    statusClass = 'finished';
-                    statusText = `<span class="t-status" style="color:#aaa;">FINALIZADO</span>`;
-                    footerHTML = `<div class="champion-banner"><i class="fas fa-crown"></i> CAMPEÃO: ${t.champion}</div>`;
-                }
+		                let footerHTML = '';
+		                let statusClass = '';
+		                let statusText = `<span class="t-status" style="color:var(--success-color);">EM ANDAMENTO (${t.completedMatches}/${t.totalMatches})</span>`;
 
-                grid.innerHTML += `
-                    <div class="tournament-card ${statusClass}" onclick="openPlayDashboard(${t.id})">
-                        <div class="t-card-header" style="background-image: var(--img-stadium);">
-                            <div class="t-card-overlay"></div>
-                            <div class="t-type-badge">${t.tipo.replace('_', ' ')}</div>
-                            <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
-                        </div>
-                        <div class="t-card-body">
-                            <div class="t-title">${t.nome}</div>
-                            <div class="t-info">
-                                <span><i class="fas fa-users"></i> ${t.quantidadeTimes} Times</span>
-                                ${statusText}
-                            </div>
-                        </div>
-                        ${footerHTML}
-                    </div>`;
-            });
-        }
+		                if(t.isFinished) {
+		                    statusClass = 'finished';
+		                    statusText = `<span class="t-status" style="color:#aaa;">FINALIZADO</span>`;
+		                    footerHTML = `<div class="champion-banner"><i class="fas fa-crown"></i> CAMPEÃO: ${campeaoSeguro}</div>`;
+		                }
+
+		                htmlGrid += `
+		                    <div class="tournament-card ${statusClass}" onclick="openPlayDashboard(${DOMPurify.sanitize(t.id)})">
+		                        <div class="t-card-header" style="background-image: var(--img-stadium);">
+		                            <div class="t-card-overlay"></div>
+		                            <div class="t-type-badge">${tipoSeguro}</div>
+		                            <i class="fas ${iconClass}" style="position: absolute; bottom: 10px; left: 15px; font-size: 2.5rem; color: ${color}; filter: drop-shadow(0 0 10px #000);"></i>
+		                        </div>
+		                        <div class="t-card-body">
+		                            <div class="t-title">${nomeTorneioSeguro}</div>
+		                            <div class="t-info">
+		                                <span><i class="fas fa-users"></i> ${DOMPurify.sanitize(t.quantidadeTimes)} Times</span>
+		                                ${statusText}
+		                            </div>
+		                        </div>
+		                        ${footerHTML}
+		                    </div>`;
+		            });
+		            grid.innerHTML = htmlGrid;
+		        }
 
         function getTeamIconHTML(team) {
             if (!team) return '';
@@ -411,31 +417,29 @@
                 container.innerHTML += `<div class="round-header">${roundLabel}</div>`;
                 
                 rounds[rNum].forEach(m => {
-                    const resKey = `match_result_${tourneyId}_${m.id}`;
-                    const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
-                    const icon1 = m.t1.id ? getTeamIconHTML(m.t1) : '<i class="fas fa-question-circle" style="color:#555;"></i>';
-                    const icon2 = m.t2.id ? getTeamIconHTML(m.t2) : '<i class="fas fa-question-circle" style="color:#555;"></i>';
-                    const clickAction = (m.t1.id && m.t2.id) ? `requestMatchStart(${tourneyId}, ${m.id})` : "alert('Aguardando definição dos times.')";
+					const nomeT1Seguro = DOMPurify.sanitize(m.t1.nome);
+					                    const nomeT2Seguro = DOMPurify.sanitize(m.t2.nome);
+					                    const labelSeguro = DOMPurify.sanitize(m.label);
 
-                    if (result) {
-                        const html = `
-                            <div class="play-match-card finished">
-                                <div class="play-match-info">JOGO ${m.id} • FINALIZADO</div>
-                                <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
-                                <div class="play-score" style="color:var(--success-color); border-color:var(--success-color);">${result.scoreHome} - ${result.scoreAway}</div>
-                                <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
-                            </div>`;
-                        container.innerHTML += html;
-                    } else {
-                        const html = `
-                            <div class="play-match-card" onclick="${clickAction}">
-                                <div class="play-match-info">JOGO ${m.id}</div>
-                                <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
-                                <div class="play-score">vs</div>
-                                <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
-                            </div>`;
-                        container.innerHTML += html;
-                    }
+					                    if (result) {
+					                        const html = `
+					                            <div class="play-match-card finished">
+					                                <div class="play-match-info">JOGO ${m.id} • FINALIZADO</div>
+					                                <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
+					                                <div class="play-score" style="color:var(--success-color); border-color:var(--success-color);">${DOMPurify.sanitize(result.scoreHome)} - ${DOMPurify.sanitize(result.scoreAway)}</div>
+					                                <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
+					                            </div>`;
+					                        container.insertAdjacentHTML('beforeend', html);
+					                    } else {
+					                        const html = `
+					                            <div class="play-match-card" onclick="${clickAction}">
+					                                <div class="play-match-info">JOGO ${m.id}</div>
+					                                <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
+					                                <div class="play-score">vs</div>
+					                                <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
+					                            </div>`;
+					                        container.insertAdjacentHTML('beforeend', html);
+					                    }
                 });
             });
         }
@@ -476,11 +480,13 @@
             const sortedStats = calculateStandings(tournament, matches);
 
             let rows = '';
-            sortedStats.forEach((t, i) => {
-                const icon = getTeamIconHTML(t);
-                let rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : ''));
-                rows += `<tr><td><span class="pos-rank ${rankClass}">${i+1}</span></td><td class="td-left" style="display:flex; align-items:center;">${icon} <span>${t.nome}</span></td><td class="val-pts">${t.P}</td><td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td><td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td><td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td></tr>`;
-            });
+			// Onde tem a montagem de `rows +=`
+			            sortedStats.forEach((t, i) => {
+			                const icon = getTeamIconHTML(t);
+			                let rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : ''));
+			                const nomeSeguro = DOMPurify.sanitize(t.nome); // BLINDAGEM XSS
+			                rows += `<tr><td><span class="pos-rank ${rankClass}">${i+1}</span></td><td class="td-left" style="display:flex; align-items:center;">${icon} <span>${nomeSeguro}</span></td><td class="val-pts">${t.P}</td><td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td><td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td><td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td></tr>`;
+			            });
             container.innerHTML = `<div class="responsive-table-wrapper"><table class="big-table"><thead><tr><th class="th-left">#</th><th class="th-left">CLUBE</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th><i class=\"fas fa-square val-warn\"></i></th><th><i class=\"fas fa-square val-bad\"></i></th></tr></thead><tbody>${rows}</tbody></table></div>`;
         }
     </script>

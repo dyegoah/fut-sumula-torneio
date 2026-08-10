@@ -166,14 +166,17 @@
             const res = await fetch('/api/torneios', {
                 headers: { 'Authorization': 'Bearer ' + window.getTokenGlobal() }
             });
-            if(res.ok) {
-                const torneios = await res.json();
-                const select = document.getElementById('share-tourney-select');
-                select.innerHTML = '<option value="">Selecione o Torneio...</option>';
-                torneios.forEach(t => {
-                    select.innerHTML += `<option value="${t.id}">${t.nome}</option>`;
-                });
-            }
+			if(res.ok) {
+			                const torneios = await res.json();
+			                const select = document.getElementById('share-tourney-select');
+			                select.innerHTML = '<option value="">Selecione o Torneio...</option>';
+			                torneios.forEach(t => {
+			                    // BLINDAGEM E OTIMIZAÇÃO (insertAdjacentHTML é mais performático)
+			                    const idSeguro = DOMPurify.sanitize(t.id);
+			                    const nomeSeguro = DOMPurify.sanitize(t.nome);
+			                    select.insertAdjacentHTML('beforeend', `<option value="${idSeguro}">${nomeSeguro}</option>`);
+			                });
+			            }
         } catch(e) { console.error("Erro ao carregar torneios para share"); }
     };
 

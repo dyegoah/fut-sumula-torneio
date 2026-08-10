@@ -211,16 +211,50 @@
             } catch (e) { console.error(e); }
         }
 
-        function renderizarGrid(lista) {
-            const grid = document.getElementById('players-grid');
-            grid.innerHTML = '';
-            
-            if (lista.length === 0) {
-                grid.innerHTML = `<p style="color:#fff; text-align:center; grid-column:1/-1;">Nenhum jogador encontrado.</p>`;
-                return;
-            }
-            lista.forEach(j => grid.innerHTML += criarCardHTML(j));
-        }
+		function renderizarGrid(lista) {
+		            const grid = document.getElementById('players-grid');
+		            let htmlGrid = ''; // OTIMIZAÇÃO: Reduz o consumo de CPU
+		            
+		            if (lista.length === 0) {
+		                grid.innerHTML = `<p style="color:#fff; text-align:center; grid-column:1/-1;">Nenhum jogador encontrado.</p>`;
+		                return;
+		            }
+		            lista.forEach(j => htmlGrid += criarCardHTML(j));
+		            grid.innerHTML = htmlGrid;
+		        }
+
+		        function criarCardHTML(j) {
+		            let borderColor = '#333';
+		            if(j.nivelTecnico >= 5) borderColor = 'var(--primary-neon)';
+		            const foto = DOMPurify.sanitize(j.fotoUrl || AppImages.defaultAvatar);
+		            const luvaIcon = DOMPurify.sanitize(j.posicao === 'GOLEIRO' ? `<i class="fas fa-mitten glove-icon"></i>` : '');
+		            
+		            // BLINDAGEM XSS
+		            const nomeSeguro = DOMPurify.sanitize(j.nome);
+		            const numeroSeguro = DOMPurify.sanitize(j.numeroCamisa);
+		            const posicaoSegura = DOMPurify.sanitize(j.posicao.substring(0,3));
+
+		            let estrelas = '';
+		            for(let i=0; i<j.nivelTecnico; i++) { estrelas += '<i class="fas fa-star"></i>'; }
+
+		            return `
+		                <div class="fut-card" style="border-color: ${borderColor};" onclick="abrirEdicao(${DOMPurify.sanitize(j.id)})">
+		                    <div class="card-header">
+		                        <span class="card-rating">${j.nivelTecnico * 10 + 40}</span>
+		                        <span class="card-position" style="font-size:0.7rem; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:3px;">${posicaoSegura}</span>
+		                    </div>
+		                    <div class="card-image-container">
+		                        <img src="${foto}" class="card-image">
+		                    </div>
+		                    <div class="card-info">
+		                        <div class="card-name">${nomeSeguro}</div>
+		                        <div class="card-stars" style="font-size:0.6rem; color:var(--primary-neon);">${estrelas}</div>
+		                        ${luvaIcon}
+		                        <div class="card-number-big">${numeroSeguro}</div>
+		                    </div>
+		                </div>
+		            `;
+		        }
 
         function filtrarJogadores() {
             const termo = document.getElementById('search-jogadores').value.toLowerCase();

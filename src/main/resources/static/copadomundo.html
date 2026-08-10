@@ -528,55 +528,57 @@
             renderMatchesList();
         }
 
-        function renderGroupTables(sortedGroups) {
-            const container = document.getElementById('groups-container');
-            container.innerHTML = '';
-            
-            Object.keys(sortedGroups).sort().forEach(gLetter => {
-                let rows = '';
-                sortedGroups[gLetter].forEach((t, i) => {
-                    const icon = getTeamIconHTML(t);
-                    const isAdvancing = (i < 2); 
-                    const rankClass = isAdvancing ? 'rank-adv' : '';
-                    const opacity = isAdvancing ? '1' : '0.6';
+		function renderGroupTables(sortedGroups) {
+		            const container = document.getElementById('groups-container');
+		            container.innerHTML = '';
+		            
+		            Object.keys(sortedGroups).sort().forEach(gLetter => {
+		                let rows = '';
+		                sortedGroups[gLetter].forEach((t, i) => {
+		                    const icon = getTeamIconHTML(t);
+		                    const isAdvancing = (i < 2); 
+		                    const rankClass = isAdvancing ? 'rank-adv' : '';
+		                    const opacity = isAdvancing ? '1' : '0.6';
+		                    const nomeSeguro = DOMPurify.sanitize(t.nome); // BLINDAGEM
 
-                    rows += `<tr style="opacity: ${opacity};">
-                        <td><span class="pos-rank ${rankClass}">${i+1}</span></td>
-                        <td class="td-left">${icon} <span>${t.nome}</span></td>
-                        <td><span class="val-pts">${t.P}</span></td>
-                        <td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td>
-                        <td>${t.GP}</td><td>${t.GC}</td><td><strong>${t.SG}</strong></td>
-                        <td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td>
-                    </tr>`;
-                });
+		                    rows += `<tr style="opacity: ${opacity};">
+		                        <td><span class="pos-rank ${rankClass}">${i+1}</span></td>
+		                        <td class="td-left">${icon} <span>${nomeSeguro}</span></td>
+		                        <td><span class="val-pts">${t.P}</span></td>
+		                        <td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td>
+		                        <td>${t.GP}</td><td>${t.GC}</td><td><strong>${t.SG}</strong></td>
+		                        <td class="val-warn">${t.YC}</td><td class="val-bad">${t.RC}</td>
+		                    </tr>`;
+		                });
 
-                container.innerHTML += `
-                    <div class="group-wrapper">
-                        <div class="group-header-label">GRUPO ${gLetter}</div>
-                        <div class="responsive-table-wrapper">
-                            <table class="big-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 40px; text-align: center;">#</th>
-                                        <th style="text-align: left; min-width: 120px;">CLUBE</th>
-                                        <th title="Pontos">PTS</th>
-                                        <th title="Jogos">J</th>
-                                        <th title="Vitórias">V</th>
-                                        <th title="Empates">E</th>
-                                        <th title="Derrotas">D</th>
-                                        <th title="Gols Pró">GP</th>
-                                        <th title="Gols Contra">GC</th>
-                                        <th title="Saldo de Gols">SG</th>
-                                        <th title="Cartão Amarelo"><i class="fas fa-square val-warn"></i></th>
-                                        <th title="Cartão Vermelho"><i class="fas fa-square val-bad"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>${rows}</tbody>
-                            </table>
-                        </div>
-                    </div>`;
-            });
-        }
+		                // PERFORMANCE: Usando insertAdjacentHTML
+		                container.insertAdjacentHTML('beforeend', `
+		                    <div class="group-wrapper">
+		                        <div class="group-header-label">GRUPO ${DOMPurify.sanitize(gLetter)}</div>
+		                        <div class="responsive-table-wrapper">
+		                            <table class="big-table">
+		                                <thead>
+		                                    <tr>
+		                                        <th style="width: 40px; text-align: center;">#</th>
+		                                        <th style="text-align: left; min-width: 120px;">CLUBE</th>
+		                                        <th title="Pontos">PTS</th>
+		                                        <th title="Jogos">J</th>
+		                                        <th title="Vitórias">V</th>
+		                                        <th title="Empates">E</th>
+		                                        <th title="Derrotas">D</th>
+		                                        <th title="Gols Pró">GP</th>
+		                                        <th title="Gols Contra">GC</th>
+		                                        <th title="Saldo de Gols">SG</th>
+		                                        <th title="Cartão Amarelo"><i class="fas fa-square val-warn"></i></th>
+		                                        <th title="Cartão Vermelho"><i class="fas fa-square val-bad"></i></th>
+		                                    </tr>
+		                                </thead>
+		                                <tbody>${rows}</tbody>
+		                            </table>
+		                        </div>
+		                    </div>`);
+		            });
+		        }
 
         function renderBracket(knockoutMatches) {
             const container = document.getElementById('bracket-container');
@@ -643,30 +645,34 @@
             container.innerHTML = `<div class="symmetrical-bracket-container">${leftHTML}${centerHTML}${rightHTML}</div>`;
         }
 
-        function createBracketCard(m) {
-            const resKey = `match_result_${tournamentData.id}_${m.id}`;
-            const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
+		function createBracketCard(m) {
+		            const resKey = `match_result_${tournamentData.id}_${m.id}`;
+		            const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
 
-            let s1Class = '', s2Class = '';
-            let score1 = '', score2 = '';
-            if(result) {
-                score1 = `<span class="slot-score">${result.scoreHome}</span>`;
-                score2 = `<span class="slot-score">${result.scoreAway}</span>`;
-                if(result.scoreHome > result.scoreAway) s1Class = 'winner';
-                else if(result.scoreAway > result.scoreHome) s2Class = 'winner';
-                else s1Class = 'winner'; 
-            }
+		            let s1Class = '', s2Class = '';
+		            let score1 = '', score2 = '';
+		            if(result) {
+		                score1 = `<span class="slot-score">${DOMPurify.sanitize(result.scoreHome)}</span>`;
+		                score2 = `<span class="slot-score">${DOMPurify.sanitize(result.scoreAway)}</span>`;
+		                if(result.scoreHome > result.scoreAway) s1Class = 'winner';
+		                else if(result.scoreAway > result.scoreHome) s2Class = 'winner';
+		                else s1Class = 'winner'; 
+		            }
 
-            const slot1HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t1)} <span>${m.t1.nome || '?'}</span></div> ${score1}`;
-            const slot2HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t2)} <span>${m.t2.nome || '?'}</span></div> ${score2}`;
+		            // BLINDAGEM DE NOMES NO MATA-MATA
+		            const nomeT1Seguro = DOMPurify.sanitize(m.t1.nome || '?');
+		            const nomeT2Seguro = DOMPurify.sanitize(m.t2.nome || '?');
 
-            return `
-                <div class="match-card-bracket">
-                    <div style="font-size:0.6rem; color:${tColor}; text-align:center; font-weight:bold; margin-bottom:5px;">JOGO ${m.id}</div>
-                    <div class="match-slot ${s1Class}">${slot1HTML}</div>
-                    <div class="match-slot ${s2Class}">${slot2HTML}</div>
-                </div>`;
-        }
+		            const slot1HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t1)} <span>${nomeT1Seguro}</span></div> ${score1}`;
+		            const slot2HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t2)} <span>${nomeT2Seguro}</span></div> ${score2}`;
+
+		            return `
+		                <div class="match-card-bracket">
+		                    <div style="font-size:0.6rem; color:${tColor}; text-align:center; font-weight:bold; margin-bottom:5px;">JOGO ${m.id}</div>
+		                    <div class="match-slot ${s1Class}">${slot1HTML}</div>
+		                    <div class="match-slot ${s2Class}">${slot2HTML}</div>
+		                </div>`;
+		        }
 
         function renderMatchesList() {
             const container = document.getElementById('matches-list');

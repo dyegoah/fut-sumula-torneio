@@ -441,61 +441,67 @@
             const endIndex = startIndex + itemsPerPage;
             const paginatedData = data.slice(startIndex, endIndex);
 
-            paginatedData.forEach(u => {
-                const cidade = u.cidade ? `${u.cidade}/${u.uf || ''}` : '--';
-                const origemBadge = (u.sistemaOrigem === 'RACHA') 
-                    ? '<span class="origin-tag og-racha">RACHA</span>' 
-                    : '<span class="origin-tag og-torneio">TORNEIO</span>';
-                
-               const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : (u.status === 'PENDENTE' ? 'st-pendente' : 'st-inativo');
-                const dataCadastroFormatada = formatarDataHoraBR(u.dataCadastro);
+			paginatedData.forEach(u => {
+			                // --- BLINDAGEM DOMPURIFY ---
+			                const nomeSeguro = DOMPurify.sanitize(u.nome || 'Sem Nome');
+			                const ligaSegura = DOMPurify.sanitize(u.nomeLiga || '');
+			                const loginSeguro = DOMPurify.sanitize(u.login || '');
+			                const cidadeSegura = u.cidade ? DOMPurify.sanitize(`${u.cidade}/${u.uf || ''}`) : '--';
 
-                let planoHTML = '';
-                if(u.plano === 'CORTESIA') {
-                    planoHTML = `<span style="background:rgba(255, 215, 0, 0.15); color:#FFD700; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #FFD700;"><i class="fas fa-crown"></i> VIP: ${u.notaCortesia || ''}</span>`;
-                } else if(u.plano === 'PREMIUM') {
-                    planoHTML = `<span style="background:rgba(0, 255, 136, 0.15); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #00ff88;"><i class="fas fa-star"></i> PREMIUM (PAGO)</span>`;
-                } else {
-                    let diasUso = 0;
-                    if (u.dataCadastro) {
-                        const dataCadastro = new Date(u.dataCadastro);
-                        dataCadastro.setHours(0,0,0,0);
-                        const hoje = new Date();
-                        hoje.setHours(0,0,0,0);
-                        const diffTime = hoje.getTime() - dataCadastro.getTime();
-                        diasUso = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
-                    }
-                    
-                    const userTrial = (u.trialDays !== undefined && u.trialDays !== null) ? parseInt(u.trialDays) : globalTrial;
-                    const diasRestantes = userTrial - diasUso;
+			                const origemBadge = (u.sistemaOrigem === 'RACHA') 
+			                    ? '<span class="origin-tag og-racha">RACHA</span>' 
+			                    : '<span class="origin-tag og-torneio">TORNEIO</span>';
+			                
+			               const statusClass = (u.status === 'ATIVO') ? 'st-ativo' : (u.status === 'PENDENTE' ? 'st-pendente' : 'st-inativo');
+			                const dataCadastroFormatada = formatarDataHoraBR(u.dataCadastro);
 
-                    if (diasRestantes >= 0) {
-                        planoHTML = `<span style="background:rgba(0, 255, 136, 0.1); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #00ff88;">TESTE (${diasRestantes} DIAS)</span>`;
-                    } else {
-                        planoHTML = `<span style="background:rgba(255, 68, 68, 0.1); color:#ff4444; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #ff4444;">EXPIRADO</span>`;
-                    }
-                }
+			                let planoHTML = '';
+			                if(u.plano === 'CORTESIA') {
+			                    planoHTML = `<span style="background:rgba(255, 215, 0, 0.15); color:#FFD700; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #FFD700;"><i class="fas fa-crown"></i> VIP: ${DOMPurify.sanitize(u.notaCortesia || '')}</span>`;
+			                } else if(u.plano === 'PREMIUM') {
+			                    planoHTML = `<span style="background:rgba(0, 255, 136, 0.15); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:900; border:1px solid #00ff88;"><i class="fas fa-star"></i> PREMIUM (PAGO)</span>`;
+			                } else {
+			                    let diasUso = 0;
+			                    if (u.dataCadastro) {
+			                        const dataCadastro = new Date(u.dataCadastro);
+			                        dataCadastro.setHours(0,0,0,0);
+			                        const hoje = new Date();
+			                        hoje.setHours(0,0,0,0);
+			                        const diffTime = hoje.getTime() - dataCadastro.getTime();
+			                        diasUso = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24))); 
+			                    }
+			                    
+			                    const userTrial = (u.trialDays !== undefined && u.trialDays !== null) ? parseInt(u.trialDays) : globalTrial;
+			                    const diasRestantes = userTrial - diasUso;
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>#${u.id}</td>
-                    <td><div style="font-weight:bold;">${u.nome || 'Sem Nome'}</div><div style="font-size:0.75rem; color:#888;">${u.nomeLiga || ''}</div></td>
-                    <td>${u.login}</td>
-                    <td>${cidade} <br> <small style="color:#aaa;"><i class="fas fa-calendar-alt"></i> ${dataCadastroFormatada}</small> <br> ${origemBadge}</td>
-                    <td><span class="status-badge ${statusClass}">${u.status || 'INATIVO'}</span></td>
-                    <td>${planoHTML}</td>
-                    <td>
-                        <button class="action-btn" title="Ativar/Desativar Conta (Banir)" onclick="toggleStatus(${u.id})"><i class="fas fa-power-off"></i></button>
-                        <button class="action-btn" title="Marcar como Pago (Premium)" onclick="togglePremium(${u.id})"><i class="fas fa-star" style="color:#00ff88;"></i></button>
-                        <button class="action-btn" title="Cortesia VIP" onclick="abrirCortesia(${u.id}, '${u.notaCortesia || ''}')"><i class="fas fa-crown" style="color:#FFD700;"></i></button>
-                        <button class="action-btn" title="Editar Ficha" onclick="abrirEdicao(${u.id})"><i class="fas fa-eye"></i></button>
-                        <button class="action-btn delete" title="Apagar Conta Permanentemente" onclick="deletarUsuario(${u.id})"><i class="fas fa-trash-alt" style="color:#ff4444;"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+			                    if (diasRestantes >= 0) {
+			                        planoHTML = `<span style="background:rgba(0, 255, 136, 0.1); color:#00ff88; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #00ff88;">TESTE (${diasRestantes} DIAS)</span>`;
+			                    } else {
+			                        planoHTML = `<span style="background:rgba(255, 68, 68, 0.1); color:#ff4444; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; border:1px solid #ff4444;">EXPIRADO</span>`;
+			                    }
+			                }
+
+			                const tr = document.createElement('tr');
+			                tr.innerHTML = `
+			                    <td>#${DOMPurify.sanitize(u.id)}</td>
+			                    <td><div style="font-weight:bold;">${nomeSeguro}</div><div style="font-size:0.75rem; color:#888;">${ligaSegura}</div></td>
+			                    <td>${loginSeguro}</td>
+			                    <td>${cidadeSegura} <br> <small style="color:#aaa;"><i class="fas fa-calendar-alt"></i> ${dataCadastroFormatada}</small> <br> ${origemBadge}</td>
+			                    <td><span class="status-badge ${statusClass}">${u.status || 'INATIVO'}</span></td>
+			                    <td>${planoHTML}</td>
+			                    <td>
+			                        <button class="action-btn" title="Ativar/Desativar Conta (Banir)" onclick="toggleStatus(${DOMPurify.sanitize(u.id)})"><i class="fas fa-power-off"></i></button>
+			                        <button class="action-btn" title="Marcar como Pago (Premium)" onclick="togglePremium(${DOMPurify.sanitize(u.id)})"><i class="fas fa-star" style="color:#00ff88;"></i></button>
+			                        <button class="action-btn" title="Cortesia VIP" onclick="abrirCortesia(${DOMPurify.sanitize(u.id)}, '${DOMPurify.sanitize(u.notaCortesia || '')}')"><i class="fas fa-crown" style="color:#FFD700;"></i></button>
+			                        <button class="action-btn" title="Editar Ficha" onclick="abrirEdicao(${DOMPurify.sanitize(u.id)})"><i class="fas fa-eye"></i></button>
+			                        <button class="action-btn delete" title="Apagar Conta Permanentemente" onclick="deletarUsuario(${DOMPurify.sanitize(u.id)})"><i class="fas fa-trash-alt" style="color:#ff4444;"></i></button>
+			                    </td>
+			                `;
+			                tbody.appendChild(tr);
+			            });
+            };
             renderPagination(data.length);
-        }
+        
 
         function renderPagination(totalItems) {
             const container = document.getElementById('pagination-controls');

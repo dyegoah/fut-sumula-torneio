@@ -405,19 +405,22 @@
                     return a.nome.localeCompare(b.nome);
                 });
                 
-                jogadores.forEach(jog => {
-                    const foto = jog.fotoUrl || AppImages.defaultAvatar;
-                    const timeAtual = jog.time ? `(Atual: ${jog.time.nome})` : '(Sem Time)';
-                    const item = document.createElement('div');
-                    item.className = 'select-player-item';
-                    item.innerHTML = `<img src="${foto}"> <div><strong>${jog.nome}</strong> <small>${timeAtual}</small></div>`;
-                    item.onclick = () => {
-                        item.classList.toggle('selected');
-                        if(item.classList.contains('selected')) selectedPlayersIds.push(jog.id);
-                        else selectedPlayersIds = selectedPlayersIds.filter(id => id !== jog.id);
-                    };
-                    listContainer.appendChild(item);
-                });
+				jogadores.forEach(jog => {
+				                    // --- BLINDAGEM DOMPURIFY ---
+				                    const fotoSegura = DOMPurify.sanitize(jog.fotoUrl || AppImages.defaultAvatar);
+				                    const nomeSeguro = DOMPurify.sanitize(jog.nome);
+				                    const timeAtualSeguro = DOMPurify.sanitize(jog.time ? `(Atual: ${jog.time.nome})` : '(Sem Time)');
+				                    
+				                    const item = document.createElement('div');
+				                    item.className = 'select-player-item';
+				                    item.innerHTML = `<img src="${fotoSegura}"> <div><strong>${nomeSeguro}</strong> <small>${timeAtualSeguro}</small></div>`;
+				                    item.onclick = () => {
+				                        item.classList.toggle('selected');
+				                        if(item.classList.contains('selected')) selectedPlayersIds.push(jog.id);
+				                        else selectedPlayersIds = selectedPlayersIds.filter(id => id !== jog.id);
+				                    };
+				                    listContainer.appendChild(item);
+				                });
             } catch(e) { listContainer.innerHTML = '<p>Erro ao carregar jogadores.</p>'; }
         }
 

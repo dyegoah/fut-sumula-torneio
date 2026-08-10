@@ -616,21 +616,41 @@
             else if (tipo === 'MATA_MATA') renderMataMataStructure(container, qtd, totalSlots);
         }
 
-        function createInteractiveSlotHTML(index) {
-            const team = selectedSlots[index];
-            if(team && team.id === -1) return `<div class="interactive-slot" style="opacity:0.5; border-style:dotted; justify-content:center;"><span class="empty-slot-content">BYE (Passa)</span></div>`;
+		function createInteractiveSlotHTML(index) {
+		            const team = selectedSlots[index];
+		            if(team && team.id === -1) return `<div class="interactive-slot" style="opacity:0.5; border-style:dotted; justify-content:center;"><span class="empty-slot-content">BYE (Passa)</span></div>`;
 
-            if(team) {
-                const iconHTML = getTeamIconHTML(team);
-                return `
-                    <div class="interactive-slot filled" onclick="openTeamSelector(${index})">
-                        <div class="filled-slot-content">${iconHTML}<span>${team.nome}</span></div>
-                        <div class="slot-remove-btn" onclick="removeTeam(${index}, event)"><i class="fas fa-times"></i></div>
-                    </div>`;
-            } else {
-                return `<div class="interactive-slot" onclick="openTeamSelector(${index})"><div class="empty-slot-content"><i class="fas fa-plus-circle"></i> SELECIONAR</div></div>`;
-            }
-        }
+		            if(team) {
+		                const iconHTML = getTeamIconHTML(team);
+		                const nomeSeguro = DOMPurify.sanitize(team.nome); // BLINDAGEM
+		                return `
+		                    <div class="interactive-slot filled" onclick="openTeamSelector(${index})">
+		                        <div class="filled-slot-content">${iconHTML}<span>${nomeSeguro}</span></div>
+		                        <div class="slot-remove-btn" onclick="removeTeam(${index}, event)"><i class="fas fa-times"></i></div>
+		                    </div>`;
+		            } else {
+		                return `<div class="interactive-slot" onclick="openTeamSelector(${index})"><div class="empty-slot-content"><i class="fas fa-plus-circle"></i> SELECIONAR</div></div>`;
+		            }
+		        }
+
+		        window.openTeamSelector = function(index) {
+		            currentSlotIndex = index;
+		            const list = document.getElementById('modal-teams-list');
+		            list.innerHTML = '';
+		            const usedIds = selectedSlots.filter(t => t && t.id !== -1).map(t => t.id);
+		            const available = allTeams.filter(t => !usedIds.includes(t.id) || (selectedSlots[index] && t.id === selectedSlots[index].id));
+		            if(available.length === 0) list.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">Sem times disponíveis.</p>';
+		            available.forEach(t => {
+		                const iconHTML = getTeamIconHTML(t);
+		                const item = document.createElement('div');
+		                item.className = 'select-team-item';
+		                const nomeSeguro = DOMPurify.sanitize(t.nome); // BLINDAGEM
+		                item.innerHTML = `${iconHTML} <div><strong>${nomeSeguro}</strong><small>Disponível</small></div>`;
+		                item.onclick = () => selectTeam(t);
+		                list.appendChild(item);
+		            });
+		            document.getElementById('teamSelectModal').classList.add('active');
+		        }
 
         function renderLigaTable(container, qtd) {
             let rows = '';

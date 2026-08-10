@@ -237,15 +237,15 @@
 
         function getTeamIconHTML(team) {
             if (!team) return '';
-            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${team.escudoUrl}"></div>`;
-            const icon = mascotsMap[team.customMascot] || 'fa-shield-alt';
-            const grad = `linear-gradient(135deg, ${team.corPrimaria || '#333'}, ${team.corSecundaria || '#000'})`;
-            const border = team.corTerciaria || '#fff';
-            const color = (team.corTerciaria === '#ffffff') ? '#fff' : team.corTerciaria;
-            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${team.customShape || 'shield'}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${color};"></i></div>`;
+            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${DOMPurify.sanitize(team.escudoUrl)}"></div>`;
+            const icon = DOMPurify.sanitize(mascotsMap[team.customMascot] || 'fa-shield-alt');
+            const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(team.corPrimaria || '#333')}, ${DOMPurify.sanitize(team.corSecundaria || '#000')})`;
+            const border = DOMPurify.sanitize(team.corTerciaria || '#fff');
+            const color = (team.corTerciaria === '#ffffff') ? '#fff' : border;
+            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${DOMPurify.sanitize(team.customShape || 'shield')}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${color};"></i></div>`;
         }
 
-        // MOTOR GERADOR DE PARTIDAS (IDÊNTICO AO PLAY-HUB)
+        // MOTOR GERADOR DE PARTIDAS
         function getOrGenerateMatches(t) {
             const storageKey = `tourney_matches_${t.id}`;
             const stored = localStorage.getItem(storageKey);
@@ -279,11 +279,10 @@
                     });
                 }
             });
-            // O público não salva no LocalStorage para não sujar a memória, ele só lê.
             return matches;
         }
 
-        // MOTOR DE TABELA (IDÊNTICO AO PLAY-HUB)
+        // MOTOR DE TABELA
         function calculateStandings(tournament, matches) {
             let stats = {};
             tournament.times.forEach(t => { stats[t.id] = { ...t, P:0, J:0, V:0, E:0, D:0, GP:0, GC:0, SG:0, YC:0, RC:0 }; });
@@ -342,7 +341,6 @@
             loadSubStats('gols');
         }
 
-        // RENDERIZAR TABELA EXATAMENTE COMO PLAY-HUB
         function renderStandingsTable(tournament, matches) {
             const tbody = document.getElementById('p-table-body');
             const sortedStats = calculateStandings(tournament, matches);
@@ -351,10 +349,12 @@
             sortedStats.forEach((t, i) => {
                 const icon = getTeamIconHTML(t);
                 let rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : ''));
+                const nomeSeguro = DOMPurify.sanitize(t.nome);
+
                 rows += `
                 <tr>
                     <td><span class="pos-rank ${rankClass}">${i+1}</span></td>
-                    <td class="td-left" style="display:flex; align-items:center;">${icon} <span>${t.nome}</span></td>
+                    <td class="td-left" style="display:flex; align-items:center;">${icon} <span>${nomeSeguro}</span></td>
                     <td class="val-pts">${t.P}</td>
                     <td>${t.J}</td><td>${t.V}</td><td>${t.E}</td><td>${t.D}</td>
                     <td>${t.GP}</td><td>${t.GC}</td><td>${t.SG}</td>
@@ -364,10 +364,9 @@
             tbody.innerHTML = rows;
         }
 
-        // RENDERIZAR PARTIDAS POR RODADA COMO PLAY-HUB
         function renderMatchesList(tourneyId, matches) {
             const container = document.getElementById('p-matches-list');
-            container.innerHTML = '';
+            let htmlList = '';
             const rounds = {};
             matches.forEach(m => { if(!rounds[m.round]) rounds[m.round] = []; rounds[m.round].push(m); });
 
@@ -378,7 +377,8 @@
 
             Object.keys(rounds).sort((a,b) => a-b).forEach(rNum => {
                 const roundLabel = matches.find(m => m.round == rNum).label || `RODADA ${rNum}`;
-                container.innerHTML += `<div class="round-header">${roundLabel}</div>`;
+                const roundLabelSeguro = DOMPurify.sanitize(roundLabel);
+                htmlList += `<div class="round-header">${roundLabelSeguro}</div>`;
                 
                 rounds[rNum].forEach(m => {
                     const resKey = `match_result_${tourneyId}_${m.id}`;
@@ -386,38 +386,40 @@
                     const icon1 = m.t1.id ? getTeamIconHTML(m.t1) : '<i class="fas fa-question-circle" style="color:#555;"></i>';
                     const icon2 = m.t2.id ? getTeamIconHTML(m.t2) : '<i class="fas fa-question-circle" style="color:#555;"></i>';
 
+                    const nomeT1Seguro = DOMPurify.sanitize(m.t1.nome || '?');
+                    const nomeT2Seguro = DOMPurify.sanitize(m.t2.nome || '?');
+
                     if (result) {
                         const encodedSummary = encodeURIComponent(result.summaryHTML);
-                        const html = `
+                        htmlList += `
                             <div class="play-match-card finished" onclick="openSheetModal('${encodedSummary}')">
                                 <div class="play-match-info">FINALIZADO</div>
-                                <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
-                                <div class="play-score" style="color:var(--success-color); border-color:var(--success-color);">${result.scoreHome} - ${result.scoreAway}</div>
-                                <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
+                                <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
+                                <div class="play-score" style="color:var(--success-color); border-color:var(--success-color);">${DOMPurify.sanitize(result.scoreHome)} - ${DOMPurify.sanitize(result.scoreAway)}</div>
+                                <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
                                 <div class="pm-btn-view" title="Ver Súmula Oficial"><i class="fas fa-file-pdf"></i></div>
                             </div>`;
-                        container.innerHTML += html;
                     } else {
-                        const html = `
+                        htmlList += `
                             <div class="play-match-card" style="cursor:default;">
                                 <div class="play-match-info" style="background:#555; color:#fff;">A JOGAR</div>
-                                <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
+                                <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
                                 <div class="play-score">vs</div>
-                                <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
+                                <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
                             </div>`;
-                        container.innerHTML += html;
                     }
                 });
             });
+            container.innerHTML = htmlList;
         }
 
+        // A CORREÇÃO MAIS IMPORTANTE DE SEGURANÇA! (Stored XSS Prevention)
         function openSheetModal(encodedHTML) {
             document.getElementById('sheetModal').classList.add('active');
             const decodedHTML = decodeURIComponent(encodedHTML);
-            document.getElementById('sheet-content-area').innerHTML = decodedHTML;
+            document.getElementById('sheet-content-area').innerHTML = DOMPurify.sanitize(decodedHTML);
         }
 
-        // MOTOR DE ESTATÍSTICAS E PÓDIO (IDÊNTICO AO STATS.HTML)
         function loadSubStats(type, btnElement) {
             if(btnElement) {
                 document.querySelectorAll('.stat-tab-sub').forEach(t => t.classList.remove('active'));
@@ -469,7 +471,7 @@
 
         function renderStatsContent(list, valueColor) {
             const container = document.getElementById('p-stats-content');
-            container.innerHTML = '';
+            let htmlStats = '';
 
             if (list.length === 0) {
                 container.innerHTML = `<div style="text-align:center; padding:50px; color:#888;">Nenhum registro encontrado para esta categoria.</div>`;
@@ -482,36 +484,42 @@
             if(list[2]) podiumHTML += createPodiumCard(list[2], 3, valueColor);
             podiumHTML += '</div>';
 
-            container.innerHTML += podiumHTML;
+            htmlStats += podiumHTML;
 
             let listHTML = '<div class="stats-list">';
             for(let i = 3; i < list.length; i++) {
                 const p = list[i];
+                const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+                const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
+                
                 listHTML += `
                     <div class="stat-row">
                         <div class="sr-rank">${i+1}</div>
                         <div class="sr-info">
-                            <img src="${p.fotoUrl || defaultAvatar}" class="sr-img">
+                            <img src="${DOMPurify.sanitize(p.fotoUrl || defaultAvatar)}" class="sr-img">
                             <div>
-                                <div class="sr-name">${p.nomeJogador}</div>
-                                <div class="sr-team">${p.nomeTime}</div>
+                                <div class="sr-name">${nomeJogadorSeguro}</div>
+                                <div class="sr-team">${nomeTimeSeguro}</div>
                             </div>
                         </div>
-                        <div class="sr-value" style="color:${valueColor}">${p.quantidade}</div>
+                        <div class="sr-value" style="color:${DOMPurify.sanitize(valueColor)}">${DOMPurify.sanitize(p.quantidade)}</div>
                     </div>`;
             }
             listHTML += '</div>';
-            container.innerHTML += listHTML;
+            
+            container.innerHTML = htmlStats;
         }
 
         function createPodiumCard(p, rank, color) {
+            const nomeJogadorSeguro = DOMPurify.sanitize(p.nomeJogador);
+            const nomeTimeSeguro = DOMPurify.sanitize(p.nomeTime);
             return `
                 <div class="podium-card rank-${rank}">
                     <div class="rank-badge">${rank}</div>
-                    <img src="${p.fotoUrl || defaultAvatar}" class="podium-img">
-                    <div class="podium-name">${p.nomeJogador}</div>
-                    <div class="podium-team">${p.nomeTime}</div>
-                    <div class="podium-value" style="color:${color}">${p.quantidade}</div>
+                    <img src="${DOMPurify.sanitize(p.fotoUrl || defaultAvatar)}" class="podium-img">
+                    <div class="podium-name">${nomeJogadorSeguro}</div>
+                    <div class="podium-team">${nomeTimeSeguro}</div>
+                    <div class="podium-value" style="color:${DOMPurify.sanitize(color)}">${DOMPurify.sanitize(p.quantidade)}</div>
                 </div>`;
         }
     </script>

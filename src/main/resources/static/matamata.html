@@ -1,32 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
-	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
 	        try {
 	            const res = await fetch('/api/auth/me', { 
 	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
+	                credentials: 'include' 
 	            });
 	            
 	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
 	                throw new Error("Sessão inválida ou expirada.");
 	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
 	        } catch (error) {
 	            console.warn(error.message);
-	            // Expulsa para a tela de login
 	            window.location.replace('login.html'); 
 	        }
 	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
 	    validarAcesso();
 	</script>
     <script>
@@ -98,7 +89,6 @@
         .tv-broadcast-container { max-height: 700px; overflow-y: auto; padding-right: 5px; padding-top: 15px; }
         .play-match-card { background: linear-gradient(90deg, #111, #1a1a1a); border-left: 4px solid var(--selected-color, #ff4444); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; position: relative; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.05); }
         
-        /* HOVER APENAS SE FOR CLICÁVEL */
         .play-match-card.clickable:hover { transform: translateX(5px); background: rgba(255,255,255,0.05); border-color: var(--selected-color, #ff4444); }
         
         .play-match-card.locked { opacity: 0.5; filter: grayscale(0.8); cursor: not-allowed; }
@@ -273,11 +263,11 @@
 
         function getTeamIconHTML(team) {
             if (!team || team.id === null || team.id === -1 || !team.nome || team.nome === 'BYE') return '<i class="fas fa-shield-alt" style="color:#555;"></i>';
-            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${team.escudoUrl}"></div>`;
-            const icon = mascotsMap[team.customMascot] || 'fa-shield-alt';
-            const grad = `linear-gradient(135deg, ${team.corPrimaria || '#333'}, ${team.corSecundaria || '#000'})`;
-            const border = team.corTerciaria || '#fff';
-            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${team.customShape || 'shield'}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${border};"></i></div>`;
+            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${DOMPurify.sanitize(team.escudoUrl)}"></div>`;
+            const icon = DOMPurify.sanitize(mascotsMap[team.customMascot] || 'fa-shield-alt');
+            const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(team.corPrimaria || '#333')}, ${DOMPurify.sanitize(team.corSecundaria || '#000')})`;
+            const border = DOMPurify.sanitize(team.corTerciaria || '#fff');
+            return `<div class="tiny-crest"><div class="tiny-custom-shape shape-${DOMPurify.sanitize(team.customShape || 'shield')}" style="background: ${grad}; border-color: ${border};"></div><i class="fas ${icon} tiny-custom-mascot" style="color: ${border};"></i></div>`;
         }
 
         function processMataMataLogic() {
@@ -443,12 +433,14 @@
                 const rMatches = roundsMap[roundKeys[i]];
                 const half = rMatches.length / 2;
                 
-                let leftCol = `<div class="bracket-column"><div class="phase-label">${rMatches[0].label}</div>`;
+                const phaseLabelSeguro = DOMPurify.sanitize(rMatches[0].label);
+
+                let leftCol = `<div class="bracket-column"><div class="phase-label">${phaseLabelSeguro}</div>`;
                 for(let j=0; j<half; j++) leftCol += createBracketCard(rMatches[j]);
                 leftCol += `</div>`;
                 leftHTML += leftCol;
 
-                let rightCol = `<div class="bracket-column"><div class="phase-label">${rMatches[0].label}</div>`;
+                let rightCol = `<div class="bracket-column"><div class="phase-label">${phaseLabelSeguro}</div>`;
                 for(let j=half; j<rMatches.length; j++) rightCol += createBracketCard(rMatches[j]);
                 rightCol += `</div>`;
                 rightHTML += rightCol;
@@ -458,7 +450,7 @@
             centerHTML += `<div class="phase-label">GRANDE FINAL</div>`;
             centerHTML += createBracketCard(finalMatch);
             
-            let championHTML = `<i class="fas ${document.getElementById('mata-icon').className.split(' ')[1] || 'fa-trophy'}" style="font-size:3rem; color:${tColor}; filter: drop-shadow(0 0 10px ${tColor});"></i>`;
+            let championHTML = `<i class="fas ${DOMPurify.sanitize(document.getElementById('mata-icon').className.split(' ')[1] || 'fa-trophy')}" style="font-size:3rem; color:${DOMPurify.sanitize(tColor)}; filter: drop-shadow(0 0 10px ${DOMPurify.sanitize(tColor)});"></i>`;
             const resKey = `match_result_${tournamentData.id}_${finalMatch.id}`;
             const result = localStorage.getItem(resKey) ? JSON.parse(localStorage.getItem(resKey)) : null;
             
@@ -469,17 +461,18 @@
                 else champion = finalMatch.t1; 
 
                 if (champion && champion.id && champion.id !== -1) {
+                    const nomeCampeaoSeguro = DOMPurify.sanitize(champion.nome);
                     championHTML = `
                         <div class="champion-info">
                             ${getTeamIconHTML(champion)}
-                            <span style="color:${tColor};">${champion.nome}</span>
+                            <span style="color:${DOMPurify.sanitize(tColor)};">${nomeCampeaoSeguro}</span>
                         </div>
-                        <div style="margin-top:10px; font-size:0.6rem; color:#000; font-weight:900; letter-spacing:1px; background:${tColor}; padding:4px 10px; border-radius:10px;">CAMPEÃO</div>
+                        <div style="margin-top:10px; font-size:0.6rem; color:#000; font-weight:900; letter-spacing:1px; background:${DOMPurify.sanitize(tColor)}; padding:4px 10px; border-radius:10px;">CAMPEÃO</div>
                     `;
                 }
             }
 
-            centerHTML += `<div class="bracket-final-trophy" style="border-color:${tColor};">${championHTML}</div>`;
+            centerHTML += `<div class="bracket-final-trophy" style="border-color:${DOMPurify.sanitize(tColor)};">${championHTML}</div>`;
             
             leftHTML += '</div>';
             rightHTML += '</div>';
@@ -496,8 +489,8 @@
             let score1 = '', score2 = '';
             
             if(result) {
-                score1 = `<span class="slot-score">${result.scoreHome}</span>`;
-                score2 = `<span class="slot-score">${result.scoreAway}</span>`;
+                score1 = `<span class="slot-score">${DOMPurify.sanitize(result.scoreHome)}</span>`;
+                score2 = `<span class="slot-score">${DOMPurify.sanitize(result.scoreAway)}</span>`;
                 if(result.scoreHome > result.scoreAway) s1Class = 'winner';
                 else if(result.scoreAway > result.scoreHome) s2Class = 'winner';
                 else s1Class = 'winner'; 
@@ -509,15 +502,15 @@
             if(m.t1 && m.t1.id === -1) s1Class += ' bye';
             if(m.t2 && m.t2.id === -1) s2Class += ' bye';
 
-            const name1 = (m.t1 && m.t1.nome) ? m.t1.nome : '?';
-            const name2 = (m.t2 && m.t2.nome) ? m.t2.nome : '?';
+            const name1 = DOMPurify.sanitize((m.t1 && m.t1.nome) ? m.t1.nome : '?');
+            const name2 = DOMPurify.sanitize((m.t2 && m.t2.nome) ? m.t2.nome : '?');
 
             const slot1HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t1)} <span title="${name1}">${name1}</span></div> ${score1}`;
             const slot2HTML = `<div class="slot-team-info">${getTeamIconHTML(m.t2)} <span title="${name2}">${name2}</span></div> ${score2}`;
 
             return `
                 <div class="match-card-bracket">
-                    <div style="font-size:0.6rem; color:${tColor}; text-align:center; font-weight:bold; margin-bottom:5px;">JOGO ${m.id}</div>
+                    <div style="font-size:0.6rem; color:${DOMPurify.sanitize(tColor)}; text-align:center; font-weight:bold; margin-bottom:5px;">JOGO ${DOMPurify.sanitize(m.id)}</div>
                     <div class="match-slot ${s1Class}">${slot1HTML}</div>
                     <div class="match-slot ${s2Class}">${slot2HTML}</div>
                 </div>`;
@@ -525,7 +518,7 @@
 
         function renderMatchesList() {
             const container = document.getElementById('matches-list');
-            container.innerHTML = '';
+            let htmlList = '';
             let completed = 0;
             let totalPlayable = 0;
             
@@ -543,14 +536,18 @@
                 
                 const isLocked = (!m.t1.id || !m.t2.id);
 
+                const nomeT1Seguro = DOMPurify.sanitize(m.t1.nome || '?');
+                const nomeT2Seguro = DOMPurify.sanitize(m.t2.nome || '?');
+                const labelSegura = DOMPurify.sanitize(m.label);
+
                 if (result) {
                     completed++;
-                    container.innerHTML += `
+                    htmlList += `
                         <div class="play-match-card finished" style="${isGallery ? 'cursor: default; transform: none;' : ''}">
-                            <div class="play-match-info">JOGO ${m.id} • ${m.label}</div>
-                            <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
-                            <div class="play-score" style="color:${tColor}; border-color:${tColor};">${result.scoreHome} - ${result.scoreAway}</div>
-                            <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
+                            <div class="play-match-info">JOGO ${DOMPurify.sanitize(m.id)} • ${labelSegura}</div>
+                            <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
+                            <div class="play-score" style="color:${DOMPurify.sanitize(tColor)}; border-color:${DOMPurify.sanitize(tColor)};">${DOMPurify.sanitize(result.scoreHome)} - ${DOMPurify.sanitize(result.scoreAway)}</div>
+                            <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
                         </div>`;
                 } else {
                     const clickAction = isLocked ? "alert('Aguarde a definição dos times desta chave.')" : `requestMatchStart(${tournamentData.id}, ${m.id})`;
@@ -560,16 +557,17 @@
                     const lockClass = isLocked && !isGallery ? 'locked' : '';
                     const galleryStyle = isGallery ? 'cursor: default; border-color: rgba(255,255,255,0.05);' : '';
                     
-                    container.innerHTML += `
+                    htmlList += `
                         <div class="play-match-card ${lockClass} ${hoverClass}" ${finalClick} style="${galleryStyle}">
-                            <div class="play-match-info">JOGO ${m.id} • ${m.label}</div>
-                            <div class="play-team home"><span>${m.t1.nome}</span> ${icon1}</div>
+                            <div class="play-match-info">JOGO ${DOMPurify.sanitize(m.id)} • ${labelSegura}</div>
+                            <div class="play-team home"><span>${nomeT1Seguro}</span> ${icon1}</div>
                             <div class="play-score">vs</div>
-                            <div class="play-team away">${icon2} <span>${m.t2.nome}</span></div>
+                            <div class="play-team away">${icon2} <span>${nomeT2Seguro}</span></div>
                         </div>`;
                 }
             });
 
+            container.innerHTML = htmlList;
             document.getElementById('match-count-badge').innerText = `${completed}/${totalPlayable}`;
         }
 

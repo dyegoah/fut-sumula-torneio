@@ -12,22 +12,13 @@
 	            });
 	            
 	            if (!res.ok) {
-	                // Se o backend disser 401 (Não autorizado) ou 403 (Proibido)
 	                throw new Error("Sessão inválida ou expirada.");
 	            }
-
-	            // Opcional: Se for a página admin-panel.html, você pode validar o cargo aqui
-	            // const user = await res.json();
-	            // if (window.location.pathname.includes('admin-panel') && user.role !== 'ADMIN') throw new Error("Acesso negado");
-
 	        } catch (error) {
 	            console.warn(error.message);
-	            // Expulsa para a tela de login
 	            window.location.replace('login.html'); 
 	        }
 	    }
-	    
-	    // Executa imediatamente antes de renderizar o resto da página
 	    validarAcesso();
 	</script>
     <script>
@@ -144,12 +135,12 @@
 
             <div id="tab-grupos" class="tab-content active">
                 <div class="groups-grid" id="grupos-container">
-                    </div>
+                </div>
             </div>
             
             <div id="tab-matamata" class="tab-content">
                 <div class="bracket-wrapper" id="bracket-container">
-                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -162,13 +153,17 @@
 
         function getEscudoHTML(t, size=30) {
             if (!t) return `<div class="crest-mini" style="width:${size}px;height:${size}px;opacity:0.3;"><i class="fas fa-question-circle" style="color:#555;"></i></div>`;
-            if (t.tipoEscudo === 'UPLOAD' && t.escudoUrl) return `<img src="${t.escudoUrl}" class="team-img-mini" style="width:${size}px;height:${size}px;">`;
+            if (t.tipoEscudo === 'UPLOAD' && t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" class="team-img-mini" style="width:${size}px;height:${size}px;">`;
             
-            const c1 = t.corPrimaria || '#333'; const c2 = t.corSecundaria || '#111'; const c3 = t.corTerciaria || '#fff';
+            const c1 = DOMPurify.sanitize(t.corPrimaria || '#333'); 
+            const c2 = DOMPurify.sanitize(t.corSecundaria || '#111'); 
+            const c3 = DOMPurify.sanitize(t.corTerciaria || '#fff');
             let icon = t.customMascot ? (mascotMap[t.customMascot] || 'fa-volleyball-ball') : 'fa-volleyball-ball';
+            icon = DOMPurify.sanitize(icon);
+            
             return `
                 <div class="crest-mini" style="width:${size}px;height:${size}px;">
-                    <div class="crest-shape shape-${t.customShape || 'shield'}" style="background:linear-gradient(135deg, ${c1}, ${c2}); border: 1px solid ${c3};"></div>
+                    <div class="crest-shape shape-${DOMPurify.sanitize(t.customShape || 'shield')}" style="background:linear-gradient(135deg, ${c1}, ${c2}); border: 1px solid ${c3};"></div>
                     <i class="fas ${icon} crest-mascot" style="color:${c3 === '#ffffff' ? '#fff' : c3}; font-size:${size*0.4}px;"></i>
                 </div>`;
         }
@@ -196,15 +191,14 @@
                 const todasPartidas = await resP.json();
                 const partidas = todasPartidas.filter(p => p.torneio && p.torneio.id === torneio.id);
 
-                // Setup do Cabeçalho
-                document.getElementById('head-nome').innerText = torneio.nome;
-                document.getElementById('head-qtd').innerHTML = `<i class="fas fa-shield-alt"></i> ${torneio.quantidadeTimes} EQUIPES`;
-                const color = torneio.corTrofeu || '#ffd700';
+                document.getElementById('head-nome').innerText = torneio.nome; // innerText já é seguro
+                document.getElementById('head-qtd').innerHTML = `<i class="fas fa-shield-alt"></i> ${DOMPurify.sanitize(torneio.quantidadeTimes)} EQUIPES`;
+                
+                const color = DOMPurify.sanitize(torneio.corTrofeu || '#ffd700');
                 const iconEl = document.getElementById('head-trophy');
-                iconEl.innerHTML = `<i class="fas ${trophyModels[(torneio.modeloTrofeu || 1) - 1]}"></i>`;
+                iconEl.innerHTML = `<i class="fas ${DOMPurify.sanitize(trophyModels[(torneio.modeloTrofeu || 1) - 1])}"></i>`;
                 iconEl.style.color = color;
 
-                // Separar as partidas
                 const partidasGrupos = partidas.filter(p => p.fase && p.fase.includes('GRUPO'));
                 const partidasMataMata = partidas.filter(p => !p.fase || !p.fase.includes('GRUPO'));
 
@@ -216,19 +210,17 @@
             } catch (e) { alert("Erro ao carregar Copa. Verifique o servidor."); console.error(e);}
         }
 
-        // --- INTELIGÊNCIA: FASE DE GRUPOS ---
+        // --- INTELIGÊNCIA: FASE DE GRUPOS (OTIMIZADO) ---
         function processarFaseGrupos(partidas) {
             const container = document.getElementById('grupos-container');
-            container.innerHTML = '';
+            let htmlGrupos = ''; // Constrói tudo em memória antes de injetar
             
-            // Descobrir quais grupos existem (GRUPO A, GRUPO B...)
             const gruposNomes = [...new Set(partidas.map(p => p.fase))].sort();
 
             gruposNomes.forEach(grupoNome => {
                 const jogosDoGrupo = partidas.filter(p => p.fase === grupoNome);
                 const stats = {};
 
-                // Inicializar e Calcular Pontos (Regra FIVB)
                 jogosDoGrupo.forEach(p => {
                     [p.timeCasa, p.timeVisitante].forEach(t => {
                         if(t && !stats[t.id]) stats[t.id] = { t, j:0, v:0, d:0, pts:0, sg:0, sp:0 };
@@ -243,36 +235,39 @@
                     }
                 });
 
-                // Ordenação: Pontos > Vitórias > Set Ratio
                 const tabela = Object.values(stats).map(s => {
                     s.sr = s.sp === 0 ? (s.sg===0?0:99) : (s.sg/s.sp);
                     return s;
                 }).sort((a,b) => b.pts !== a.pts ? b.pts - a.pts : b.v !== a.v ? b.v - a.v : b.sr - a.sr);
 
                 let rows = tabela.map((row, i) => {
-                    const statusClass = i < 2 ? 'zone-classify' : 'zone-out'; // Top 2 passam na Copa
+                    const statusClass = i < 2 ? 'zone-classify' : 'zone-out';
+                    const nomeSeguro = DOMPurify.sanitize(row.t.nome); // BLINDAGEM XSS
                     return `
                     <tr class="${statusClass}">
                         <td><strong>${i + 1}º</strong></td>
-                        <td class="td-left">${getEscudoHTML(row.t, 25)} <span>${row.t.nome}</span></td>
+                        <td class="td-left">${getEscudoHTML(row.t, 25)} <span>${nomeSeguro}</span></td>
                         <td style="color:#ffd700; font-weight:900;">${row.pts}</td>
                         <td>${row.j}</td><td style="color:#00ff2a;">${row.v}</td><td style="color:#ff4444;">${row.d}</td>
                         <td>${row.sg}</td><td>${row.sp}</td>
                     </tr>`;
                 }).join('');
 
-                container.innerHTML += `
+                const grupoNomeSeguro = DOMPurify.sanitize(grupoNome); // BLINDAGEM XSS
+                htmlGrupos += `
                     <div class="group-box">
-                        <div class="group-title"><i class="fas fa-layer-group"></i> ${grupoNome}</div>
+                        <div class="group-title"><i class="fas fa-layer-group"></i> ${grupoNomeSeguro}</div>
                         <table>
                             <thead><tr><th>POS</th><th class="th-left">CLUBE</th><th>PTS</th><th>J</th><th>V</th><th>D</th><th>SG</th><th>SP</th></tr></thead>
                             <tbody>${rows}</tbody>
                         </table>
                     </div>`;
             });
+            
+            container.innerHTML = htmlGrupos; // Atualização única no DOM
         }
 
-        // --- INTELIGÊNCIA: ÁRVORE DO MATA-MATA ---
+        // --- INTELIGÊNCIA: ÁRVORE DO MATA-MATA (OTIMIZADO) ---
         function processarMataMata(partidas, torneio) {
             const container = document.getElementById('bracket-container');
             container.innerHTML = '';
@@ -281,21 +276,20 @@
                 return;
             }
 
-            // Agrupa por fases na ordem lógica
             const order = ["OITAVAS", "OITAVAS DE FINAL", "QUARTAS", "QUARTAS DE FINAL", "SEMIFINAL", "FINAL", "GRANDE FINAL"];
             const fases = [...new Set(partidas.map(p => p.fase))].sort((a, b) => {
-                // Encontra a posição aproximada no array de ordem
                 const posA = order.findIndex(o => a && a.toUpperCase().includes(o));
                 const posB = order.findIndex(o => b && b.toUpperCase().includes(o));
                 return (posA !== -1 ? posA : 99) - (posB !== -1 ? posB : 99);
             });
 
-            // Constrói as colunas do Bracket
             fases.forEach(faseNome => {
                 if(!faseNome) return;
                 const col = document.createElement('div');
                 col.className = 'bracket-col';
-                col.innerHTML = `<div class="phase-name">${faseNome}</div>`;
+                
+                const faseSegura = DOMPurify.sanitize(faseNome); // BLINDAGEM XSS
+                let colHTML = `<div class="phase-name">${faseSegura}</div>`;
 
                 const jogosFase = partidas.filter(p => p.fase === faseNome);
                 jogosFase.forEach(p => {
@@ -306,20 +300,28 @@
                     let lblA = p.labelConfronto ? p.labelConfronto.split(' x ')[0] : 'A Definir';
                     let lblB = p.labelConfronto ? p.labelConfronto.split(' x ')[1] : 'A Definir';
 
-                    col.innerHTML += `
+                    // BLINDAGEM XSS
+                    const nomeCasa = DOMPurify.sanitize(p.timeCasa?.nome || lblA);
+                    const nomeVis = DOMPurify.sanitize(p.timeVisitante?.nome || lblB);
+                    const setsCasaSeguro = isFin ? DOMPurify.sanitize(p.setsCasa) : '-';
+                    const setsVisSeguro = isFin ? DOMPurify.sanitize(p.setsVisitante) : '-';
+
+                    colHTML += `
                         <div class="matchup-box">
                             <div class="matchup-team ${winCasa ? 'winner' : ''}">
                                 ${getEscudoHTML(p.timeCasa, 25)}
-                                <div class="team-label ${!p.timeCasa ? 'placeholder-team' : ''}">${p.timeCasa?.nome || lblA}</div>
-                                <div class="team-score">${isFin ? p.setsCasa : '-'}</div>
+                                <div class="team-label ${!p.timeCasa ? 'placeholder-team' : ''}">${nomeCasa}</div>
+                                <div class="team-score">${setsCasaSeguro}</div>
                             </div>
                             <div class="matchup-team ${winVis ? 'winner' : ''}">
                                 ${getEscudoHTML(p.timeVisitante, 25)}
-                                <div class="team-label ${!p.timeVisitante ? 'placeholder-team' : ''}">${p.timeVisitante?.nome || lblB}</div>
-                                <div class="team-score">${isFin ? p.setsVisitante : '-'}</div>
+                                <div class="team-label ${!p.timeVisitante ? 'placeholder-team' : ''}">${nomeVis}</div>
+                                <div class="team-score">${setsVisSeguro}</div>
                             </div>
                         </div>`;
                 });
+                
+                col.innerHTML = colHTML;
                 container.appendChild(col);
             });
         }
@@ -327,4 +329,4 @@
         carregarCopa();
     </script>
 </body>
-</html>
+</html> 

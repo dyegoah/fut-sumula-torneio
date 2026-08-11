@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Sheet | Fut-Súmula</title>
     
-    <!-- FONTES E CSS DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
@@ -14,71 +13,49 @@
     <!-- BIBLIOTECA DE SEGURANÇA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
-    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
+    <!-- BLINDAGEM DE SESSÃO E API ISOLADA -->
     <script>
-        function getTokenGlobal() {
-            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
-        }
-
-        async function validarAcesso() {
-            const token = getTokenGlobal();
+        async function apiFetch(url, options = {}) {
+            const token = sessionStorage.getItem('futSumulaToken') || localStorage.getItem('futSumulaToken');
+            
             if (!token) {
-                window.location.replace('login.html');
-                return;
+                window.location.href = 'login.html';
+                throw new Error("Acesso negado: Token ausente.");
+            }
+
+            if (url.includes('/api/') && !url.includes('/auth/login') && !url.includes('/integracao/')) {
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = 'Bearer ' + token;
             }
 
             try {
-                const res = await fetch('/api/auth/me', { 
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                
+                const response = await window.fetch(url, options);
+                if (response.status === 403 || response.status === 401) {
+                    sessionStorage.removeItem('futSumulaToken');
+                    localStorage.removeItem('futSumulaToken');
+                    window.location.href = 'login.html';
+                }
+                return response;
+            } catch (err) { 
+                throw err; 
+            }
+        }
+
+        async function validarAcesso() {
+            try {
+                const res = await apiFetch('/api/auth/me', { method: 'GET' });
                 if (!res.ok) throw new Error("Sessão inválida ou expirada.");
-
                 document.documentElement.style.display = '';
-
             } catch (error) {
                 console.warn(error.message);
+                sessionStorage.removeItem('futSumulaToken');
                 localStorage.removeItem('futSumulaToken');
-                localStorage.removeItem('token');
                 window.location.replace('login.html'); 
             }
         }
         validarAcesso();
     </script>
-    <script>
-        (function() {
-            const token = getTokenGlobal();
-            const originalFetch = window.fetch;
 
-            window.fetch = function() {
-                let args = Array.from(arguments);
-                let url = args[0];
-                let options = args[1] || {};
-
-                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                }
-                args[1] = options;
-
-                return originalFetch.apply(this, args).then(response => {
-                    if (response.status === 403 || response.status === 401) {
-                        alert("Sessão expirada. Por favor, faça login novamente.");
-                        localStorage.removeItem('futSumulaToken');
-                        localStorage.removeItem('token');
-                        window.location.href = 'login.html';
-                    }
-                    return response;
-                }).catch(err => {
-                    console.error("Erro na requisição segura:", err);
-                    throw err;
-                });
-            };
-        })();
-    </script>
-
-    <!-- ESTILOS INTERNOS DO MATCH-SHEET -->
     <style>
         .scoreboard-container { background: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(20,20,20,0.9)); border-bottom: 2px solid var(--primary-neon); padding: 10px 20px 50px 20px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; height: 170px; position: relative; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .sb-team { display: flex; flex-direction: column; align-items: center; width: 220px; margin-top: 10px; }
@@ -258,8 +235,6 @@
 
     <script src="js/images.js"></script>
     <script>
-        if (typeof window.AppImages === 'undefined') { window.AppImages = { defaultAvatar: "https://cdn-icons-png.flaticon.com/512/21/21104.png" }; }
-
         let matchState = { timer: 0, isRunning: false, lastTimestamp: 0, interval: null, scoreHome: 0, scoreAway: 0, homeYellow: 0, homeRed: 0, awayYellow: 0, awayRed: 0, currentPlayer: null, currentTeamType: null, lineups: null, matchStarted: false };
         let matchEvents = []; 
         let currentTourneyId = null;
@@ -273,7 +248,7 @@
         async function fetchFullTeamData(teamId) {
             if(!teamId || teamId === -1) return [];
             try {
-                const res = await fetch(`/api/times/${teamId}`);
+                const res = await apiFetch(`/api/times/${teamId}`);
                 if(res.ok) {
                     const fullTeam = await res.json();
                     return fullTeam.jogadores || [];
@@ -288,7 +263,8 @@
             currentMatchId = parseInt(params.get('matchId'));
 
             try {
-                const response = await fetch(`/api/partidas/${currentMatchId}`);
+                // Tenta puxar a partida já gerada do Backend
+                const response = await apiFetch(`/api/partidas/${currentMatchId}`);
                 if (response.ok) {
                     const partidaApi = await response.json();
                     matchData = {
@@ -296,8 +272,9 @@
                         t1: partidaApi.timeCasa || { id: -1, nome: "Aguardando..." },
                         t2: partidaApi.timeVisitante || { id: -1, nome: "Aguardando..." }
                     };
-                } else { throw new Error("Erro API"); }
+                } else { throw new Error("Partida não encontrada na API."); }
             } catch (error) {
+                // Fallback para as partidas geradas e guardadas em memória
                 if(currentTourneyId && currentMatchId) {
                     const matchesStored = localStorage.getItem(`tourney_matches_${currentTourneyId}`);
                     if(matchesStored) {
@@ -320,7 +297,7 @@
             if(!matchData.t1.jogadores || matchData.t1.jogadores.length === 0) matchData.t1.jogadores = generateMockPlayers();
             if(!matchData.t2.jogadores || matchData.t2.jogadores.length === 0) matchData.t2.jogadores = generateMockPlayers();
 
-            const normalizePlayer = (p) => { p.foto = p.fotoUrl || p.foto || window.AppImages.defaultAvatar; p.numero = p.numeroCamisa || p.numero || "00"; p.posicao = p.posicao || 'LINHA'; return p; };
+            const normalizePlayer = (p) => { p.foto = p.fotoUrl || p.foto || window.AppImages?.defaultAvatar || 'https://cdn-icons-png.flaticon.com/512/21/21104.png'; p.numero = p.numeroCamisa || p.numero || "00"; p.posicao = p.posicao || 'LINHA'; return p; };
             const sortSquad = (lista) => { if(!lista) return; lista.sort((a, b) => { const posA = (a.posicao || '').toUpperCase(); const posB = (b.posicao || '').toUpperCase(); if (posA === 'GOLEIRO' && posB !== 'GOLEIRO') return -1; if (posA !== 'GOLEIRO' && posB === 'GOLEIRO') return 1; return a.nome.localeCompare(b.nome); }); };
 
             if(matchData.t1.jogadores) { matchData.t1.jogadores.forEach(normalizePlayer); sortSquad(matchData.t1.jogadores); }
@@ -365,10 +342,9 @@
             matchEvents.forEach(evt => { addFeedItemHTML(evt.id, evt.time, evt.cssClass, evt.icon, evt.text); });
         }
         
-        function generateMockPlayers() { return Array.from({length: 11}, (_, i) => ({ id: i+100, nome: `Jogador ${i+1}`, numero: i+1, foto: window.AppImages.defaultAvatar, posicao: (i===0?'GOLEIRO':'LINHA') })); }
+        function generateMockPlayers() { return Array.from({length: 11}, (_, i) => ({ id: i+100, nome: `Jogador ${i+1}`, numero: i+1, foto: window.AppImages?.defaultAvatar || 'https://cdn-icons-png.flaticon.com/512/21/21104.png', posicao: (i===0?'GOLEIRO':'LINHA') })); }
         
         function getCrestHTML(t) {
-            // OTIMIZAÇÃO: loading="lazy" adicionado
             if(t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" loading="lazy" class="sb-crest">`;
             const icon = DOMPurify.sanitize(mascotsMap[t.customMascot] || 'fa-shield-alt');
             const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(t.corPrimaria || '#333')}, ${DOMPurify.sanitize(t.corSecundaria || '#000')})`;
@@ -376,7 +352,6 @@
         }
         
         function getMiniCrestHTML(t) {
-            // OTIMIZAÇÃO: loading="lazy" adicionado
             if(t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" loading="lazy" style="width:30px; height:30px;">`;
             const icon = DOMPurify.sanitize(mascotsMap[t.customMascot] || 'fa-shield-alt');
             const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(t.corPrimaria || '#333')}, ${DOMPurify.sanitize(t.corSecundaria || '#000')})`;
@@ -402,7 +377,6 @@
             }
             
             let gkCount = 0;
-            // OTIMIZAÇÃO DE PERFORMANCE: Concatenação na memória em vez de múltiplos reflows
             let htmlList = '';
 
             team.jogadores.forEach(p => {
@@ -515,7 +489,6 @@
 
         function renderList(id, sList, bList, type) {
             const col = document.getElementById(id);
-            // OTIMIZAÇÃO: Concatenação na memória 
             let htmlList = '';
             
             sList.forEach(p => htmlList += createPlayerStrip(p, type, false));
@@ -532,7 +505,6 @@
             const fotoSegura = DOMPurify.sanitize(p.foto);
             const numSeguro = DOMPurify.sanitize(p.numero);
 
-            // OTIMIZAÇÃO: loading="lazy" adicionado
             return `<div class="player-strip ${bClass}" onclick="clickPlayer(${pid}, '${DOMPurify.sanitize(type)}', ${isBench})"><img src="${fotoSegura}" loading="lazy" class="p-photo"><div class="p-info"><div class="p-name">${nomeSeguro}</div><div class="p-num">${numSeguro}</div></div><div class="p-events" id="events-${pid}"></div></div>`;
         }
 
@@ -574,7 +546,6 @@
                 return;
             }
 
-            // OTIMIZAÇÃO: Usando DocumentFragment para evitar múltiplos reflows
             const fragment = document.createDocumentFragment();
 
             benchPlayers.forEach(p => {
@@ -582,7 +553,7 @@
                 item.className = 'check-player'; 
                 
                 const nomeSeguro = DOMPurify.sanitize(p.nome);
-                const fotoSegura = DOMPurify.sanitize(p.fotoUrl || p.foto || window.AppImages.defaultAvatar);
+                const fotoSegura = DOMPurify.sanitize(p.fotoUrl || p.foto || window.AppImages?.defaultAvatar || 'https://cdn-icons-png.flaticon.com/512/21/21104.png');
 
                 item.innerHTML = `
                     <img src="${fotoSegura}" loading="lazy" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
@@ -644,7 +615,6 @@
             const eventId = Date.now() + Math.random().toString(16).slice(2);
             
             let cssClass = ''; let icon = ''; let color = ''; let text = '';
-            // Os nomes são enviados brutos para o evento, e sanitizados apenas na hora de renderizar na tela ou banco
             if(type === 'GOAL') { if(teamKey === 'home') matchState.scoreHome++; else matchState.scoreAway++; updateScoreboard(); cssClass = 'evt-goal'; icon = 'fa-futbol'; color = '#00ff88'; text = `GOL de <strong>${p.nome}</strong>`; } 
             else if(type === 'OWN_GOAL') { if(teamKey === 'home') matchState.scoreAway++; else matchState.scoreHome++; updateScoreboard(); cssClass = 'evt-red'; icon = 'fa-futbol'; color = '#ff4444'; text = `GOL CONTRA de <strong>${p.nome}</strong>`; } 
             else if(type === 'YELLOW') { if(teamKey === 'home') matchState.homeYellow++; else matchState.awayYellow++; cssClass = 'evt-yellow'; icon = 'fa-square'; color = '#FFD700'; text = `Cartão Amarelo: <strong>${p.nome}</strong>`; } 
@@ -731,12 +701,12 @@
                 eventos: matchEvents.map(e => ({ type: e.type, playerId: e.playerId, teamId: e.teamId, time: e.time })) 
             };
             
-            fetch('/api/partidas/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiData) })
+            // Usa a API Segura para salvar os dados
+            apiFetch('/api/partidas/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiData) })
             .then(response => { window.history.back(); })
             .catch(err => { console.error("Erro de conexão:", err); window.history.back(); });
         }
 
-        // --- A GRANDE PROTEÇÃO DE XSS ARMAZENADO (BANCO DE DADOS) ---
         function generateRichSummary() {
             const t1 = matchData.t1; const t2 = matchData.t2; const params = new URLSearchParams(window.location.search); 
             const tourneyName = DOMPurify.sanitize(decodeURIComponent(params.get('tName') || 'TORNEIO OFICIAL'));

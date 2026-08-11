@@ -13,6 +13,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -37,6 +38,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin("*")
 public class AutenticacaoController {
 
     @Autowired private AuthenticationManager authenticationManager;
@@ -48,6 +50,7 @@ public class AutenticacaoController {
     private static final int MAX_ATTEMPTS = 5;
     private static final int LOCK_TIME_MINUTES = 1;
 
+    // NÚMERO OFICIAL DO SUPORTE/ADMIN
     private final String WHATSAPP_ADMIN = "5588996312358"; 
 
     private static class LoginAttempt {
@@ -99,6 +102,7 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
+            // SEGURANÇA ORIGINAL RESTAURADA: Exige 2FA apenas em Produção (Render)
             if (Boolean.TRUE.equals(user.getUsar2fa()) && !isLocalEnvironment(request)) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -197,13 +201,13 @@ public class AutenticacaoController {
         
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
         
-        // BLINDAGEM: Verifica a Role no banco de dados e não o email fixo
-        if (!"ADMIN".equalsIgnoreCase(usuarioLogado.getRole())) {
+        // LÓGICA ORIGINAL RESTAURADA: Vinculado estritamente ao e-mail mestre para não quebrar a ativação do 2FA
+        if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
         }
 
-        Usuario admin = repository.findById(usuarioLogado.getId()).orElse(null);
-        if (admin == null) return ResponseEntity.badRequest().body("Admin não encontrado!");
+        Usuario admin = (Usuario) repository.findByLogin("fut_sumula_pro@hotmail.com");
+        if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado!");
 
         String secretKey = admin.getChave2fa();
         if (secretKey == null || secretKey.isEmpty()) {
@@ -247,7 +251,6 @@ public class AutenticacaoController {
         
         newUser.setStatus("PENDENTE"); 
         newUser.setPlano("FREE");
-        newUser.setRole("USER"); // Garante que o novo cadastro nasce como usuário comum
         this.repository.save(newUser);
 
         java.util.Map<String, String> resposta = new java.util.HashMap<>();
@@ -296,12 +299,8 @@ public class AutenticacaoController {
 
         java.util.Map<String, Object> perfil = new java.util.HashMap<>();
         try {
-            perfil.put("id", user.getId()); 
-            perfil.put("nome", user.getNome()); 
-            perfil.put("login", user.getLogin());
-            perfil.put("nomeLiga", user.getNomeLiga()); 
-            perfil.put("genero", user.getGenero()); 
-            perfil.put("idioma", user.getIdioma());
+            perfil.put("id", user.getId()); perfil.put("nome", user.getNome()); perfil.put("login", user.getLogin());
+            perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
             String statusReal = user.getStatus();
@@ -330,27 +329,40 @@ public class AutenticacaoController {
             }
             perfil.put("cadastroIncompleto", cadastroIncompleto);
 
-            // BLINDAGEM: Uso dinâmico do Role em vez do Email
-            if ("ADMIN".equalsIgnoreCase(user.getRole())) {
-                perfil.put("status", "ATIVO"); 
-                perfil.put("plano", "PREMIUM");
-                perfil.put("diasRestantes", 9999L); 
-                perfil.put("acessoLiberado", true);
+            // LÓGICA ORIGINAL RESTAURADA
+            if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
+                perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
+                perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);
                 perfil.put("cadastroIncompleto", false);
                 return ResponseEntity.ok(perfil); 
             }
 
-            // BLINDAGEM: Aproveitando as regras já injetadas no Backend da classe Usuario
+            int diasTrial = (user.getTrialDays() != null) ? user.getTrialDays() : 15;
+            long diasUso = 0;
+            if (user.getDataCadastro() != null) {
+                try {
+                    String dataString = user.getDataCadastro().toString();
+                    if (dataString.length() >= 10) {
+                        java.time.LocalDate dataCad = java.time.LocalDate.parse(dataString.substring(0, 10));
+                        diasUso = java.time.temporal.ChronoUnit.DAYS.between(dataCad, java.time.LocalDate.now());
+                    }
+                } catch (Exception e) { diasUso = 0; }
+            }
+
+            long diasRestantes = Math.max(0, diasTrial - diasUso);
+            boolean isLiberado = false;
+            
+            if ("ATIVO".equals(statusReal)) {
+                if ("PREMIUM".equals(planoReal) || "CORTESIA".equals(planoReal) || diasRestantes >= 0) isLiberado = true;
+            }
+
             perfil.put("status", statusReal);
             perfil.put("plano", planoReal);
             perfil.put("notaCortesia", user.getNotaCortesia());
-            perfil.put("diasRestantes", user.calcularDiasRestantes());
-            perfil.put("acessoLiberado", user.isAcessoLiberado());
+            perfil.put("diasRestantes", diasRestantes);
+            perfil.put("acessoLiberado", isLiberado);
 
-        } catch (Exception e) { 
-            perfil.put("acessoLiberado", false); 
-            perfil.put("erro", "Falha interna."); 
-        }
+        } catch (Exception e) { perfil.put("acessoLiberado", false); perfil.put("erro", "Falha interna."); }
         return ResponseEntity.ok(perfil); 
     }
 
@@ -445,9 +457,9 @@ public class AutenticacaoController {
 
         Usuario adminLogado = (Usuario) authentication.getPrincipal();
         
-        // BLINDAGEM: Verificação dinâmica pelo banco e não pelo email
-        if (!"ADMIN".equalsIgnoreCase(adminLogado.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas administradores podem aprovar contas.");
+        // LÓGICA ORIGINAL RESTAURADA: Exige ser o dono para aprovar contas
+        if (!"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
         }
 
         String emailUsuario = data.get("email");

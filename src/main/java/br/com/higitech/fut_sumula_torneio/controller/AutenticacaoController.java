@@ -2,7 +2,6 @@ package br.com.higitech.fut_sumula_torneio.controller;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -46,26 +45,7 @@ public class AutenticacaoController {
     @Autowired private TokenService tokenService;
     @Autowired private TokenRecuperacaoRepository tokenRecuperacaoRepository;
 
-    private final Map<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
-    private static final int MAX_ATTEMPTS = 5;
-    private static final int LOCK_TIME_MINUTES = 1;
-
-    // NÚMERO OFICIAL DO SUPORTE/ADMIN
     private final String WHATSAPP_ADMIN = "5588996312358"; 
-
-    private static class LoginAttempt {
-        int attempts;
-        LocalDateTime lockTime;
-        LoginAttempt() { this.attempts = 1; this.lockTime = null; }
-    }
-
-    private String getClientIP(HttpServletRequest request) {
-        String clientIP = request.getHeader("X-Forwarded-For");
-        if (clientIP == null || clientIP.isEmpty()) {
-            return request.getRemoteAddr();
-        }
-        return clientIP.split(",")[0].trim();
-    }
 
     private boolean isRequestSecure(HttpServletRequest request) {
         return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
@@ -78,23 +58,9 @@ public class AutenticacaoController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
-        
-        String clientIP = getClientIP(request);
-        LoginAttempt attempt = loginAttempts.getOrDefault(clientIP, new LoginAttempt());
-
-        if (attempt.lockTime != null) {
-            if (attempt.lockTime.plusMinutes(LOCK_TIME_MINUTES).isAfter(LocalDateTime.now())) {
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Muitas tentativas. Aguarde 1 minuto.");
-            } else {
-                attempt.lockTime = null;
-                attempt.attempts = 0;
-            }
-        }
-
         try {
             var usernamePassword = new UsernamePasswordAuthenticationToken(data.login(), data.senha());
             var auth = authenticationManager.authenticate(usernamePassword);
-            loginAttempts.remove(clientIP);
 
             Usuario user = (Usuario) auth.getPrincipal();
 
@@ -102,7 +68,7 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // SEGURANÇA ORIGINAL RESTAURADA: Exige 2FA apenas em Produção (Render)
+            // Lógica do 2FA (Ignora no Localhost, Exige no Render)
             if (Boolean.TRUE.equals(user.getUsar2fa()) && !isLocalEnvironment(request)) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -124,27 +90,12 @@ public class AutenticacaoController {
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
 
         } catch (org.springframework.security.core.AuthenticationException e) {
-            attempt.attempts++;
-            if (attempt.attempts >= MAX_ATTEMPTS) attempt.lockTime = LocalDateTime.now(); 
-            loginAttempts.put(clientIP, attempt);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciais inválidas");
         }
     }
 
     @PostMapping("/login/validar-2fa")
     public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
-        String clientIP = getClientIP(request);
-        
-        LoginAttempt attempt = loginAttempts.getOrDefault(clientIP + "_2fa", new LoginAttempt());
-        if (attempt.lockTime != null) {
-            if (attempt.lockTime.plusMinutes(LOCK_TIME_MINUTES).isAfter(LocalDateTime.now())) {
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Muitas tentativas. Aguarde 1 minuto.");
-            } else {
-                attempt.lockTime = null;
-                attempt.attempts = 0;
-            }
-        }
-
         String login = data.get("login");
         String codigoStr = data.get("codigo");
 
@@ -159,7 +110,6 @@ public class AutenticacaoController {
 
         try {
             int codigo = Integer.parseInt(codigoStr);
-            
             GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
                 .setWindowSize(3) 
                 .build();
@@ -168,9 +118,7 @@ public class AutenticacaoController {
             boolean isValid = gAuth.authorize(user.getChave2fa(), codigo);
 
             if (isValid) {
-                loginAttempts.remove(clientIP + "_2fa"); 
                 var token = tokenService.gerarToken(user);
-                
                 boolean isSecure = isRequestSecure(request);
                 ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
                         .httpOnly(true)
@@ -182,10 +130,6 @@ public class AutenticacaoController {
                         
                 return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
             } else {
-                attempt.attempts++;
-                if (attempt.attempts >= MAX_ATTEMPTS) attempt.lockTime = LocalDateTime.now();
-                loginAttempts.put(clientIP + "_2fa", attempt);
-                
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
             }
         } catch (NumberFormatException e) {
@@ -201,7 +145,7 @@ public class AutenticacaoController {
         
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
         
-        // LÓGICA ORIGINAL RESTAURADA: Vinculado estritamente ao e-mail mestre para não quebrar a ativação do 2FA
+        // Verifica se é a conta mestre original
         if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
         }
@@ -265,20 +209,10 @@ public class AutenticacaoController {
     @PostMapping("/resend-activation")
     public ResponseEntity<?> reenviarEmailAtivacao(@RequestBody Map<String, String> data) {
         String email = data.get("email");
-        
-        if (email == null || email.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("E-mail não fornecido.");
-        }
-
+        if (email == null || email.trim().isEmpty()) return ResponseEntity.badRequest().body("E-mail não fornecido.");
         Usuario user = (Usuario) repository.findByLogin(email.trim());
-        
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Usuário não encontrado.");
-        }
-
-        if ("ATIVO".equals(user.getStatus())) {
-            return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
-        }
+        if (user == null) return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        if ("ATIVO".equals(user.getStatus())) return ResponseEntity.badRequest().body("Esta conta já está ativada! Você já pode fazer login.");
 
         java.util.Map<String, String> resposta = new java.util.HashMap<>();
         resposta.put("status", "sucesso");
@@ -307,29 +241,16 @@ public class AutenticacaoController {
             String planoReal = user.getPlano();
             boolean precisaSalvar = false;
 
-            if (statusReal == null) {
-                statusReal = "ATIVO"; 
-                user.setStatus(statusReal);
-                precisaSalvar = true;
-            }
-            if (planoReal == null) {
-                planoReal = "FREE";
-                user.setPlano(planoReal);
-                precisaSalvar = true;
-            }
-            if (precisaSalvar) {
-                repository.save(user); 
-            }
+            if (statusReal == null) { statusReal = "ATIVO"; user.setStatus(statusReal); precisaSalvar = true; }
+            if (planoReal == null) { planoReal = "FREE"; user.setPlano(planoReal); precisaSalvar = true; }
+            if (precisaSalvar) repository.save(user); 
 
-            boolean cadastroIncompleto = false;
-            if (user.getPais() == null || user.getPais().trim().isEmpty() || 
-                user.getCidade() == null || user.getCidade().trim().isEmpty() || 
-                user.getWhatsapp() == null || user.getWhatsapp().trim().isEmpty()) {
-                cadastroIncompleto = true;
-            }
+            boolean cadastroIncompleto = (user.getPais() == null || user.getPais().trim().isEmpty() || 
+                                          user.getCidade() == null || user.getCidade().trim().isEmpty() || 
+                                          user.getWhatsapp() == null || user.getWhatsapp().trim().isEmpty());
             perfil.put("cadastroIncompleto", cadastroIncompleto);
 
-            // LÓGICA ORIGINAL RESTAURADA
+            // Acesso mestre original
             if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
                 perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);
@@ -371,10 +292,8 @@ public class AutenticacaoController {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        
         Usuario userLogado = (Usuario) authentication.getPrincipal();
         Usuario dbUser = repository.findById(userLogado.getId()).orElse(null);
-        
         if (dbUser == null) return ResponseEntity.badRequest().body("Usuário não encontrado.");
 
         if (dados.containsKey("cidade")) dbUser.setCidade(dados.get("cidade"));
@@ -390,15 +309,11 @@ public class AutenticacaoController {
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> data) {
         String email = data.get("email");
         Usuario user = (Usuario) repository.findByLogin(email);
-        
-        if (user == null) {
-            return ResponseEntity.ok("Solicitação recebida.");
-        }
+        if (user == null) return ResponseEntity.ok("Solicitação recebida.");
 
         TokenRecuperacao tokenRecuperacao = new TokenRecuperacao();
         tokenRecuperacao.setUsuario(user);
-        String novoToken = java.util.UUID.randomUUID().toString().trim();
-        tokenRecuperacao.setToken(novoToken); 
+        tokenRecuperacao.setToken(java.util.UUID.randomUUID().toString().trim()); 
         tokenRecuperacao.setDataExpiracao(LocalDateTime.now().plusHours(24));
         tokenRecuperacaoRepository.save(tokenRecuperacao);
 
@@ -416,9 +331,7 @@ public class AutenticacaoController {
         String tokenRecebido = data.get("token");
         String novaSenha = data.get("novaSenha");
 
-        if (tokenRecebido == null || tokenRecebido.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("Token ausente na requisição.");
-        }
+        if (tokenRecebido == null || tokenRecebido.trim().isEmpty()) return ResponseEntity.badRequest().body("Token ausente na requisição.");
 
         String cleanToken = tokenRecebido.trim();
         TokenRecuperacao tokenValido = null;
@@ -431,10 +344,7 @@ public class AutenticacaoController {
             }
         }
         
-        if (tokenValido == null) {
-            return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
-        }
-        
+        if (tokenValido == null) return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
         if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
             tokenRecuperacaoRepository.delete(tokenValido); 
             return ResponseEntity.badRequest().body("Este link de recuperação expirou.");
@@ -443,7 +353,6 @@ public class AutenticacaoController {
         Usuario user = tokenValido.getUsuario();
         user.setSenha(new BCryptPasswordEncoder().encode(novaSenha));
         repository.save(user);
-        
         tokenRecuperacaoRepository.delete(tokenValido);
         
         return ResponseEntity.ok("Senha redefinida com sucesso!");
@@ -456,21 +365,15 @@ public class AutenticacaoController {
         }
 
         Usuario adminLogado = (Usuario) authentication.getPrincipal();
-        
-        // LÓGICA ORIGINAL RESTAURADA: Exige ser o dono para aprovar contas
         if (!"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
         }
 
         String emailUsuario = data.get("email");
-        if (emailUsuario == null || emailUsuario.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("E-mail não fornecido.");
-        }
+        if (emailUsuario == null || emailUsuario.trim().isEmpty()) return ResponseEntity.badRequest().body("E-mail não fornecido.");
 
         Usuario user = (Usuario) repository.findByLogin(emailUsuario.trim());
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Usuário não encontrado.");
-        }
+        if (user == null) return ResponseEntity.badRequest().body("Usuário não encontrado.");
 
         user.setStatus("ATIVO");
         repository.save(user);

@@ -32,7 +32,7 @@ public class Usuario implements UserDetails {
     
     private String cidade;
     private String uf;
-    private String pais; // Restaurado
+    private String pais; 
     private String nomeLiga;
     private String whatsapp; 
     
@@ -56,16 +56,10 @@ public class Usuario implements UserDetails {
 
     private Integer trialDays;
 
-    // --- RESTAURAÇÃO DO 2FA ---
     @Column(columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean usar2fa = false;
     private String chave2fa;
 
-    // --- SEGURANÇA: CONTROLE DE HIERARQUIA NO BANCO ---
-    @Column(columnDefinition = "VARCHAR(20) DEFAULT 'USER'")
-    private String role = "USER";
-
-    // --- VARIÁVEIS TRANSIENTES (Para controle de Sessão Seguro) ---
     @Transient
     private boolean acessoLiberado;
     
@@ -115,26 +109,6 @@ public class Usuario implements UserDetails {
     public String getChave2fa() { return chave2fa; }
     public void setChave2fa(String chave2fa) { this.chave2fa = chave2fa; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
-
-    // --- LÓGICA DE SEGURANÇA BACKEND ---
-    public boolean isAcessoLiberado() {
-        if ("PREMIUM".equals(this.plano) || "CORTESIA".equals(this.plano)) return true;
-        if ("INATIVO".equals(this.status)) return false;
-
-        int diasPermitidos = (this.trialDays != null) ? this.trialDays : 15;
-        long diasUso = java.time.temporal.ChronoUnit.DAYS.between(this.dataCadastro, java.time.LocalDate.now());
-        return diasUso <= diasPermitidos;
-    }
-
-    public long calcularDiasRestantes() {
-        if ("PREMIUM".equals(this.plano) || "CORTESIA".equals(this.plano)) return 9999;
-        int diasPermitidos = (this.trialDays != null) ? this.trialDays : 15;
-        long diasUso = java.time.temporal.ChronoUnit.DAYS.between(this.dataCadastro, java.time.LocalDate.now());
-        return Math.max(0, diasPermitidos - diasUso);
-    }
-
     public boolean getAcessoLiberado() { return acessoLiberado; }
     public void setAcessoLiberado(boolean acessoLiberado) { this.acessoLiberado = acessoLiberado; }
     public long getDiasRestantes() { return diasRestantes; }
@@ -143,7 +117,7 @@ public class Usuario implements UserDetails {
     // --- SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if ("ADMIN".equalsIgnoreCase(this.role) || "fut_sumula_pro@hotmail.com".equals(this.login)) {
+        if ("fut_sumula_pro@hotmail.com".equals(this.login)) {
             return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"));
         }
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));

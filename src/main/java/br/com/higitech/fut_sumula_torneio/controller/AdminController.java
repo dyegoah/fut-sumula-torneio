@@ -5,9 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,25 +27,15 @@ public class AdminController {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    // SEGURANÇA: Verificação baseada na hierarquia (Role) no Banco de Dados
-    private boolean isAdmin() {
-        try {
-            Usuario u = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            return "ADMIN".equalsIgnoreCase(u.getRole());
-        } catch (Exception e) { return false; }
-    }
-
     @GetMapping("/users")
-    public ResponseEntity<?> listarTodos() {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<List<Usuario>> listarTodos() {
         List<Usuario> usuarios = usuarioRepository.findAll();
         usuarios.forEach(u -> u.setSenha(null)); 
         return ResponseEntity.ok(usuarios);
     }
 
     @PutMapping("/users/{id}/status")
-    public ResponseEntity<?> alternarStatus(@PathVariable Long id) {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<Usuario> alternarStatus(@PathVariable Long id) {
         return usuarioRepository.findById(id).map(user -> {
             String novoStatus = "ATIVO".equals(user.getStatus()) ? "INATIVO" : "ATIVO";
             user.setStatus(novoStatus);
@@ -57,8 +45,7 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/premium")
-    public ResponseEntity<?> alternarPremium(@PathVariable Long id) {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<Usuario> alternarPremium(@PathVariable Long id) {
         return usuarioRepository.findById(id).map(user -> {
             if ("PREMIUM".equals(user.getPlano())) {
                 user.setPlano("FREE");
@@ -72,9 +59,7 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/update")
-    public ResponseEntity<?> atualizarDadosCompletos(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-
+    public ResponseEntity<Usuario> atualizarDadosCompletos(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         return usuarioRepository.findById(id).map(user -> {
             if(payload.containsKey("nome")) user.setNome((String) payload.get("nome"));
             if(payload.containsKey("login")) user.setLogin((String) payload.get("login"));
@@ -110,8 +95,7 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/cortesia")
-    public ResponseEntity<?> gerenciarCortesia(@PathVariable Long id, @RequestBody Map<String, String> payload) {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<Usuario> gerenciarCortesia(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         return usuarioRepository.findById(id).map(user -> {
             String acao = payload.get("acao");
             if ("CONCEDER".equals(acao)) {
@@ -130,8 +114,7 @@ public class AdminController {
     }
     
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> excluirUsuario(@PathVariable Long id) {
-        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<Void> excluirUsuario(@PathVariable Long id) {
         if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
         usuarioRepository.deleteById(id);
         return ResponseEntity.noContent().build();

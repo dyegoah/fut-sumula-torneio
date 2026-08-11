@@ -40,21 +40,14 @@ public class SecurityConfigurations {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
-                    // REGRAS DE LIBERAÇÃO TOTAL
                     req.requestMatchers("/api/auth/**").permitAll();       
                     req.requestMatchers("/api/integracao/**").permitAll(); 
-                    
-                    // REGRAS PÚBLICAS
                     req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/estatisticas/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/times/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/jogadores/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); 
-                    
-                    // REGRAS DE BLOQUEIO (APIs do sistema)
                     req.requestMatchers("/api/**").authenticated();        
-                    
-                    // REGRA FINAL
                     req.anyRequest().permitAll();                          
                 })
                 .authenticationProvider(authenticationProvider())
@@ -66,15 +59,10 @@ public class SecurityConfigurations {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // BLINDAGEM DE PRODUÇÃO: Substitua pelos links REAIS do seu frontend
-        configuration.setAllowedOrigins(Arrays.asList(
-            "https://fut-sumula-torneio.onrender.com", // OBRIGATÓRIO SER HTTPS
-            "https://www.futsumulapro.com.br"          // Se você for ter um domínio próprio
-        ));
-        
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Api-Key"));
-        configuration.setAllowCredentials(true); // Permite o tráfego seguro de cookies
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(false);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

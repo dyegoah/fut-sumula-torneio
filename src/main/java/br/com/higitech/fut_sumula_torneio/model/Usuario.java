@@ -8,8 +8,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,8 +20,7 @@ import jakarta.persistence.Transient;
 @Table(name = "tb_usuarios")
 public class Usuario implements UserDetails {
 
-    @Id 
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
     private String nome;
@@ -31,18 +28,15 @@ public class Usuario implements UserDetails {
     @Column(unique = true)
     private String login; // Email
     
-    @JsonIgnore
     private String senha;
     
-    // --- DADOS COMPLETOS PARA O ADMIN ---
     private String cidade;
     private String uf;
     private String nomeLiga;
-    private String whatsapp; // Contato
+    private String whatsapp; 
     
-    // Novos campos solicitados
-    private String genero; // MALE / FEMALE
-    private String idioma; // PT / EN / ES
+    private String genero; 
+    private String idioma; 
     private LocalDate dataNascimento;
     
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'ATIVO'")
@@ -57,29 +51,61 @@ public class Usuario implements UserDetails {
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'TORNEIO'")
     private String sistemaOrigem; 
     
-    @Column(length = 50)
-    private String pais;
-
     private LocalDate dataCadastro = LocalDate.now();
 
-    // NOVO CAMPO: Dias de teste específicos do usuário
     private Integer trialDays;
-    
-    // --- VARIÁVEIS TRANSIENTES (Calculadas na hora, não vão para o banco) ---
+
+    // --- SEGURANÇA: CONTROLE DE HIERARQUIA NO BANCO DE DADOS ---
+    @Column(columnDefinition = "VARCHAR(20) DEFAULT 'USER'")
+    private String role = "USER";
+
+    // --- VARIÁVEIS TRANSIENTES (Para controle de Sessão Seguro) ---
     @Transient
     private boolean acessoLiberado;
     
     @Transient
     private long diasRestantes;
+
+    // --- GETTERS E SETTERS ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+    public String getLogin() { return login; }
+    public void setLogin(String login) { this.login = login; }
+    public String getSenha() { return senha; }
+    public void setSenha(String senha) { this.senha = senha; }
+    public String getCidade() { return cidade; }
+    public void setCidade(String cidade) { this.cidade = cidade; }
+    public String getUf() { return uf; }
+    public void setUf(String uf) { this.uf = uf; }
+    public String getNomeLiga() { return nomeLiga; }
+    public void setNomeLiga(String nomeLiga) { this.nomeLiga = nomeLiga; }
+    public String getWhatsapp() { return whatsapp; }
+    public void setWhatsapp(String whatsapp) { this.whatsapp = whatsapp; }
+    public String getGenero() { return genero; }
+    public void setGenero(String genero) { this.genero = genero; }
+    public String getIdioma() { return idioma; }
+    public void setIdioma(String idioma) { this.idioma = idioma; }
+    public LocalDate getDataNascimento() { return dataNascimento; }
+    public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getPlano() { return plano; }
+    public void setPlano(String plano) { this.plano = plano; }
+    public String getNotaCortesia() { return notaCortesia; }
+    public void setNotaCortesia(String notaCortesia) { this.notaCortesia = notaCortesia; }
+    public String getSistemaOrigem() { return sistemaOrigem; }
+    public void setSistemaOrigem(String sistemaOrigem) { this.sistemaOrigem = sistemaOrigem; }
+    public LocalDate getDataCadastro() { return dataCadastro; }
+    public void setDataCadastro(LocalDate dataCadastro) { this.dataCadastro = dataCadastro; }
+    public Integer getTrialDays() { return trialDays; }
+    public void setTrialDays(Integer trialDays) { this.trialDays = trialDays; }
     
-    @Column(name = "usar_2fa")
-    private Boolean usar2fa = false; // Por padrão, usuários comuns não usam 2FA
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
-    @Column(name = "chave_2fa")
-    @JsonIgnore
-    private String chave2fa; // Guarda o código secreto do aplicativo
-
-    // --- LÓGICA DEFINITIVA DE SEGURANÇA DE ACESSO ---
+    // --- LÓGICA DE SEGURANÇA BACKEND ---
     public boolean isAcessoLiberado() {
         if ("PREMIUM".equals(this.plano) || "CORTESIA".equals(this.plano)) return true;
         if ("INATIVO".equals(this.status)) return false;
@@ -95,77 +121,17 @@ public class Usuario implements UserDetails {
         long diasUso = java.time.temporal.ChronoUnit.DAYS.between(this.dataCadastro, java.time.LocalDate.now());
         return Math.max(0, diasPermitidos - diasUso);
     }
-  
-    // --- GETTERS E SETTERS MANUAIS ---
-    public String getPais() { return pais; }
-    public void setPais(String pais) { this.pais = pais; }
-    
-    public Boolean getUsar2fa() { return usar2fa; }
-    public void setUsar2fa(Boolean usar2fa) { this.usar2fa = usar2fa; }
-
-    public String getChave2fa() { return chave2fa; }
-    public void setChave2fa(String chave2fa) { this.chave2fa = chave2fa; }
 
     public boolean getAcessoLiberado() { return acessoLiberado; }
     public void setAcessoLiberado(boolean acessoLiberado) { this.acessoLiberado = acessoLiberado; }
     public long getDiasRestantes() { return diasRestantes; }
     public void setDiasRestantes(long diasRestantes) { this.diasRestantes = diasRestantes; }
-    
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getNome() { return nome; }
-    public void setNome(String nome) { this.nome = nome; }
-
-    public String getLogin() { return login; }
-    public void setLogin(String login) { this.login = login; }
-
-    public String getSenha() { return senha; }
-    public void setSenha(String senha) { this.senha = senha; }
-
-    public String getCidade() { return cidade; }
-    public void setCidade(String cidade) { this.cidade = cidade; }
-
-    public String getUf() { return uf; }
-    public void setUf(String uf) { this.uf = uf; }
-
-    public String getNomeLiga() { return nomeLiga; }
-    public void setNomeLiga(String nomeLiga) { this.nomeLiga = nomeLiga; }
-    
-    public String getWhatsapp() { return whatsapp; }
-    public void setWhatsapp(String whatsapp) { this.whatsapp = whatsapp; }
-
-    public String getGenero() { return genero; }
-    public void setGenero(String genero) { this.genero = genero; }
-
-    public String getIdioma() { return idioma; }
-    public void setIdioma(String idioma) { this.idioma = idioma; }
-
-    public LocalDate getDataNascimento() { return dataNascimento; }
-    public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public String getPlano() { return plano; }
-    public void setPlano(String plano) { this.plano = plano; }
-
-    public String getNotaCortesia() { return notaCortesia; }
-    public void setNotaCortesia(String notaCortesia) { this.notaCortesia = notaCortesia; }
-
-    public String getSistemaOrigem() { return sistemaOrigem; }
-    public void setSistemaOrigem(String sistemaOrigem) { this.sistemaOrigem = sistemaOrigem; }
-
-    public LocalDate getDataCadastro() { return dataCadastro; }
-    public void setDataCadastro(LocalDate dataCadastro) { this.dataCadastro = dataCadastro; }
-
-    public Integer getTrialDays() { return trialDays; }
-    public void setTrialDays(Integer trialDays) { this.trialDays = trialDays; }
 
     // --- SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if ("fut_sumula_pro@hotmail.com".equals(this.login)) {
+        // Validação dinâmica pelo Banco (Fim do email fixo)
+        if ("ADMIN".equalsIgnoreCase(this.role)) {
             return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"));
         }
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));

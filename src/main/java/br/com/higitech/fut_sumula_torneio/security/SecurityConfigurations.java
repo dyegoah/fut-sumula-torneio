@@ -1,4 +1,4 @@
-package br.com.higitech.fut_sumula_torneio.security;
+package br.com.higitech.fut_sumula_torneio.security; 
 
 import java.util.Arrays;
 
@@ -40,23 +40,21 @@ public class SecurityConfigurations {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
-                    // 1. REGRAS DE LIBERAÇÃO TOTAL (Login, Cadastro, Integração)
+                    // REGRAS DE LIBERAÇÃO TOTAL
                     req.requestMatchers("/api/auth/**").permitAll();       
                     req.requestMatchers("/api/integracao/**").permitAll(); 
                     
-                    // --- LEITURA PÚBLICA ESTRITA (Apenas as telas de compartilhamento para fãs) ---
-                    // Agora usamos /publico/** para garantir que hackers não acessem rotas privadas via GET
-                    req.requestMatchers(HttpMethod.GET, "/api/torneios/publico/**").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/partidas/publico/**").permitAll();
+                    // REGRAS PÚBLICAS
+                    req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/estatisticas/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/times/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/jogadores/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/partidas/**").permitAll(); 
                     
-                    // 2. REGRAS DE BLOQUEIO DE ALTO NÍVEL (A Trava do Admin)
-                    req.requestMatchers("/api/admin/**").hasRole("ADMIN"); 
-                    
-                    // 3. REGRAS DE BLOQUEIO GERAL (Toda a gestão interna exige login)
+                    // REGRAS DE BLOQUEIO (APIs do sistema)
                     req.requestMatchers("/api/**").authenticated();        
                     
-                    // 4. REGRA FINAL (Permite carregar o layout HTML, CSS e imagens do site)
+                    // REGRA FINAL
                     req.anyRequest().permitAll();                          
                 })
                 .authenticationProvider(authenticationProvider())
@@ -68,16 +66,16 @@ public class SecurityConfigurations {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
+        // BLINDAGEM CORS: APENAS SEUS DOMÍNIOS SÃO AUTORIZADOS
         configuration.setAllowedOrigins(Arrays.asList(
+            "https://fut-sumula-torneio.onrender.com", 
             "http://localhost:5500", 
-            "http://127.0.0.1:5500",
-            "https://fut-sumula-torneio.onrender.com"
+            "http://127.0.0.1:5500", 
+            "http://localhost:8080"
         ));
-
-        configuration.setAllowCredentials(true); 
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Api-Key"));
-        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

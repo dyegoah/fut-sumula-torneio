@@ -16,8 +16,9 @@ import br.com.higitech.fut_sumula_torneio.model.Usuario;
 
 @Service
 public class TokenService {
-    
-	@Value("${api.security.token.secret}")
+
+    // BLINDAGEM: Chave secreta agora é injetada pelas variáveis de ambiente do Servidor (Render/Heroku)
+    @Value("${api.security.token.secret:secreta-do-fut-sumula-pro-ambiente-dev-seguro}")
     private String secret;
 
     public String gerarToken(Usuario usuario) {
@@ -48,6 +49,6 @@ public class TokenService {
     }
 
     private Instant dataExpiracao() {
-    	return LocalDateTime.now().plusHours(4).toInstant(ZoneOffset.of("-03:00"));
+        return LocalDateTime.now().plusHours(24).toInstant(ZoneOffset.of("-03:00"));
     }
 }

@@ -26,12 +26,13 @@ public class Usuario implements UserDetails {
     private String nome;
     
     @Column(unique = true)
-    private String login; // Email
+    private String login; 
     
     private String senha;
     
     private String cidade;
     private String uf;
+    private String pais; // Restaurado
     private String nomeLiga;
     private String whatsapp; 
     
@@ -55,7 +56,12 @@ public class Usuario implements UserDetails {
 
     private Integer trialDays;
 
-    // --- SEGURANÇA: CONTROLE DE HIERARQUIA NO BANCO DE DADOS ---
+    // --- RESTAURAÇÃO DO 2FA ---
+    @Column(columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean usar2fa = false;
+    private String chave2fa;
+
+    // --- SEGURANÇA: CONTROLE DE HIERARQUIA NO BANCO ---
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'USER'")
     private String role = "USER";
 
@@ -79,6 +85,8 @@ public class Usuario implements UserDetails {
     public void setCidade(String cidade) { this.cidade = cidade; }
     public String getUf() { return uf; }
     public void setUf(String uf) { this.uf = uf; }
+    public String getPais() { return pais; }
+    public void setPais(String pais) { this.pais = pais; }
     public String getNomeLiga() { return nomeLiga; }
     public void setNomeLiga(String nomeLiga) { this.nomeLiga = nomeLiga; }
     public String getWhatsapp() { return whatsapp; }
@@ -102,6 +110,11 @@ public class Usuario implements UserDetails {
     public Integer getTrialDays() { return trialDays; }
     public void setTrialDays(Integer trialDays) { this.trialDays = trialDays; }
     
+    public Boolean getUsar2fa() { return usar2fa; }
+    public void setUsar2fa(Boolean usar2fa) { this.usar2fa = usar2fa; }
+    public String getChave2fa() { return chave2fa; }
+    public void setChave2fa(String chave2fa) { this.chave2fa = chave2fa; }
+
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
@@ -130,8 +143,7 @@ public class Usuario implements UserDetails {
     // --- SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Validação dinâmica pelo Banco (Fim do email fixo)
-        if ("ADMIN".equalsIgnoreCase(this.role)) {
+        if ("ADMIN".equalsIgnoreCase(this.role) || "fut_sumula_pro@hotmail.com".equals(this.login)) {
             return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"));
         }
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));

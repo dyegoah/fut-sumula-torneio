@@ -13,6 +13,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -37,6 +38,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin("*") // Restabelecido para evitar erros de comunicação de portas diferentes no Frontend
 public class AutenticacaoController {
 
     @Autowired private AuthenticationManager authenticationManager;
@@ -75,7 +77,6 @@ public class AutenticacaoController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
-        
         String clientIP = getClientIP(request);
         LoginAttempt attempt = loginAttempts.getOrDefault(clientIP, new LoginAttempt());
 
@@ -197,8 +198,8 @@ public class AutenticacaoController {
         
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
         
-        // BLINDAGEM: Verifica a Role no banco de dados e não o email fixo
-        if (!"ADMIN".equalsIgnoreCase(usuarioLogado.getRole())) {
+        // Cinto de Segurança: Permite acesso pela ROLE ou pelo E-mail Original
+        if (!"ADMIN".equalsIgnoreCase(usuarioLogado.getRole()) && !"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
         }
 
@@ -247,7 +248,7 @@ public class AutenticacaoController {
         
         newUser.setStatus("PENDENTE"); 
         newUser.setPlano("FREE");
-        newUser.setRole("USER"); // Garante que o novo cadastro nasce como usuário comum
+        newUser.setRole("USER"); 
         this.repository.save(newUser);
 
         java.util.Map<String, String> resposta = new java.util.HashMap<>();
@@ -330,8 +331,8 @@ public class AutenticacaoController {
             }
             perfil.put("cadastroIncompleto", cadastroIncompleto);
 
-            // BLINDAGEM: Uso dinâmico do Role em vez do Email
-            if ("ADMIN".equalsIgnoreCase(user.getRole())) {
+            // Cinto de Segurança: Permite acesso mestre pela ROLE ou pelo E-mail/Nome antigo
+            if ("ADMIN".equalsIgnoreCase(user.getRole()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin()) || "Administrador".equals(user.getNome())) {
                 perfil.put("status", "ATIVO"); 
                 perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999L); 
@@ -340,7 +341,6 @@ public class AutenticacaoController {
                 return ResponseEntity.ok(perfil); 
             }
 
-            // BLINDAGEM: Aproveitando as regras já injetadas no Backend da classe Usuario
             perfil.put("status", statusReal);
             perfil.put("plano", planoReal);
             perfil.put("notaCortesia", user.getNotaCortesia());
@@ -445,8 +445,8 @@ public class AutenticacaoController {
 
         Usuario adminLogado = (Usuario) authentication.getPrincipal();
         
-        // BLINDAGEM: Verificação dinâmica pelo banco e não pelo email
-        if (!"ADMIN".equalsIgnoreCase(adminLogado.getRole())) {
+        // Cinto de Segurança: Permite acesso pela ROLE ou pelo E-mail Original
+        if (!"ADMIN".equalsIgnoreCase(adminLogado.getRole()) && !"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas administradores podem aprovar contas.");
         }
 

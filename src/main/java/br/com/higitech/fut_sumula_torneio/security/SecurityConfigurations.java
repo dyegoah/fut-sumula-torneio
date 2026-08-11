@@ -66,16 +66,12 @@ public class SecurityConfigurations {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // BLINDAGEM CORS: APENAS SEUS DOMÍNIOS SÃO AUTORIZADOS
-        configuration.setAllowedOrigins(Arrays.asList(
-            "https://fut-sumula-torneio.onrender.com", 
-            "http://localhost:5500", 
-            "http://127.0.0.1:5500", 
-            "http://localhost:8080"
-        ));
-        
+        // Mantendo livre para testes locais em qualquer porta
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Api-Key"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(false);
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

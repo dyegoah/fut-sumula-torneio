@@ -66,11 +66,15 @@ public class SecurityConfigurations {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Mantendo livre para testes locais em qualquer porta
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // BLINDAGEM DE PRODUÇÃO: Substitua pelos links REAIS do seu frontend
+        configuration.setAllowedOrigins(Arrays.asList(
+            "https://fut-sumula-torneio.onrender.com", // OBRIGATÓRIO SER HTTPS
+            "https://www.futsumulapro.com.br"          // Se você for ter um domínio próprio
+        ));
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Api-Key"));
+        configuration.setAllowCredentials(true); // Permite o tráfego seguro de cookies
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

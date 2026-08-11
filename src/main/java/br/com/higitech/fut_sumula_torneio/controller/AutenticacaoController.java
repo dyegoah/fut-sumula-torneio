@@ -50,11 +50,6 @@ public class AutenticacaoController {
     private boolean isRequestSecure(HttpServletRequest request) {
         return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
     }
-    
-    private boolean isLocalEnvironment(HttpServletRequest request) {
-        String serverName = request.getServerName();
-        return "localhost".equals(serverName) || "127.0.0.1".equals(serverName) || "0:0:0:0:0:0:0:1".equals(serverName);
-    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthenticationDTO data, HttpServletRequest request) {
@@ -68,8 +63,9 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // Lógica do 2FA (Ignora no Localhost, Exige no Render)
-            if (Boolean.TRUE.equals(user.getUsar2fa()) && !isLocalEnvironment(request)) {
+            // LÓGICA DO 2FA CORRIGIDA: Agora é exigido sempre, sem ignorar no Localhost.
+            // Se o usuário ativou, vai pedir o código!
+            if (Boolean.TRUE.equals(user.getUsar2fa())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
                 response.put("login", user.getLogin());
@@ -147,11 +143,12 @@ public class AutenticacaoController {
         
         // Verifica se é a conta mestre original
         if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado. Apenas o administrador mestre pode gerar o QR Code.");
         }
 
-        Usuario admin = (Usuario) repository.findByLogin("fut_sumula_pro@hotmail.com");
-        if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado!");
+        // BUSCA SEGURA: Agora busca pelo ID do usuário logado em vez da String de e-mail fixa, evitando bugs de salvamento
+        Usuario admin = repository.findById(usuarioLogado.getId()).orElse(null);
+        if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado no banco de dados!");
 
         String secretKey = admin.getChave2fa();
         if (secretKey == null || secretKey.isEmpty()) {

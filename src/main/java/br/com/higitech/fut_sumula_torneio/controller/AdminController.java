@@ -29,13 +29,11 @@ public class AdminController {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    // SEGURANÇA: Verificação baseada na hierarquia (Role) no Banco de Dados ou Conta Master Original
+    // SEGURANÇA: Verificação baseada na hierarquia (Role) no Banco de Dados
     private boolean isAdmin() {
         try {
             Usuario u = (Usuario) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            return "ADMIN".equalsIgnoreCase(u.getRole()) || 
-                   "admin@futsumula.com".equals(u.getLogin()) || 
-                   "fut_sumula_pro@hotmail.com".equals(u.getLogin());
+            return "ADMIN".equalsIgnoreCase(u.getRole());
         } catch (Exception e) { return false; }
     }
 

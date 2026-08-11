@@ -16,12 +16,10 @@
 
     <!-- BLINDAGEM DE SESSÃO -->
     <script>
-        // 1. Pega o token correto do LocalStorage, independente de como foi salvo
         function getTokenGlobal() {
             return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
         }
 
-        // 2. Fiscal de Autenticação Automático e Seguro
         async function validarAcesso() {
             const token = getTokenGlobal();
             if (!token) {
@@ -32,7 +30,7 @@
             try {
                 const res = await fetch('/api/auth/me', { 
                     method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token } // O segredo está aqui!
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
                 if (!res.ok) throw new Error("Sessão inválida ou expirada.");
@@ -47,7 +45,6 @@
         validarAcesso();
     </script>
     <script>
-        // 3. Interceptador de Requisições - Adiciona o Token em todas as chamadas para a API
         (function() {
             const token = getTokenGlobal();
             const originalFetch = window.fetch;
@@ -78,6 +75,25 @@
             };
         })();
     </script>
+
+    <style>
+        /* Estilos adicionais para a Paginação */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .pagination-container button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: transparent;
+            border-color: #555;
+            color: #555;
+            box-shadow: none;
+        }
+    </style>
 </head>
 <body>
 
@@ -96,7 +112,7 @@
                 <span id="total-jogadores" style="font-size: 0.7rem; color: var(--primary-neon);">Carregando...</span>
              </div>
         </div>
-        <div class="brand-area" onclick="window.location.href='cadastro-jogador'">
+        <div class="brand-area" onclick="window.location.href='cadastro-jogador.html'">
             <i class="fas fa-plus" style="color: var(--success-color); font-size: 1.2rem;"></i>
         </div>
     </header>
@@ -114,6 +130,14 @@
                 <p style="margin-top: 15px; color: var(--text-gray);">Buscando atletas...</p>
             </div>
         </div>
+
+        <!-- CONTROLES DE PAGINAÇÃO -->
+        <div id="pagination-controls" class="pagination-container" style="display: none;">
+            <button id="btn-prev-page" class="modal-btn" style="padding: 10px 20px; font-size: 1.2rem;" onclick="mudarPagina(-1)"><i class="fas fa-chevron-left"></i></button>
+            <span id="page-indicator" style="color: var(--primary-neon); font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">Página 1</span>
+            <button id="btn-next-page" class="modal-btn" style="padding: 10px 20px; font-size: 1.2rem;" onclick="mudarPagina(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+
     </main>
 
     <div id="editModal" class="modal-overlay">
@@ -189,7 +213,6 @@
             const container = document.getElementById('footbar-container');
             container.innerHTML = d;
             
-            // Extrai e executa o script injetado de forma segura
             const scripts = container.querySelectorAll("script");
             scripts.forEach(s => {
                 const novoScript = document.createElement("script");
@@ -198,7 +221,11 @@
             });
         });
                 
-        let allJogadores = []; // Variável Global
+        // Variáveis Globais de Estado
+        let allJogadores = []; 
+        let filteredJogadores = [];
+        let currentPage = 1;
+        const itemsPerPage = 12; // Exibe 12 jogadores por vez (3 a 4 linhas no mobile)
 
         document.addEventListener('DOMContentLoaded', carregarJogadores);
 
@@ -206,90 +233,105 @@
             try {
                 const response = await fetch('/api/jogadores');
                 allJogadores = await response.json();
+                filteredJogadores = [...allJogadores]; // Clona a lista para a paginação
+                
                 document.getElementById('total-jogadores').innerText = `${allJogadores.length} ATLETAS`;
-                renderizarGrid(allJogadores);
+                currentPage = 1;
+                renderizarGridPaginado();
             } catch (e) { console.error(e); }
         }
 
-		function renderizarGrid(lista) {
-		            const grid = document.getElementById('players-grid');
-		            let htmlGrid = ''; // OTIMIZAÇÃO: Reduz o consumo de CPU
-		            
-		            if (lista.length === 0) {
-		                grid.innerHTML = `<p style="color:#fff; text-align:center; grid-column:1/-1;">Nenhum jogador encontrado.</p>`;
-		                return;
-		            }
-		            lista.forEach(j => htmlGrid += criarCardHTML(j));
-		            grid.innerHTML = htmlGrid;
-		        }
+        function renderizarGridPaginado() {
+            const grid = document.getElementById('players-grid');
+            let htmlGrid = ''; 
+            
+            if (filteredJogadores.length === 0) {
+                grid.innerHTML = `<p style="color:#fff; text-align:center; grid-column:1/-1;">Nenhum jogador encontrado.</p>`;
+                document.getElementById('pagination-controls').style.display = 'none';
+                return;
+            }
 
-		        function criarCardHTML(j) {
-		            let borderColor = '#333';
-		            if(j.nivelTecnico >= 5) borderColor = 'var(--primary-neon)';
-		            const foto = DOMPurify.sanitize(j.fotoUrl || AppImages.defaultAvatar);
-		            const luvaIcon = DOMPurify.sanitize(j.posicao === 'GOLEIRO' ? `<i class="fas fa-mitten glove-icon"></i>` : '');
-		            
-		            // BLINDAGEM XSS
-		            const nomeSeguro = DOMPurify.sanitize(j.nome);
-		            const numeroSeguro = DOMPurify.sanitize(j.numeroCamisa);
-		            const posicaoSegura = DOMPurify.sanitize(j.posicao.substring(0,3));
+            // Cálculos da paginação
+            const totalPages = Math.ceil(filteredJogadores.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
 
-		            let estrelas = '';
-		            for(let i=0; i<j.nivelTecnico; i++) { estrelas += '<i class="fas fa-star"></i>'; }
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginaAtualList = filteredJogadores.slice(startIndex, endIndex);
 
-		            return `
-		                <div class="fut-card" style="border-color: ${borderColor};" onclick="abrirEdicao(${DOMPurify.sanitize(j.id)})">
-		                    <div class="card-header">
-		                        <span class="card-rating">${j.nivelTecnico * 10 + 40}</span>
-		                        <span class="card-position" style="font-size:0.7rem; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:3px;">${posicaoSegura}</span>
-		                    </div>
-		                    <div class="card-image-container">
-		                        <img src="${foto}" class="card-image">
-		                    </div>
-		                    <div class="card-info">
-		                        <div class="card-name">${nomeSeguro}</div>
-		                        <div class="card-stars" style="font-size:0.6rem; color:var(--primary-neon);">${estrelas}</div>
-		                        ${luvaIcon}
-		                        <div class="card-number-big">${numeroSeguro}</div>
-		                    </div>
-		                </div>
-		            `;
-		        }
+            // Concatenação otimizada
+            paginaAtualList.forEach(j => htmlGrid += criarCardHTML(j));
+            grid.innerHTML = htmlGrid;
 
-        function filtrarJogadores() {
-            const termo = document.getElementById('search-jogadores').value.toLowerCase();
-            const filtrados = allJogadores.filter(j => 
-                j.nome.toLowerCase().includes(termo) || 
-                j.numeroCamisa.includes(termo)
-            );
-            renderizarGrid(filtrados);
+            atualizarControlesPaginacao(totalPages);
+        }
+
+        function atualizarControlesPaginacao(totalPages) {
+            const controls = document.getElementById('pagination-controls');
+            if (totalPages <= 1) {
+                controls.style.display = 'none';
+            } else {
+                controls.style.display = 'flex';
+                document.getElementById('page-indicator').innerText = `Pág ${currentPage} de ${totalPages}`;
+                
+                const btnPrev = document.getElementById('btn-prev-page');
+                const btnNext = document.getElementById('btn-next-page');
+                
+                btnPrev.disabled = (currentPage === 1);
+                btnNext.disabled = (currentPage === totalPages);
+            }
+        }
+
+        function mudarPagina(delta) {
+            currentPage += delta;
+            renderizarGridPaginado();
+            // Rola suavemente para o topo do grid ao trocar de página
+            document.querySelector('.search-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function criarCardHTML(j) {
             let borderColor = '#333';
             if(j.nivelTecnico >= 5) borderColor = 'var(--primary-neon)';
-            const foto = j.fotoUrl || AppImages.defaultAvatar;
-            const luvaIcon = j.posicao === 'GOLEIRO' ? `<i class="fas fa-mitten glove-icon"></i>` : '';
+            const foto = DOMPurify.sanitize(j.fotoUrl || AppImages.defaultAvatar);
+            const luvaIcon = DOMPurify.sanitize(j.posicao === 'GOLEIRO' ? `<i class="fas fa-mitten glove-icon"></i>` : '');
+            
+            // BLINDAGEM XSS
+            const nomeSeguro = DOMPurify.sanitize(j.nome);
+            const numeroSeguro = DOMPurify.sanitize(j.numeroCamisa);
+            const posicaoSegura = DOMPurify.sanitize(j.posicao.substring(0,3));
+
             let estrelas = '';
             for(let i=0; i<j.nivelTecnico; i++) { estrelas += '<i class="fas fa-star"></i>'; }
 
             return `
-                <div class="fut-card" style="border-color: ${borderColor};" onclick="abrirEdicao(${j.id})">
+                <div class="fut-card" style="border-color: ${borderColor};" onclick="abrirEdicao(${DOMPurify.sanitize(j.id)})">
                     <div class="card-header">
-                        <span class="card-rating">${j.nivelTecnico * 10 + 40}</span>
-                        <span class="card-position" style="font-size:0.7rem; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:3px;">${j.posicao.substring(0,3)}</span>
+                        <span class="card-rating">${DOMPurify.sanitize(j.nivelTecnico * 10 + 40)}</span>
+                        <span class="card-position" style="font-size:0.7rem; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:3px;">${posicaoSegura}</span>
                     </div>
                     <div class="card-image-container">
-                        <img src="${foto}" class="card-image">
+                        <img src="${foto}" loading="lazy" class="card-image">
                     </div>
                     <div class="card-info">
-                        <div class="card-name">${j.nome}</div>
+                        <div class="card-name">${nomeSeguro}</div>
                         <div class="card-stars" style="font-size:0.6rem; color:var(--primary-neon);">${estrelas}</div>
                         ${luvaIcon}
-                        <div class="card-number-big">${j.numeroCamisa}</div>
+                        <div class="card-number-big">${numeroSeguro}</div>
                     </div>
                 </div>
             `;
+        }
+
+        function filtrarJogadores() {
+            const termo = document.getElementById('search-jogadores').value.toLowerCase();
+            filteredJogadores = allJogadores.filter(j => 
+                j.nome.toLowerCase().includes(termo) || 
+                j.numeroCamisa.includes(termo)
+            );
+            
+            currentPage = 1; // Reseta para a primeira página sempre que houver busca
+            renderizarGridPaginado();
         }
 
         const modal = document.getElementById('editModal');

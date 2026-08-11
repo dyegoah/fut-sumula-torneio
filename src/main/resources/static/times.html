@@ -124,6 +124,23 @@
 	        .select-player-item:hover { background: rgba(255,255,255,0.08); }
 	        .select-player-item.selected { border-left: 3px solid var(--success-color); background: rgba(0,255,136,0.1); }
 	        .select-player-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+
+            /* Paginação */
+            .pagination-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 15px;
+                margin-top: 30px;
+            }
+            .pagination-container button:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+                background: transparent;
+                border-color: #555;
+                color: #555;
+                box-shadow: none;
+            }
 	    </style>    
 	</head>
 <body>
@@ -159,6 +176,13 @@
                 <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary-neon);"></i>
                 <p style="margin-top: 15px; color: var(--text-gray);">Buscando agremiações...</p>
             </div>
+        </div>
+
+        <!-- CONTROLES DE PAGINAÇÃO -->
+        <div id="pagination-controls" class="pagination-container" style="display: none;">
+            <button id="btn-prev-page" class="modal-btn" style="padding: 10px 20px; font-size: 1.2rem;" onclick="mudarPagina(-1)"><i class="fas fa-chevron-left"></i></button>
+            <span id="page-indicator" style="color: var(--primary-neon); font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">Página 1</span>
+            <button id="btn-next-page" class="modal-btn" style="padding: 10px 20px; font-size: 1.2rem;" onclick="mudarPagina(1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </main>
 
@@ -266,8 +290,11 @@
         }
 
         let allTimes = [];
+        let filteredTimes = [];
         let marketPlayers = []; 
         let selectedPlayersIds = [];
+        let currentPage = 1;
+        const itemsPerPage = 12; // 12 clubes por página
 
         document.addEventListener('DOMContentLoaded', carregarTimes);
 
@@ -275,33 +302,68 @@
             try {
                 const response = await fetch('/api/times');
                 allTimes = await response.json();
+                filteredTimes = [...allTimes];
                 document.getElementById('total-times').innerText = `${DOMPurify.sanitize(allTimes.length)} CLUBES REGISTRADOS`;
-                renderizarGrid(allTimes);
+                currentPage = 1;
+                renderizarGridPaginado();
             } catch (error) { console.error(error); }
         }
 
-        function renderizarGrid(lista) {
+        function renderizarGridPaginado() {
             const grid = document.getElementById('teams-grid');
-            if (lista.length === 0) {
+            if (filteredTimes.length === 0) {
                 grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; background: rgba(0,0,0,0.5); border-radius: 15px;"><i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--text-gray); margin-bottom: 15px;"></i><h3>Nenhum clube encontrado</h3><br><button class="modal-btn btn-success" onclick="window.location.href='cadastro-time.html'">CRIAR PRIMEIRO CLUBE</button></div>`;
+                document.getElementById('pagination-controls').style.display = 'none';
                 return;
             }
             
-            // OTIMIZAÇÃO: Concatenação antes de injetar no DOM
+            const totalPages = Math.ceil(filteredTimes.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginaAtualList = filteredTimes.slice(startIndex, endIndex);
+
             let htmlCards = '';
-            lista.forEach(time => htmlCards += criarCardTime(time));
+            paginaAtualList.forEach(time => htmlCards += criarCardTime(time));
             grid.innerHTML = htmlCards;
+
+            atualizarControlesPaginacao(totalPages);
+        }
+
+        function atualizarControlesPaginacao(totalPages) {
+            const controls = document.getElementById('pagination-controls');
+            if (totalPages <= 1) {
+                controls.style.display = 'none';
+            } else {
+                controls.style.display = 'flex';
+                document.getElementById('page-indicator').innerText = `Pág ${currentPage} de ${totalPages}`;
+                
+                const btnPrev = document.getElementById('btn-prev-page');
+                const btnNext = document.getElementById('btn-next-page');
+                
+                btnPrev.disabled = (currentPage === 1);
+                btnNext.disabled = (currentPage === totalPages);
+            }
+        }
+
+        function mudarPagina(delta) {
+            currentPage += delta;
+            renderizarGridPaginado();
+            document.querySelector('.search-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function filtrarTimes() {
             const termo = document.getElementById('search-times').value.toLowerCase();
-            const filtrados = allTimes.filter(time => time.nome.toLowerCase().includes(termo));
-            renderizarGrid(filtrados);
+            filteredTimes = allTimes.filter(time => time.nome.toLowerCase().includes(termo));
+            currentPage = 1;
+            renderizarGridPaginado();
         }
 
         function buildCrestHTML(time) {
             if (time.tipoEscudo === 'UPLOAD' && time.escudoUrl) {
-                return `<img src="${DOMPurify.sanitize(time.escudoUrl)}" loading="lazy" class="team-crest-img">`; // OTIMIZAÇÃO: Lazy load
+                return `<img src="${DOMPurify.sanitize(time.escudoUrl)}" loading="lazy" class="team-crest-img">`; 
             } else {
                 const icon = DOMPurify.sanitize(mascotsMap[time.customMascot] || 'fa-shield-alt');
                 const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(time.corPrimaria)}, ${DOMPurify.sanitize(time.corSecundaria)})`;
@@ -314,7 +376,7 @@
 
         function criarCardTime(time) {
             const count = time.jogadores ? time.jogadores.length : 0;
-            const nomeSeguro = DOMPurify.sanitize(time.nome); // SEGURANÇA
+            const nomeSeguro = DOMPurify.sanitize(time.nome); 
             const corPrimariaSegura = DOMPurify.sanitize(time.corPrimaria);
             const corSecundariaSegura = DOMPurify.sanitize(time.corSecundaria);
 
@@ -333,7 +395,7 @@
             const time = allTimes.find(t => t.id === timeId);
             if(!time) return;
             document.getElementById('current-time-id').value = timeId;
-            document.getElementById('modal-team-name').innerText = time.nome; // innerText é seguro
+            document.getElementById('modal-team-name').innerText = time.nome; 
             document.getElementById('modal-crest-container').innerHTML = buildCrestHTML(time);
             renderizarListaJogadores(time);
             document.getElementById('rosterModal').classList.add('active');
@@ -350,7 +412,6 @@
                     return a.nome.localeCompare(b.nome);
                 });
 
-                // OTIMIZAÇÃO: Concatenação antes de injetar
                 let htmlJogadores = '';
                 time.jogadores.forEach(jog => {
                     const foto = DOMPurify.sanitize(jog.fotoUrl || AppImages.defaultAvatar);
@@ -434,7 +495,6 @@
                 return a.nome.localeCompare(b.nome);
             });
 
-            // Usando fragmento de documento ou laço otimizado para não forçar reflow
             jogadores.forEach(jog => {
                 if (jog.time && jog.time.id == timeIdAtual) return;
 
@@ -455,7 +515,6 @@
                 const item = document.createElement('div');
                 item.className = 'select-player-item';
                 item.dataset.id = jog.id; 
-                // OTIMIZAÇÃO: loading="lazy" no avatar do mercado da bola
                 item.innerHTML = `
                     <img src="${foto}" loading="lazy"> 
                     <div style="flex:1;">

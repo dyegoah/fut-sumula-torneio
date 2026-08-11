@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <!-- OTIMIZAÇÃO: Preconnect para aquecer conexões externas mais rápido -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acesso | Fut-Súmula Torneio</title>
@@ -18,7 +23,8 @@
         * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
         body { margin: 0; padding: 0; height: 100vh; width: 100vw; background-color: var(--bg-dark); display: flex; overflow: hidden; }
 
-        .info-side { flex: 1.2; position: relative; display: flex; flex-direction: column; justify-content: center; padding: 60px; color: #fff; background-image: url('https://images.unsplash.com/photo-1522778119026-d647f0565c6d?q=80&w=1920&auto=format&fit=crop'); background-size: cover; background-position: center; }
+        /* Imagem de fundo Otimizada na renderização */
+        .info-side { flex: 1.2; position: relative; display: flex; flex-direction: column; justify-content: center; padding: 60px; color: #fff; background-color: #050505; background-image: url('https://images.unsplash.com/photo-1522778119026-d647f0565c6d?q=80&w=1920&auto=format&fit=crop'); background-size: cover; background-position: center; }
         .info-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(0, 30, 60, 0.85) 100%); z-index: 1; }
         .info-content { position: relative; z-index: 2; max-width: 600px; }
         .brand-tag { display: inline-flex; align-items: center; gap: 10px; background: var(--primary-dim); border: 1px solid var(--primary-neon); padding: 8px 16px; border-radius: 30px; margin-bottom: 30px; font-size: 0.8rem; font-weight: 700; color: var(--primary-neon); text-transform: uppercase; letter-spacing: 2px; }
@@ -27,9 +33,11 @@
         .description { font-size: 1.1rem; color: #ccc; line-height: 1.6; margin-bottom: 40px; font-weight: 300; }
 
         .login-side { flex: 0.8; background: #0b0b0f; display: flex; align-items: center; justify-content: center; position: relative; }
-        .glow-circle { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; }
-        .gc-1 { width: 300px; height: 300px; background: var(--primary-neon); top: -50px; right: -50px; }
-        .gc-2 { width: 200px; height: 200px; background: #0044ff; bottom: -50px; left: -50px; }
+        
+        /* OTIMIZAÇÃO: Substituído o 'filter: blur()' custoso por 'radial-gradient' (Ganha 60fps no mobile) */
+        .glow-circle { position: absolute; border-radius: 50%; opacity: 0.4; pointer-events: none; }
+        .gc-1 { width: 300px; height: 300px; background: radial-gradient(circle, var(--primary-neon) 0%, transparent 70%); top: -50px; right: -50px; }
+        .gc-2 { width: 200px; height: 200px; background: radial-gradient(circle, #0044ff 0%, transparent 70%); bottom: -50px; left: -50px; }
 
         .login-form-container { width: 100%; max-width: 400px; padding: 40px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; backdrop-filter: blur(20px); z-index: 10; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         .form-header { text-align: center; margin-bottom: 30px; }
@@ -92,13 +100,13 @@
 
                 <div class="input-box">
                     <i class="fas fa-envelope"></i>
-                    <input type="text" id="loginEmail" placeholder=" " required autocomplete="off" autocapitalize="off" maxlength="100">
+                    <input type="text" id="loginEmail" placeholder=" " required autocomplete="username" autocapitalize="off" maxlength="100">
                     <label>E-mail ou Usuário</label>
                 </div>
 
                 <div class="input-box">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="loginSenha" placeholder=" " required maxlength="64">
+                    <input type="password" id="loginSenha" placeholder=" " required autocomplete="current-password" maxlength="64">
                     <label>Sua Senha</label>
                 </div>
 
@@ -131,7 +139,7 @@
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
-                    <input type="text" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="off" autofocus>
+                    <input type="number" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code" autofocus>
                     <label style="left: 15px;">Código de 6 dígitos</label>
                 </div>
 
@@ -153,7 +161,7 @@
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
                     <i class="fas fa-at"></i>
-                    <input type="email" id="resendEmail" placeholder=" " required maxlength="100">
+                    <input type="email" id="resendEmail" placeholder=" " required autocomplete="email" maxlength="100">
                     <label>Seu e-mail cadastrado</label>
                 </div>
 
@@ -175,7 +183,7 @@
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
                     <i class="fas fa-envelope"></i>
-                    <input type="email" id="forgotEmail" placeholder=" " required maxlength="100">
+                    <input type="email" id="forgotEmail" placeholder=" " required autocomplete="email" maxlength="100">
                     <label>Seu e-mail</label>
                 </div>
 

@@ -63,7 +63,8 @@
         .mata-layout-grid { display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; padding: 0 20px 40px; }
         @media(max-width: 1000px) { .mata-layout-grid { grid-template-columns: 1fr; } }
         
-        .mata-panel { background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        /* OTIMIZAÇÃO CSS: Removido backdrop-filter para manter fluidez no mobile de entrada */
+        .mata-panel { background: rgba(15, 15, 15, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
         .panel-title { font-size: 1.2rem; color: var(--selected-color, #ff4444); font-weight: 800; text-transform: uppercase; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         
         .symmetrical-bracket-container { display: flex; justify-content: center; align-items: stretch; gap: 20px; padding: 20px 0; overflow-x: auto; min-width: max-content; }
@@ -263,7 +264,8 @@
 
         function getTeamIconHTML(team) {
             if (!team || team.id === null || team.id === -1 || !team.nome || team.nome === 'BYE') return '<i class="fas fa-shield-alt" style="color:#555;"></i>';
-            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${DOMPurify.sanitize(team.escudoUrl)}"></div>`;
+            // OTIMIZAÇÃO: loading="lazy" adicionado
+            if (team.tipoEscudo === 'UPLOAD' && team.escudoUrl) return `<div class="tiny-crest"><img src="${DOMPurify.sanitize(team.escudoUrl)}" loading="lazy"></div>`;
             const icon = DOMPurify.sanitize(mascotsMap[team.customMascot] || 'fa-shield-alt');
             const grad = `linear-gradient(135deg, ${DOMPurify.sanitize(team.corPrimaria || '#333')}, ${DOMPurify.sanitize(team.corSecundaria || '#000')})`;
             const border = DOMPurify.sanitize(team.corTerciaria || '#fff');

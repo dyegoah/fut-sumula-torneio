@@ -3,12 +3,11 @@
 <head>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 	<script>
-	    // Fiscal de Autenticação Automático
 	    async function validarAcesso() {
 	        try {
 	            const res = await fetch('/api/auth/me', { 
 	                method: 'GET',
-	                credentials: 'include' // Envia o cookie HttpOnly silenciosamente
+	                credentials: 'include' 
 	            });
 	            
 	            if (!res.ok) {
@@ -153,7 +152,8 @@
 
         function getEscudoHTML(t, size=30) {
             if (!t) return `<div class="crest-mini" style="width:${size}px;height:${size}px;opacity:0.3;"><i class="fas fa-question-circle" style="color:#555;"></i></div>`;
-            if (t.tipoEscudo === 'UPLOAD' && t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" class="team-img-mini" style="width:${size}px;height:${size}px;">`;
+            // OTIMIZAÇÃO: loading="lazy" adicionado
+            if (t.tipoEscudo === 'UPLOAD' && t.escudoUrl) return `<img src="${DOMPurify.sanitize(t.escudoUrl)}" loading="lazy" class="team-img-mini" style="width:${size}px;height:${size}px;">`;
             
             const c1 = DOMPurify.sanitize(t.corPrimaria || '#333'); 
             const c2 = DOMPurify.sanitize(t.corSecundaria || '#111'); 
@@ -191,7 +191,7 @@
                 const todasPartidas = await resP.json();
                 const partidas = todasPartidas.filter(p => p.torneio && p.torneio.id === torneio.id);
 
-                document.getElementById('head-nome').innerText = torneio.nome; // innerText já é seguro
+                document.getElementById('head-nome').innerText = torneio.nome;
                 document.getElementById('head-qtd').innerHTML = `<i class="fas fa-shield-alt"></i> ${DOMPurify.sanitize(torneio.quantidadeTimes)} EQUIPES`;
                 
                 const color = DOMPurify.sanitize(torneio.corTrofeu || '#ffd700');
@@ -210,10 +210,9 @@
             } catch (e) { alert("Erro ao carregar Copa. Verifique o servidor."); console.error(e);}
         }
 
-        // --- INTELIGÊNCIA: FASE DE GRUPOS (OTIMIZADO) ---
         function processarFaseGrupos(partidas) {
             const container = document.getElementById('grupos-container');
-            let htmlGrupos = ''; // Constrói tudo em memória antes de injetar
+            let htmlGrupos = ''; 
             
             const gruposNomes = [...new Set(partidas.map(p => p.fase))].sort();
 
@@ -242,7 +241,7 @@
 
                 let rows = tabela.map((row, i) => {
                     const statusClass = i < 2 ? 'zone-classify' : 'zone-out';
-                    const nomeSeguro = DOMPurify.sanitize(row.t.nome); // BLINDAGEM XSS
+                    const nomeSeguro = DOMPurify.sanitize(row.t.nome);
                     return `
                     <tr class="${statusClass}">
                         <td><strong>${i + 1}º</strong></td>
@@ -253,7 +252,7 @@
                     </tr>`;
                 }).join('');
 
-                const grupoNomeSeguro = DOMPurify.sanitize(grupoNome); // BLINDAGEM XSS
+                const grupoNomeSeguro = DOMPurify.sanitize(grupoNome);
                 htmlGrupos += `
                     <div class="group-box">
                         <div class="group-title"><i class="fas fa-layer-group"></i> ${grupoNomeSeguro}</div>
@@ -264,13 +263,12 @@
                     </div>`;
             });
             
-            container.innerHTML = htmlGrupos; // Atualização única no DOM
+            container.innerHTML = htmlGrupos;
         }
 
-        // --- INTELIGÊNCIA: ÁRVORE DO MATA-MATA (OTIMIZADO) ---
+        // --- OTIMIZAÇÃO: Inserção Única de DOM (Evita recálculo na Árvore de Colunas) ---
         function processarMataMata(partidas, torneio) {
             const container = document.getElementById('bracket-container');
-            container.innerHTML = '';
             if(partidas.length === 0) {
                 container.innerHTML = `<div style="text-align:center; width:100%; color:#aaa; padding: 50px;">O Mata-Mata será gerado pelo sistema.</div>`;
                 return;
@@ -283,13 +281,12 @@
                 return (posA !== -1 ? posA : 99) - (posB !== -1 ? posB : 99);
             });
 
+            let bracketHTML = '';
+
             fases.forEach(faseNome => {
                 if(!faseNome) return;
-                const col = document.createElement('div');
-                col.className = 'bracket-col';
-                
-                const faseSegura = DOMPurify.sanitize(faseNome); // BLINDAGEM XSS
-                let colHTML = `<div class="phase-name">${faseSegura}</div>`;
+                const faseSegura = DOMPurify.sanitize(faseNome);
+                let colHTML = `<div class="bracket-col"><div class="phase-name">${faseSegura}</div>`;
 
                 const jogosFase = partidas.filter(p => p.fase === faseNome);
                 jogosFase.forEach(p => {
@@ -300,7 +297,6 @@
                     let lblA = p.labelConfronto ? p.labelConfronto.split(' x ')[0] : 'A Definir';
                     let lblB = p.labelConfronto ? p.labelConfronto.split(' x ')[1] : 'A Definir';
 
-                    // BLINDAGEM XSS
                     const nomeCasa = DOMPurify.sanitize(p.timeCasa?.nome || lblA);
                     const nomeVis = DOMPurify.sanitize(p.timeVisitante?.nome || lblB);
                     const setsCasaSeguro = isFin ? DOMPurify.sanitize(p.setsCasa) : '-';
@@ -321,12 +317,14 @@
                         </div>`;
                 });
                 
-                col.innerHTML = colHTML;
-                container.appendChild(col);
+                colHTML += `</div>`;
+                bracketHTML += colHTML;
             });
+
+            container.innerHTML = bracketHTML; // Atualização única
         }
 
         carregarCopa();
     </script>
 </body>
-</html> 
+</html>

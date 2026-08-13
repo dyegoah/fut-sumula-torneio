@@ -1,628 +1,406 @@
 <!DOCTYPE html>
-<html lang="pt-br" style="display: none;">
+<html lang="pt-br">
 <head>
+    <!-- REDIRECIONAMENTO INTELIGENTE: Força HTTPS no Render, mas ignora no Localhost -->
+    <script>
+        if (window.location.hostname.includes('onrender.com') && window.location.protocol !== 'https:') {
+            window.location.href = window.location.href.replace('http:', 'https:');
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | Fut-Súmula</title>
+    <title>Acesso | Fut-Súmula Torneio</title>
     
     <link rel="icon" type="image/png" href="images/icon-192.webp">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00ff88">
-    <link rel="apple-touch-icon" href="images/icon-192.webp">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- FONTES E CSS DO SISTEMA -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/finalHome.css">
-
-    <!-- BIBLIOTECA DE SEGURANÇA -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-
-    <!-- BLINDAGEM DE SESSÃO GLOBAL -->
-    <script>
-        function getTokenGlobal() {
-            return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
-        }
-
-        async function validarAcesso() {
-            const token = getTokenGlobal();
-            if (!token) {
-                window.location.replace('login.html');
-                return;
-            }
-            try {
-                const res = await fetch('/api/auth/me', { 
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                
-                if (!res.ok) throw new Error("Sessão inválida.");
-                
-                const perfil = await res.json();
-
-                // REDIRECIONA USUÁRIOS ANTIGOS USANDO MODAL BOOTSTRAP
-                if (perfil.cadastroIncompleto) {
-                    document.documentElement.style.display = ''; 
-                    
-                    const showBootstrapModal = () => {
-                        const modalElement = document.getElementById('modalCadastroIncompleto');
-                        const modalIncompleto = new bootstrap.Modal(modalElement);
-                        modalIncompleto.show();
-                    };
-
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', showBootstrapModal);
-                    } else {
-                        showBootstrapModal();
-                    }
-                    return; 
-                }
-
-                document.documentElement.style.display = '';
-            } catch (error) {
-                localStorage.removeItem('futSumulaToken');
-                localStorage.removeItem('token');
-                window.location.replace('login.html'); 
-            }
-        }
-        validarAcesso();
-    </script>
-    <script>
-        (function() {
-            const token = getTokenGlobal();
-            const originalFetch = window.fetch;
-            window.fetch = function() {
-                let args = Array.from(arguments);
-                let url = args[0];
-                let options = args[1] || {};
-
-                if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                }
-                args[1] = options;
-
-                return originalFetch.apply(this, args).then(response => {
-                    if (response.status === 403 || response.status === 401) {
-                        alert("Sessão expirada. Por favor, faça login novamente.");
-                        localStorage.removeItem('futSumulaToken');
-                        localStorage.removeItem('token');
-                        window.location.href = 'login.html';
-                    }
-                    return response;
-                }).catch(err => {
-                    console.error("Erro na requisição segura:", err);
-                    throw err;
-                });
-            };
-        })();
-    </script>
-
-    <!-- SCRIPTS ADICIONAIS -->
-    <script>
-        const imagensFundo = ['images/bg1.png', 'images/bg2.png', 'images/bg3.png'];
-        function preCarregarImagens() { imagensFundo.forEach((src) => { const img = new Image(); img.src = src; }); }
-        document.addEventListener('DOMContentLoaded', preCarregarImagens);
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(r => console.log('App Fut-Súmula pronto!')).catch(err => {});
-            });
-        }
-    </script>
     
-    <!-- ESTILOS INTERNOS -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        .bg-stadium { background-image: var(--img-stadium); } 
-        .bg-trophy { background-image: var(--img-trophy); }
-        .bg-fans { background-image: var(--img-fans); }
-        
-        .hub-container { display: flex; flex-direction: column; gap: 20px; padding-bottom: 20px; }
-        .play-mode-card { background: linear-gradient(160deg, rgba(30,30,30,0.9) 0%, rgba(10,10,10,0.95) 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; height: 180px; position: relative; overflow: hidden; cursor: pointer; transition: 0.4s; display: flex; align-items: flex-end; padding: 20px; }
-        .play-mode-card:hover { transform: scale(1.02); border-color: var(--primary-neon); box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        .pm-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0.4; transition: 0.4s; z-index: 0; filter: grayscale(80%); }
-        .play-mode-card:hover .pm-bg { opacity: 0.6; filter: grayscale(0%); transform: scale(1.1); }
-        .pm-content { position: relative; z-index: 2; width: 100%; }
-        .pm-icon { font-size: 2.5rem; color: #fff; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.8)); }
-        .pm-title { font-size: 1.5rem; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 1px; line-height: 1; margin-bottom: 5px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
-        .pm-desc { font-size: 0.8rem; color: #ccc; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
-        
-        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-        .qa-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; text-align: center; transition: 0.3s; cursor: pointer; }
-        .qa-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--neon-blue); }
-        .qa-icon { font-size: 1.5rem; color: var(--neon-blue); margin-bottom: 5px; }
-        .qa-text { font-size: 0.8rem; font-weight: 700; color: #fff; }
-        
-        .hub-header { margin-bottom: 25px; padding-left: 5px; border-left: 4px solid var(--primary-neon); }
-        .hub-header h1 { font-size: 1.8rem; font-weight: 900; margin: 0; color: #fff; }
-        .hub-header p { font-size: 0.9rem; color: var(--text-gray); margin: 0; }
-        
-        .menu-item:hover { background: rgba(255, 255, 255, 0.1); color: var(--primary-neon) !important; cursor: pointer; }
-        .user-profile-widget:hover .user-name { color: var(--primary-neon); }
-        
-        .gender-switch-container { display: flex; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 5px; border: 1px solid rgba(255,255,255,0.1); }
-        .gender-option { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.8rem; font-weight: bold; color: #aaa; transition: 0.3s; }
-        .gender-option:hover { color: #fff; background: rgba(255,255,255,0.05); }
-        input[name="confGenero"], input[name="confIdioma"] { display: none; }
-        input[name="confGenero"]:checked + label, input[name="confIdioma"]:checked + label { background: var(--primary-neon); color: #000; box-shadow: 0 0 15px var(--primary-neon-dim); }
+        :root { --primary-neon: #00eaff; --primary-dim: rgba(0, 234, 255, 0.1); --bg-dark: #050505; }
+        * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
+        body { margin: 0; padding: 0; height: 100vh; width: 100vw; background-color: var(--bg-dark); display: flex; overflow: hidden; }
 
-        .sub-status-box { padding: 15px; text-align: left; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .status-active { color: #00ff2a; font-weight: 900; font-size: 0.9rem; text-shadow: 0 0 10px rgba(0,255,42,0.3); margin-top: 3px; }
-        .status-trial { color: #ffd700; font-weight: 900; font-size: 0.9rem; margin-top: 3px; }
-        .status-late { color: #ff4444; font-weight: 900; font-size: 0.9rem; margin-top: 3px; }
+        .info-side { flex: 1.2; position: relative; display: flex; flex-direction: column; justify-content: center; padding: 60px; color: #fff; background-color: #050505; background-image: url('https://images.unsplash.com/photo-1522778119026-d647f0565c6d?q=80&w=1920&auto=format&fit=crop'); background-size: cover; background-position: center; }
+        .info-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(0, 30, 60, 0.85) 100%); z-index: 1; }
+        .info-content { position: relative; z-index: 2; max-width: 600px; }
+        .brand-tag { display: inline-flex; align-items: center; gap: 10px; background: var(--primary-dim); border: 1px solid var(--primary-neon); padding: 8px 16px; border-radius: 30px; margin-bottom: 30px; font-size: 0.8rem; font-weight: 700; color: var(--primary-neon); text-transform: uppercase; letter-spacing: 2px; }
+        .big-title { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 20px; background: linear-gradient(to right, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .big-title span { color: var(--primary-neon); -webkit-text-fill-color: var(--primary-neon); }
+        .description { font-size: 1.1rem; color: #ccc; line-height: 1.6; margin-bottom: 40px; font-weight: 300; }
+
+        .login-side { flex: 0.8; background: #0b0b0f; display: flex; align-items: center; justify-content: center; position: relative; }
+        .glow-circle { position: absolute; border-radius: 50%; opacity: 0.4; pointer-events: none; }
+        .gc-1 { width: 300px; height: 300px; background: radial-gradient(circle, var(--primary-neon) 0%, transparent 70%); top: -50px; right: -50px; }
+        .gc-2 { width: 200px; height: 200px; background: radial-gradient(circle, #0044ff 0%, transparent 70%); bottom: -50px; left: -50px; }
+
+        .login-form-container { width: 100%; max-width: 400px; padding: 40px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; backdrop-filter: blur(20px); z-index: 10; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .form-header { text-align: center; margin-bottom: 30px; }
+        .form-header i { font-size: 2.5rem; color: #fff; margin-bottom: 10px; display: block; }
+        .form-header h2 { font-size: 1.5rem; color: #fff; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        .form-header p { font-size: 0.8rem; color: #666; margin-top: 5px; }
+
+        .input-box { position: relative; margin-bottom: 20px; }
+        .input-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #666; }
+        .input-box input { width: 100%; padding: 15px 15px 15px 45px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 0.9rem; outline: none; transition: 0.3s; }
+        .input-box input:focus { border-color: var(--primary-neon); box-shadow: 0 0 10px var(--primary-dim); }
+        .input-box label { position: absolute; left: 45px; top: 15px; color: #666; font-size: 0.9rem; pointer-events: none; transition: 0.3s; }
+        .input-box input:focus ~ label, .input-box input:not(:placeholder-shown) ~ label { top: -10px; left: 10px; font-size: 0.7rem; color: var(--primary-neon); background: #0b0b0f; padding: 0 5px; }
+
+        .btn-submit { width: 100%; padding: 15px; border: none; border-radius: 8px; background: linear-gradient(90deg, #00c6ff, #0072ff); color: #fff; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 20px rgba(0, 114, 255, 0.3); }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 114, 255, 0.5); }
+        .btn-submit:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .divider { margin: 25px 0; border-top: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0b0b0f; padding: 0 10px; color: #666; font-size: 0.8rem; }
         
-        .config-card { width: 95%; max-width: 420px; padding: 30px 25px; text-align: center; border: 1px solid var(--primary-neon); background: #111; box-shadow: 0 0 50px rgba(0, 0, 0, 0.5); border-radius: 16px; }
-        .btn-neon { background: transparent; border: 1px solid var(--primary-neon); color: var(--primary-neon); padding: 12px 20px; border-radius: 30px; font-weight: 700; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;}
-        .btn-neon:hover { background: var(--primary-neon); color: #000; box-shadow: 0 0 20px var(--primary-neon-dim); }
-        .btn-mini-text { background: transparent; border: none; color: #888; font-size: 0.7rem; text-decoration: underline; cursor: pointer; margin-top: 10px; }
-        .btn-mini-text:hover { color: #fff; }
+        .btn-register { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 700; transition: 0.3s; cursor: pointer; }
+        .btn-outline-light { border-color: rgba(255,255,255,0.2); color: #ccc; background: rgba(255,255,255,0.02); }
+        .btn-outline-light:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); }
+        .btn-whatsapp { border-color: rgba(37, 211, 102, 0.5); color: #25D366; background: rgba(37, 211, 102, 0.05); margin-top: 10px; }
+        .btn-whatsapp:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.15); color: #fff; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.2); }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 20000; backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; }
-        .modal-overlay.active { display: flex; }
+        .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
+        .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
+        
+        .forgot-link { display: inline-block; color: var(--primary-neon); font-size: 0.8rem; text-decoration: none; font-weight: 600; transition: 0.3s; }
+        .forgot-link:hover { text-decoration: underline; color: #fff; }
 
-        @keyframes piscarAviso {
-            0% { opacity: 1; box-shadow: 0 0 10px #ff4444; }
-            50% { opacity: 0.4; box-shadow: 0 0 0px transparent; }
-            100% { opacity: 1; box-shadow: 0 0 10px #ff4444; }
-        }
-        .blinking-banner { background: #ff4444; color: #fff; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; animation: piscarAviso 1.5s infinite; border-bottom: 2px solid #fff; }
+        @media (max-width: 900px) { body { flex-direction: column; height: auto; overflow-y: auto; } .info-side { display: none; } .login-side { height: 100vh; padding: 20px; } }
     </style>
 </head>
 <body>
-    <div class="bg-carousel-container">
-        <div class="bg-overlay"></div>
-        <div class="bg-image bg-stadium"></div> 
+
+    <div class="info-side">
+        <div class="info-overlay"></div>
+        <div class="info-content">
+            <div class="brand-tag"><i class="fas fa-star"></i> PLATAFORMA OFICIAL</div>
+            <h1 class="big-title">A REVOLUÇÃO NA GESTÃO DO SEU <span>TORNEIO</span>.</h1>
+            <p class="description">Deixe o papel e a planilha no passado. O <strong>Fut-Súmula Torneio</strong> oferece tecnologia de ponta para organizar campeonatos, ligas e copas com profissionalismo.</p>
+        </div>
     </div>
 
-    <!-- MODAL BOOTSTRAP PARA AVISO DE CADASTRO -->
-    <div class="modal fade" id="modalCadastroIncompleto" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="background: linear-gradient(145deg, rgba(20,20,20,0.98), rgba(10,10,10,1)); border: 1px solid var(--primary-neon); box-shadow: 0 0 30px rgba(0, 234, 255, 0.2); border-radius: 16px;">
-                <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <h5 class="modal-title" style="color: var(--primary-neon); font-weight: 800; letter-spacing: 1px; font-family: 'Montserrat', sans-serif;">
-                        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> AÇÃO NECESSÁRIA
-                    </h5>
+    <div class="login-side">
+        <div class="glow-circle gc-1"></div>
+        <div class="glow-circle gc-2"></div>
+
+        <div class="login-form-container">
+            
+            <div id="step-1">
+                <div class="form-header">
+                    <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
+                    <h2>Área do Organizador</h2>
+                    <p>Entre para gerenciar seus campeonatos</p>
                 </div>
-                <div class="modal-body text-light" style="font-family: 'Montserrat', sans-serif;">
-                    <p style="font-size: 0.95rem; color: #ccc;">Detectamos que seu cadastro está incompleto. Isso acontece porque implementamos novas regras de segurança e geolocalização no sistema.</p>
-                    <p style="font-size: 0.95rem; color: #ccc;">Por favor, atualize seus dados de <strong>País, Cidade e Telefone</strong> para continuar acessando seus torneios.</p>
+
+                <div class="input-box">
+                    <i class="fas fa-envelope"></i>
+                    <input type="text" id="loginEmail" placeholder=" " required autocomplete="username" autocapitalize="off" maxlength="100">
+                    <label>E-mail ou Usuário</label>
                 </div>
-                <div class="modal-footer" style="border-top: none; justify-content: center; padding-bottom: 20px;">
-                    <button type="button" class="btn-neon w-100 m-0" onclick="window.location.href='completar-cadastro.html'">
-                        COMPLETAR CADASTRO AGORA <i class="bi bi-arrow-right-circle ms-2"></i>
+
+                <div class="input-box">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="loginSenha" placeholder=" " required autocomplete="current-password" maxlength="64">
+                    <label>Sua Senha</label>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: -10px; margin-bottom: 20px;">
+                    <a href="#" class="forgot-link" onclick="abrirEsqueciSenha()">Esqueceu a senha?</a>
+                    <a href="#" class="forgot-link" onclick="abrirReenviarAtivacao()">Acesso não liberado?</a>
+                </div>
+
+                <button class="btn-submit" id="btnStep1" onclick="fazerLogin()">
+                    ACESSAR PAINEL <i class="fas fa-arrow-right" style="margin-left:5px;"></i>
+                </button>
+
+                <div class="divider"><span>OU</span></div>
+                
+                <div style="display: flex; flex-direction: column;">
+                    <a href="cadastro-usuario.html" class="btn-register btn-outline-light">
+                        <i class="fas fa-user-plus"></i> Criar Nova Conta
+                    </a>
+                    <button class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> Fale com a Equipe
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <div id="locked-banner" class="blinking-banner" style="display: none;">
-        <i class="fas fa-lock"></i> CONTA SUSPENSA / EXPIRADA - REGULARIZE SEU ACESSO
-    </div>
-
-    <header class="app-topbar" style="justify-content: space-between; padding: 0 20px; z-index: 10001;">
-        <div class="brand-area">
-            <div class="logo-icon"><i class="fas fa-trophy" style="color: var(--primary-neon);"></i></div>
-            <div class="logo-text">
-                <h2 style="font-size: 1.2rem; line-height: 1;">FUT<span style="color:var(--primary-neon)">SÚMULA</span></h2>
-                <span style="font-size: 0.6rem; letter-spacing: 2px; color: #aaa;">TORNEIO PRO</span>
-            </div>
-        </div>
-
-        <div class="user-profile-widget" onclick="toggleUserMenu()" style="position: relative; cursor: pointer; display: flex; align-items: center; gap: 10px;">
-            <div class="user-info" style="text-align: right;">
-                <span id="display-user-name" class="user-name" style="display: block; font-weight: 700; font-size: 0.9rem; color: #fff;">...</span>
-                <span id="display-plan-name" class="user-role" style="display: block; font-size: 0.7rem; color: var(--primary-neon);" data-ref="o_organizador">ORGANIZADOR</span>
-            </div>
-            
-            <div class="user-avatar" style="position: relative;">
-                <img id="user-avatar-img" src="" alt="User" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary-neon);">
-                <div id="status-ball" class="status-indicator" style="width: 10px; height: 10px; background: #888; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid #000;"></div>
-            </div>
-            
-            <div id="user-dropdown" class="user-menu" style="display: none; position: absolute; top: 50px; right: 0; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; width: 240px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 10000; overflow: hidden;">
-                <div class="sub-status-box" id="subscription-box">
-                    <div style="font-size: 0.65rem; color: #aaa; letter-spacing: 1px;" data-ref="sua_assinatura">SUA ASSINATURA</div>
-                    <div id="app-status-text" class="status-active" style="font-size:0.8rem;">CARREGANDO...</div>
-                    <div id="app-expire-text" style="font-size: 0.65rem; color: #888; margin-top: 2px;"></div>
+            <div id="step-2" style="display: none;">
+                <div class="form-header">
+                    <i class="fas fa-shield-alt auth-icon"></i>
+                    <h2>Segurança 2FA</h2>
+                    <p>Digite o código gerado no seu aplicativo</p>
                 </div>
+
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <!-- OTIMIZAÇÃO: type="text" para não perder zeros à esquerda, inputmode="numeric" para abrir teclado de celular -->
+                    <input type="text" inputmode="numeric" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code" autofocus>
+                    <label style="left: 15px;">Código de 6 dígitos</label>
+                </div>
+
+                <button class="btn-submit" id="btnStep2" onclick="validarCodigo2FA()">
+                    CONFIRMAR ACESSO <i class="fas fa-check" style="margin-left:5px;"></i>
+                </button>
                 
-                <div id="btnAdminPanel" class="menu-item" onclick="window.location.href='admin-panel.html'" style="display: none; padding: 12px 15px; color: var(--primary-neon); background: rgba(0, 234, 255, 0.05); font-size: 0.9rem; border-bottom: 1px solid #333; align-items: center; gap: 10px; transition: 0.2s;">
-                    <i class="fas fa-cogs"></i> <span style="font-weight: bold;">Painel Admin</span>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar e trocar usuário</a>
+                </div>
+            </div>
+            
+            <div id="step-resend" style="display: none;">
+                <div class="form-header">
+                    <i class="fab fa-whatsapp auth-icon" style="color: #25D366;"></i>
+                    <h2>Liberação de Acesso</h2>
+                    <p>Verifique o status do seu cadastro</p>
                 </div>
 
-                <div class="menu-item" onclick="abrirConfiguracao(event)" style="padding: 12px 15px; color: #fff; font-size: 0.9rem; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
-                    <i class="fas fa-cog"></i> <span data-ref="btn_config">Configuração</span>
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <i class="fas fa-at"></i>
+                    <input type="email" id="resendEmail" placeholder=" " required autocomplete="email" maxlength="100">
+                    <label>Seu e-mail cadastrado</label>
                 </div>
+
+                <button class="btn-submit" id="btnResend" onclick="reenviarAtivacao()" style="background: linear-gradient(90deg, #1ebea5, #00e676); box-shadow: 0 5px 20px rgba(37, 211, 102, 0.3);">
+                    VERIFICAR AGORA <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
+                </button>
                 
-                <div class="menu-item" onclick="abrirPagamentoApp(event)" style="padding: 12px 15px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
-                    <i class="fas fa-gem" style="color: #ff00de;"></i> <span style="color: #ff00de; font-weight: bold;" data-ref="btn_assinar">Assinar Sistema</span>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
                 </div>
+            </div>
+
+            <div id="step-forgot" style="display: none;">
+                <div class="form-header">
+                    <i class="fas fa-key auth-icon"></i>
+                    <h2>Recuperar Senha</h2>
+                    <p>Digite o e-mail cadastrado na conta</p>
+                </div>
+
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="forgotEmail" placeholder=" " required autocomplete="email" maxlength="100">
+                    <label>Seu e-mail</label>
+                </div>
+
+                <button class="btn-submit" id="btnForgot" onclick="enviarRecuperacao()">
+                    SOLICITAR SUPORTE <i class="fab fa-whatsapp" style="margin-left:5px;"></i>
+                </button>
                 
-                <div class="menu-item" onclick="abrirModalAjuda(event)" style="padding: 12px 15px; color: #fff; font-size: 0.9rem; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
-                    <i class="fas fa-question-circle"></i> <span data-ref="btn_ajuda">Ajuda</span>
-                </div>
-
-                <div class="menu-item" onclick="confirmarSaida(event)" style="padding: 12px 15px; color: #ff4444; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
-                    <i class="fas fa-sign-out-alt"></i> <span data-ref="btn_sair">Sair</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="main-content">
-        <div class="hub-header">
-            <p data-ref="bem_vindo">BEM-VINDO AO JOGO</p>
-            <h1 data-ref="o_que_jogar">O QUE VAMOS<br><span style="color:var(--primary-neon)">JOGAR HOJE?</span></h1>
-        </div>
-
-        <div class="hub-container">
-            <div class="play-mode-card" onclick="window.location.href='play-hub.html'">
-                <div class="pm-bg bg-stadium"></div> 
-                <div class="pm-content">
-                    <i class="fas fa-play-circle pm-icon" style="color:var(--success-color);"></i>
-                    <div class="pm-title" data-ref="card_iniciar">INICIAR PARTIDA</div>
-                    <div class="pm-desc" data-ref="desc_iniciar">Acesse os torneios ativos e vá para o campo.</div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
                 </div>
             </div>
 
-            <div class="play-mode-card" onclick="window.location.href='torneios.html'">
-                <div class="pm-bg bg-trophy"></div>
-                <div class="pm-content">
-                    <i class="fas fa-trophy pm-icon"></i>
-                    <div class="pm-title" data-ref="card_torneio">MODO TORNEIO</div>
-                    <div class="pm-desc" data-ref="desc_torneio">Gerencie ligas, copas e mata-mata.</div>
-                </div>
-            </div>
-
-            <div class="quick-actions">
-                <div class="qa-btn" onclick="window.location.href='cadastro-time.html'">
-                    <i class="fas fa-shield-alt qa-icon"></i>
-                    <div class="qa-text" data-ref="novo_clube">NOVO CLUBE</div>
-                </div>
-                <div class="qa-btn" onclick="window.location.href='cadastro-jogador.html'">
-                    <i class="fas fa-user-plus qa-icon" style="color: var(--neon-pink);"></i>
-                    <div class="qa-text" data-ref="novo_craque">NOVO CRAQUE</div>
-                </div>
-            </div>
-
-            <div class="play-mode-card" onclick="if(window.abrirShareGlobal) window.abrirShareGlobal(event);" style="height: 120px; border-color: var(--primary-neon); background: linear-gradient(160deg, rgba(0, 255, 136, 0.1) 0%, rgba(10,10,10,0.95) 100%); margin-top: 10px;">
-                <div class="pm-bg bg-fans"></div> 
-                <div class="pm-content" style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <div class="pm-title" style="font-size: 1.2rem; color: var(--primary-neon);">PÁGINA PÚBLICA</div>
-                        <div class="pm-desc">Compartilhe torneios, stats e súmulas.</div>
-                    </div>
-                    <i class="fas fa-share-alt pm-icon" style="color: var(--primary-neon); font-size: 2rem; margin: 0;"></i>
-                </div>
-            </div>
-            
-        </div>
-    </main>
-
-    <div id="locked-action-modal" class="modal-overlay">
-        <div class="modal-box config-card" style="border-color: #ff4444; max-width: 380px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <i class="fas fa-lock" style="font-size: 3rem; color: #ff4444; animation: piscarAviso 2s infinite;"></i>
-                <h3 style="color: #ff4444; margin: 15px 0 10px; font-weight: 900; letter-spacing: 1px;">ACESSO BLOQUEADO</h3>
-                <p style="color: #ccc; font-size: 0.9rem; line-height: 1.5;">Sua conta está inativa ou o período expirou.<br><br>Para liberar o acesso a todas as telas, acesse a aba <strong>Assinar Sistema</strong> ou fale com o nosso suporte.</p>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button type="button" class="btn-neon" onclick="abrirPagamentoAppBloqueado()" style="border-color: #ff00de; color: #ff00de; background: rgba(255,0,222,0.1);"><i class="fas fa-gem"></i> ASSINAR SISTEMA</button>
-                <button type="button" class="btn-neon" onclick="abrirModalAjudaBloqueado()" style="border-color: #fff; color: #fff;"><i class="fas fa-headset"></i> FALAR COM SUPORTE</button>
-                <button type="button" class="btn-mini-text" onclick="document.getElementById('locked-action-modal').classList.remove('active')">FECHAR AVISO</button>
-            </div>
         </div>
     </div>
-
-    <div id="config-modal" class="modal-overlay">
-        <div class="modal-box config-card">
-            <div class="close-btn-header" onclick="document.getElementById('config-modal').classList.remove('active')" style="position: absolute; top: 10px; right: 10px;"><i class="fas fa-times"></i></div>
-            <h3 style="color: var(--primary-neon); text-align: center; margin-bottom: 20px;">CONFIGURAÇÕES</h3>
-            
-            <div class="input-game-group"><label>Nome Organizador</label><input type="text" id="confNomeOrg" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff;"></div>
-            <div class="input-game-group"><label>Nome da Liga</label><input type="text" id="confNomeLiga" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff;"></div>
-            <div class="input-game-group"><label>Email</label><input type="email" id="confEmail" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff;"></div>
-
-            <div class="input-game-group" style="margin: 15px 0;">
-                <label style="margin-bottom: 8px; display:block; font-size:0.7rem; color:#aaa;">MODALIDADE / TEMA</label>
-                <div class="gender-switch-container">
-                    <input type="radio" id="g-male" name="confGenero" value="male">
-                    <label for="g-male" class="gender-option"><i class="fas fa-mars"></i> MASCULINO</label>
-                    <input type="radio" id="g-female" name="confGenero" value="female">
-                    <label for="g-female" class="gender-option"><i class="fas fa-venus"></i> FEMININO</label>
-                </div>
-            </div>
-
-            <div class="input-game-group" style="margin: 15px 0;">
-                <label style="margin-bottom: 8px; display:block; font-size:0.7rem; color:#aaa;">IDIOMA / LANGUAGE</label>
-                <div class="gender-switch-container">
-                    <input type="radio" id="l-pt" name="confIdioma" value="pt">
-                    <label for="l-pt" class="gender-option">PT 🇧🇷</label>
-                    <input type="radio" id="l-en" name="confIdioma" value="en">
-                    <label for="l-en" class="gender-option">EN 🇺🇸</label>
-                    <input type="radio" id="l-es" name="confIdioma" value="es">
-                    <label for="l-es" class="gender-option">ES 🇪🇸</label>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button type="button" class="btn-neon" onclick="salvarPerfil()">SALVAR DADOS</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="payment-modal" class="modal-overlay">
-        <div class="modal-box config-card" style="border-color: #ff00de;">
-            <h3 style="color: #ff00de;">ASSINATURA PREMIUM</h3>
-            <p id="display-pix-value" style="color: #fff; font-weight: bold; margin: 10px 0;">R$ -- <span style="font-size: 0.8rem; color: #aaa;">/ mês</span></p>
-            <div style="background: white; padding: 10px; border-radius: 8px; margin: 20px auto; width: 150px; height: 150px;">
-                <img id="img-qrcode-sistema" src="" style="width: 100%; height: 100%;">
-            </div>
-            <button type="button" class="btn-neon" onclick="copiarPixSistema()" style="border-color: #ff00de; color: #fff; background: rgba(255,0,222,0.15);"><i class="fab fa-whatsapp"></i> COPIAR PIX</button>
-            <button type="button" class="btn-mini-text" onclick="document.getElementById('payment-modal').classList.remove('active')">FECHAR</button>
-        </div>
-    </div>
-
-    <div id="modal-help" class="modal-overlay">
-        <div class="modal-box config-card" style="border-color: #fff; max-width: 350px;">
-            <div class="close-btn-header" onclick="document.getElementById('modal-help').classList.remove('active')" style="position: absolute; top: 10px; right: 10px;"><i class="fas fa-times"></i></div>
-            <div style="text-align: center; margin-bottom: 20px;"><i class="fas fa-headset" style="font-size: 3rem; color: var(--primary-neon);"></i><h3>AJUDA</h3></div>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-                <a id="link-whatsapp-support" href="#" target="_blank" class="btn-neon" style="border-color: #25D366; color: #25D366; text-decoration: none;"><i class="fab fa-whatsapp"></i> WHATSAPP</a>
-                <a id="link-insta-support" href="#" target="_blank" class="btn-neon" style="border-color: #E1306C; color: #E1306C; text-decoration: none;"><i class="fab fa-instagram"></i> INSTAGRAM</a>
-                <a id="link-facebook-support" href="#" target="_blank" class="btn-neon" style="border-color: #1877F2; color: #1877F2; text-decoration: none;"><i class="fab fa-facebook-f"></i> FACEBOOK</a>
-                <a id="link-email-support" href="#" class="btn-neon" style="border-color: #ccc; color: #ccc; text-decoration: none;"><i class="fas fa-envelope"></i> EMAIL</a>
-            </div>
-            <button type="button" class="btn-mini-text" onclick="document.getElementById('modal-help').classList.remove('active')">FECHAR</button>
-        </div>
-    </div>
-
-    <div id="logout-modal" class="modal-overlay">
-        <div class="modal-box config-card" style="border-color: #ff4444; max-width: 350px;">
-            <div style="text-align: center; margin-bottom: 15px;">
-                <i class="fas fa-sign-out-alt" style="font-size: 3rem; color: #ff4444;"></i>
-                <h3 style="color: #ff4444; margin: 10px 0;">ENCERRAR SESSÃO?</h3>
-                <p style="color: #ccc; font-size: 0.9rem;">Você terá que fazer login novamente para acessar seus torneios.</p>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button type="button" class="btn-neon" onclick="document.getElementById('logout-modal').classList.remove('active')" style="border-color: #fff; color: #fff;">CANCELAR</button>
-                <button type="button" class="btn-neon" onclick="executarLogout()" style="background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444;">SAIR AGORA</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="footbar-container"></div>
-
-    <!-- SCRIPT DO BOOTSTRAP 5 -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- O SEU ARQUIVO DE SCRIPT GENDER MODE -->
-    <!-- Caso tenha um js/gender-mode.js na sua pasta -->
-    <!-- <script src="js/gender-mode.js"></script> -->
 
     <script>
-        fetch('footbar.html').then(r => r.text()).then(d => {
-            const container = document.getElementById('footbar-container');
-            container.innerHTML = d;
-            
-            const scripts = container.querySelectorAll("script");
-            scripts.forEach(s => {
-                const novoScript = document.createElement("script");
-                novoScript.textContent = s.textContent;
-                document.body.appendChild(novoScript);
-            });
-        });
-   
-        let payloadPixString = "";
-        let currentDynamicPixValue = "20.00"; 
-        let isAccountLocked = false;
+        let userEmailTemporario = "";
 
-        async function atualizarInterfaceUsuario() {
+        function solicitarAcessoWhatsApp() {
+            const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
+            const numero = cfg.whatsApp || "5511999999999";
+            const texto = encodeURIComponent("Olá! Gostaria de saber os valores e como funciona o acesso ao Fut-Súmula Pro.");
+            window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
+        }
+
+        async function fazerLogin() {
+            const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
+            const senha = document.getElementById('loginSenha').value.substring(0, 64);
+            const btn = document.getElementById('btnStep1');
+
+            if(!email || !senha) { alert("Preencha todos os campos."); return; }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> VERIFICANDO...';
+            btn.disabled = true;
+
             try {
-                const token = getTokenGlobal();
-                const res = await fetch('/api/auth/me', { 
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include', // Essencial para Cookies HttpOnly
+                    body: JSON.stringify({ login: email, senha: senha })
                 });
-                
+
                 if (res.ok) {
-                    const user = await res.json();
+                    const data = await res.json();
                     
-                    document.getElementById('display-user-name').innerText = user.nome;
-                    document.getElementById('display-plan-name').innerText = user.nomeLiga || 'LIGA';
-                    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=00eaff&color=000&bold=true`;
-                    document.getElementById('user-avatar-img').src = avatarUrl;
-
-                    if (user.nome === 'Administrador') {
-                        const btnAdmin = document.getElementById('btnAdminPanel');
-                        if(btnAdmin) {
-                            btnAdmin.style.display = 'flex';
-                        }
+                    if (data.requires2FA) {
+                        userEmailTemporario = data.login || email; // Fallback seguro
+                        document.getElementById('step-1').style.display = 'none';
+                        document.getElementById('step-2').style.display = 'block';
+                        document.getElementById('codigo2FA').focus();
+                    } else {
+                        if (data.token) localStorage.setItem('futSumulaToken', data.token);
+                        
+                        const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
+                        sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
+                        window.location.href = 'index.html'; 
                     }
-
-                    sessionStorage.setItem('futSumulaPerfil', JSON.stringify(user));
-                    localStorage.setItem('futSumulaPerfil', JSON.stringify(user));
-
-                    if(user.genero) localStorage.setItem('futSumulaGender', user.genero);
-                    if(user.idioma) localStorage.setItem('futSumulaLang', user.idioma);
-
-                    aplicarStatusNaInterface(user);
-                }
-            } catch (e) { 
-                console.error("Erro ao buscar perfil", e); 
-            }
-        }
-
-        function aplicarStatusNaInterface(user) {
-            const statusEl = document.getElementById('app-status-text');
-            const expireEl = document.getElementById('app-expire-text');
-            const ball = document.getElementById('status-ball');
-
-            isAccountLocked = !user.acessoLiberado;
-
-            if (user.status === 'INATIVO') {
-                statusEl.innerText = "CONTA SUSPENSA"; statusEl.className = "status-late"; expireEl.innerText = "Contate o suporte."; ball.style.background = "#ff4444";
-            } else if (user.plano === 'CORTESIA') {
-                statusEl.innerText = "VIP / CORTESIA"; statusEl.className = "status-active"; statusEl.style.color = "#FFD700"; expireEl.innerText = user.notaCortesia || "Acesso Ilimitado"; ball.style.background = "#FFD700";
-            } else if (user.plano === 'PREMIUM') {
-                statusEl.innerText = "PREMIUM ATIVO"; statusEl.className = "status-active"; expireEl.innerText = "Renovação Mensal"; ball.style.background = "#00ff2a";
-            } else {
-                if (isAccountLocked) {
-                    statusEl.innerText = "PERÍODO EXPIRADO"; statusEl.className = "status-late"; expireEl.innerText = "Assine para continuar."; ball.style.background = "#ff4444";
                 } else {
-                    statusEl.innerText = "PERÍODO DE TESTE"; statusEl.className = "status-trial"; expireEl.innerText = `Restam ${user.diasRestantes} dias gratuitos`; ball.style.background = "#ffd700";
+                    const errorText = await res.text();
+                    alert("Acesso negado: " + errorText);
                 }
+            } catch(e) {
+                console.error(e);
+                alert("Servidor indisponível no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-
-            if (isAccountLocked) document.getElementById('locked-banner').style.display = 'block';
-            else document.getElementById('locked-banner').style.display = 'none';
         }
 
-        document.addEventListener('click', function(e) {
-            if (isAccountLocked) {
-                const isHeader = e.target.closest('header.app-topbar'); 
-                const isModal = e.target.closest('.modal-overlay'); 
-                const isBanner = e.target.closest('#locked-banner');
-                const isBootstrapModal = e.target.closest('.modal'); 
+        async function validarCodigo2FA() {
+            const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
+            const btn = document.getElementById('btnStep2');
 
-                if (!isHeader && !isModal && !isBanner && !isBootstrapModal) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    document.getElementById('user-dropdown').style.display = 'none';
-                    document.getElementById('locked-action-modal').classList.add('active');
+            if(!codigo || codigo.length !== 6) { alert("Digite os 6 números gerados no aplicativo."); return; }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> AUTENTICANDO...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/login/validar-2fa', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include', // Essencial para o Cookie persistir a sessão
+                    body: JSON.stringify({ login: userEmailTemporario, codigo: codigo })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.token) localStorage.setItem('futSumulaToken', data.token);
+                    
+                    const perfil = { nome: data.nome, email: userEmailTemporario, liga: "LIGA PRO" };
+                    sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
+                    window.location.href = 'index.html'; 
+                } else {
+                    alert("❌ Código inválido ou expirado! Verifique o aplicativo.");
                 }
+            } catch(e) {
+                alert("Erro ao validar código.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                document.getElementById('codigo2FA').value = ""; 
             }
-        }, true); 
+        }
 
-        function abrirPagamentoAppBloqueado() { document.getElementById('locked-action-modal').classList.remove('active'); abrirPagamentoApp(null); }
-        function abrirModalAjudaBloqueado() { document.getElementById('locked-action-modal').classList.remove('active'); abrirModalAjuda(null); }
-        function toggleUserMenu() { const menu = document.getElementById('user-dropdown'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
+        function abrirEsqueciSenha() {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'block';
+        }
 
-        document.addEventListener('click', function(event) {
-            const widget = document.querySelector('.user-profile-widget');
-            if (widget && !widget.contains(event.target)) document.getElementById('user-dropdown').style.display = 'none';
+        function abrirReenviarAtivacao() {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'block';
+        }
+
+        function voltarEtapa1() {
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-forgot').style.display = 'none';
+            document.getElementById('step-resend').style.display = 'none';
+            document.getElementById('step-1').style.display = 'block';
+            
+            document.getElementById('codigo2FA').value = "";
+            document.getElementById('forgotEmail').value = "";
+            document.getElementById('resendEmail').value = "";
+        }
+
+        async function enviarRecuperacao() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            if(!email) { alert("Preencha seu e-mail."); return; }
+
+            const btn = document.getElementById('btnForgot');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> VERIFICANDO...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(data.mensagem);
+                    
+                    const textoCodificado = encodeURIComponent(data.textoPronto);
+                    window.open(`https://wa.me/${data.numeroAdmin}?text=${textoCodificado}`, '_blank');
+                    voltarEtapa1();
+                } else {
+                    alert("Erro ao processar a solicitação.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Servidor indisponível no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function reenviarAtivacao() {
+            const email = document.getElementById('resendEmail').value.trim();
+            if(!email) { alert("Preencha seu e-mail."); return; }
+
+            const btn = document.getElementById('btnResend');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> VERIFICANDO...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/resend-activation', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(data.mensagem);
+                    
+                    const textoCodificado = encodeURIComponent(data.textoPronto);
+                    window.open(`https://wa.me/${data.numeroAdmin}?text=${textoCodificado}`, '_blank');
+                    voltarEtapa1();
+                } else {
+                    const respostaErro = await res.text();
+                    alert("❌ " + respostaErro);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Servidor indisponível no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                if (document.getElementById('step-1').style.display !== 'none') fazerLogin();
+                else if (document.getElementById('step-2').style.display !== 'none') validarCodigo2FA();
+                else if (document.getElementById('step-forgot').style.display !== 'none') enviarRecuperacao();
+                else if (document.getElementById('step-resend').style.display !== 'none') reenviarAtivacao();
+            }
         });
-
-        function abrirConfiguracao(e) {
-            if(e) e.stopPropagation();
-            if (isAccountLocked) { document.getElementById('locked-action-modal').classList.add('active'); document.getElementById('user-dropdown').style.display = 'none'; return; }
-            document.getElementById('user-dropdown').style.display = 'none';
-            const perfil = JSON.parse(sessionStorage.getItem('futSumulaPerfil')) || JSON.parse(localStorage.getItem('futSumulaPerfil')) || {};
-            
-            document.getElementById('confNomeOrg').value = perfil.nome || '';
-            document.getElementById('confNomeLiga').value = perfil.nomeLiga || '';
-            document.getElementById('confEmail').value = perfil.login || ''; 
-            
-            const generoAtual = localStorage.getItem('futSumulaGender') || 'male';
-            if(generoAtual === 'female') document.getElementById('g-female').checked = true; else document.getElementById('g-male').checked = true;
-
-            const idiomaAtual = localStorage.getItem('futSumulaLang') || 'pt';
-            if(idiomaAtual === 'en') document.getElementById('l-en').checked = true; else if(idiomaAtual === 'es') document.getElementById('l-es').checked = true; else document.getElementById('l-pt').checked = true;
-
-            document.getElementById('config-modal').classList.add('active');
-        }
-
-        function salvarPerfil() {
-            const genero = document.querySelector('input[name="confGenero"]:checked').value;
-            const idioma = document.querySelector('input[name="confIdioma"]:checked').value;
-            
-            // Aqui você pode chamar a API para atualizar as preferências
-            
-            document.getElementById('config-modal').classList.remove('active');
-            alert('Preferências salvas com sucesso!');
-        }
-
-        function confirmarSaida(e) {
-            if(e) e.stopPropagation();
-            document.getElementById('user-dropdown').style.display = 'none';
-            document.getElementById('logout-modal').classList.add('active');
-        }
-
-        function executarLogout() {
-            sessionStorage.removeItem('futSumulaPerfil');
-            localStorage.removeItem('futSumulaPerfil');
-            localStorage.removeItem('futSumulaToken');
-            localStorage.removeItem('token');
-            localStorage.removeItem('jwtToken');
-            window.location.href = 'login.html';
-        }
-
-        window.abrirPagamentoApp = function(e) {
-            if(e) e.stopPropagation();
-            document.getElementById('user-dropdown').style.display = 'none';
-            
-            const sysCfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
-            const pixKey = sysCfg.pixKey || "dyegoah@hotmail.com";
-            const pixVal = sysCfg.pixValue || "20.00";
-            const pixQrCodeRaw = sysCfg.pixQr || "";
-
-            currentDynamicPixValue = pixVal;
-            const priceText = parseFloat(pixVal).toFixed(2).replace('.', ',');
-            document.getElementById('display-pix-value').innerHTML = `R$ ${priceText} <span style="font-size: 0.8rem; color: #aaa;">/ mês</span>`;
-
-            if(pixQrCodeRaw && pixQrCodeRaw.trim() !== "") payloadPixString = pixQrCodeRaw.trim();
-            else payloadPixString = generatePixPayload(pixKey, pixVal, "HIGTECH SYSTEMS", "BRASIL", "ASSINATURA");
-
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payloadPixString)}`;
-            document.getElementById('img-qrcode-sistema').src = qrUrl;
-            document.getElementById('payment-modal').classList.add('active');
-        }
-
-        window.copiarPixSistema = function() {
-            navigator.clipboard.writeText(payloadPixString).then(() => {
-                alert("Código Pix copiado! Abrindo WhatsApp...");
-                const sysCfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
-                const sysWhats = sysCfg.whatsApp || "5585999999999";
-                const perfil = JSON.parse(sessionStorage.getItem('futSumulaPerfil')) || JSON.parse(localStorage.getItem('futSumulaPerfil')) || { nome: "Cliente" };
-                const priceText = parseFloat(currentDynamicPixValue).toFixed(2).replace('.', ',');
-                const msg = `Olá! Sou *${perfil.nome}*. Acabei de copiar a chave PIX para assinar o *Fut-Súmula Torneio*.\nValor da assinatura: R$ ${priceText}`;
-                window.open(`https://wa.me/${sysWhats}?text=${encodeURIComponent(msg)}`, '_blank');
-            });
-        }
-
-        window.abrirModalAjuda = function(e) {
-            if(e) e.stopPropagation();
-            document.getElementById('user-dropdown').style.display = 'none';
-            
-            const sysCfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
-            const sysWhats = sysCfg.whatsApp || "5585999999999";
-            const sysInsta = sysCfg.instagram || "fut_sumula_pro";
-            const sysFace = sysCfg.facebook || "futsumulapro";
-            const sysEmail = sysCfg.emailSuporte || "suporte@futsumula.com";
-
-            document.getElementById('link-whatsapp-support').href = `https://wa.me/${sysWhats}?text=${encodeURIComponent('Olá! Preciso de ajuda.')}`;
-            document.getElementById('link-insta-support').href = `https://instagram.com/${sysInsta}`;
-            document.getElementById('link-facebook-support').href = `https://facebook.com/${sysFace}`;
-            document.getElementById('link-email-support').href = `mailto:${sysEmail}`;
-            
-            document.getElementById('modal-help').classList.add('active');
-        }
-
-        function generatePixPayload(chave, valor, nome, cidade, txtId) {
-            const formatField = (id, val) => id + (val.length >= 10 ? val.length : "0" + val.length) + val;
-            let payload = "00020126" + (chave.length + 22);
-            payload += "0014BR.GOV.BCB.PIX01" + (chave.length >= 10 ? chave.length : "0" + chave.length) + chave;
-            payload += "520400005303986";
-            if(valor) { const valStr = parseFloat(valor).toFixed(2); payload += formatField("54", valStr); }
-            payload += formatField("58", "BR") + formatField("59", nome) + formatField("60", cidade) + formatField("62", formatField("05", txtId)) + "6304";
-            let crc = 0xFFFF;
-            for (let i = 0; i < payload.length; i++) {
-                crc ^= payload.charCodeAt(i) << 8;
-                for (let j = 0; j < 8; j++) { if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021; else crc = crc << 1; }
-            }
-            let hex = (crc & 0xFFFF).toString(16).toUpperCase();
-            if (hex.length < 4) hex = "0".repeat(4 - hex.length) + hex;
-            return payload + hex;
-        }
-
-        atualizarInterfaceUsuario();
     </script>
 </body>
 </html>

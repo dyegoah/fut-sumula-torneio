@@ -63,17 +63,18 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // --- INTELIGÊNCIA DO 2FA (CORRIGIDA PARA PROXY DO RENDER) ---
+            // --- INTELIGÊNCIA DO 2FA (Render vs Localhost) ---
             String host = request.getHeader("Host");
-            String fwdHost = request.getHeader("X-Forwarded-Host");
+            String origin = request.getHeader("Origin");
+            String referer = request.getHeader("Referer");
             
             boolean isRender = (host != null && host.contains("onrender.com")) || 
-                               (fwdHost != null && fwdHost.contains("onrender.com")) || 
-                               request.getServerName().contains("onrender.com");
+                               (origin != null && origin.contains("onrender.com")) ||
+                               (referer != null && referer.contains("onrender.com"));
                                
             boolean isAdmin = "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
 
-            // REGRA: Só exige 2FA se for Administrador E estiver no Render. Ignora no Localhost.
+            // REGRA DEFINITIVA: Exige 2FA apenas se for ADMIN e estiver no RENDER
             if (isAdmin && isRender) {
                 if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
                     java.util.Map<String, Object> response = new java.util.HashMap<>();
@@ -83,7 +84,7 @@ public class AutenticacaoController {
                 }
             }
 
-            // Se for localhost OU for um usuário normal, gera o token direto!
+            // Se for localhost OU for um usuário normal, passa direto e gera o Token!
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -153,7 +154,7 @@ public class AutenticacaoController {
         
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
         
-        if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
+        if (!"fut_sumula_pro@hotmail.com".equalsIgnoreCase(usuarioLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado. Apenas o administrador mestre pode gerar o QR Code.");
         }
 
@@ -244,6 +245,18 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
+            // Acesso mestre original blindado
+            if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
+                perfil.put("nome", "Administrador"); 
+                perfil.put("login", "fut_sumula_pro@hotmail.com"); // Força o valor correto pro front-end não falhar
+                perfil.put("status", "ATIVO"); 
+                perfil.put("plano", "PREMIUM");
+                perfil.put("diasRestantes", 9999); 
+                perfil.put("acessoLiberado", true);
+                perfil.put("cadastroIncompleto", false);
+                return ResponseEntity.ok(perfil); 
+            }
+
             String statusReal = user.getStatus();
             String planoReal = user.getPlano();
             boolean precisaSalvar = false;
@@ -256,13 +269,6 @@ public class AutenticacaoController {
                                           user.getCidade() == null || user.getCidade().trim().isEmpty() || 
                                           user.getWhatsapp() == null || user.getWhatsapp().trim().isEmpty());
             perfil.put("cadastroIncompleto", cadastroIncompleto);
-
-            if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
-                perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
-                perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);
-                perfil.put("cadastroIncompleto", false);
-                return ResponseEntity.ok(perfil); 
-            }
 
             int diasTrial = (user.getTrialDays() != null) ? user.getTrialDays() : 15;
             long diasUso = 0;

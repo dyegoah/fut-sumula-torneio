@@ -95,7 +95,8 @@
 
         <div class="login-form-container">
             
-            <form id="step-1" onsubmit="fazerLogin(event)">
+            <!-- BLINDAGEM DA TECLA ENTER NATIVA NO HTML -->
+            <form id="step-1" onsubmit="event.preventDefault(); fazerLogin();">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
                     <h2>Área do Organizador</h2>
@@ -135,7 +136,8 @@
                 </div>
             </form>
 
-            <form id="step-2" style="display: none;" onsubmit="validarCodigo2FA(event)">
+            <!-- BLINDAGEM DA TECLA ENTER NATIVA NO HTML -->
+            <form id="step-2" style="display: none;" onsubmit="event.preventDefault(); validarCodigo2FA();">
                 <div class="form-header">
                     <i class="fas fa-shield-alt auth-icon"></i>
                     <h2>Segurança 2FA</h2>
@@ -156,7 +158,7 @@
                 </div>
             </form>
             
-            <form id="step-resend" style="display: none;" onsubmit="reenviarAtivacao(event)">
+            <form id="step-resend" style="display: none;" onsubmit="event.preventDefault(); reenviarAtivacao();">
                 <div class="form-header">
                     <i class="fab fa-whatsapp auth-icon" style="color: #25D366;"></i>
                     <h2>Liberação de Acesso</h2>
@@ -178,7 +180,7 @@
                 </div>
             </form>
 
-            <form id="step-forgot" style="display: none;" onsubmit="enviarRecuperacao(event)">
+            <form id="step-forgot" style="display: none;" onsubmit="event.preventDefault(); enviarRecuperacao();">
                 <div class="form-header">
                     <i class="fas fa-key auth-icon"></i>
                     <h2>Recuperar Senha</h2>
@@ -213,9 +215,7 @@
             window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
         }
 
-        async function fazerLogin(event) {
-            if (event) event.preventDefault(); // MATA o reload nativo do Enter
-
+        async function fazerLogin() {
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
             const senha = document.getElementById('loginSenha').value.substring(0, 64);
             const btn = document.getElementById('btnStep1');
@@ -247,8 +247,11 @@
                         const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
                         sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
 
-                        // Se for Admin, vai pro Painel. Se for usuário normal, vai pra listagem de Torneios
-                        if (email.toLowerCase() === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
+                        const isEmailAdmin = email.toLowerCase() === 'fut_sumula_pro@hotmail.com';
+                        const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
+
+                        // Redirecionamento 100% blindado
+                        if (isEmailAdmin || isNomeAdmin) {
                             window.location.href = 'admin-panel.html';
                         } else {
                             if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
@@ -271,9 +274,7 @@
             }
         }
 
-        async function validarCodigo2FA(event) {
-            if (event) event.preventDefault(); // MATA o reload nativo do Enter
-
+        async function validarCodigo2FA() {
             const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
             const btn = document.getElementById('btnStep2');
 
@@ -297,7 +298,10 @@
                     const perfil = { nome: data.nome, email: userEmailTemporario, liga: "LIGA PRO" };
                     sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
 
-                    if (userEmailTemporario.toLowerCase() === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
+                    const isEmailAdmin = userEmailTemporario.toLowerCase() === 'fut_sumula_pro@hotmail.com';
+                    const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
+
+                    if (isEmailAdmin || isNomeAdmin) {
                         window.location.href = 'admin-panel.html';
                     } else {
                         if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
@@ -343,8 +347,7 @@
             document.getElementById('resendEmail').value = "";
         }
 
-        async function enviarRecuperacao(event) {
-            if (event) event.preventDefault();
+        async function enviarRecuperacao() {
             const email = document.getElementById('forgotEmail').value.trim();
             if(!email) { alert("Preencha seu e-mail."); return; }
 
@@ -379,8 +382,7 @@
             }
         }
 
-        async function reenviarAtivacao(event) {
-            if (event) event.preventDefault();
+        async function reenviarAtivacao() {
             const email = document.getElementById('resendEmail').value.trim();
             if(!email) { alert("Preencha seu e-mail."); return; }
 

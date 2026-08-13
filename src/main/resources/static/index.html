@@ -95,7 +95,6 @@
 
         <div class="login-form-container">
             
-            <!-- OTIMIZAÇÃO: Substituição de div por form com preventDefault para blindar a tecla Enter -->
             <form id="step-1" onsubmit="event.preventDefault(); fazerLogin();">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
@@ -130,7 +129,6 @@
                     <a href="cadastro-usuario.html" class="btn-register btn-outline-light">
                         <i class="fas fa-user-plus"></i> Criar Nova Conta
                     </a>
-                    <!-- Importante: type="button" para não engatilhar o form ao clicar no WhatsApp -->
                     <button type="button" class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
                         <i class="fab fa-whatsapp"></i> Fale com a Equipe
                     </button>

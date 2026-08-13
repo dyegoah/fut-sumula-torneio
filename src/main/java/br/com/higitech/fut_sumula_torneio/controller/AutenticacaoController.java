@@ -63,9 +63,12 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // LÓGICA DO 2FA CORRIGIDA: Agora é exigido sempre, sem ignorar no Localhost.
-            // Se o usuário ativou, vai pedir o código!
-            if (Boolean.TRUE.equals(user.getUsar2fa())) {
+            // IDENTIFICAÇÃO DO AMBIENTE E DO USUÁRIO
+            boolean isLocalhost = request.getServerName().contains("localhost") || request.getServerName().contains("127.0.0.1");
+            boolean isAdmin = "fut_sumula_pro@hotmail.com".equals(user.getLogin()) || "Administrador".equals(user.getNome());
+
+            // REGRA DE OURO: 2FA APENAS para Administrador E APENAS no Render (Ignora no Localhost)
+            if (Boolean.TRUE.equals(user.getUsar2fa()) && isAdmin && !isLocalhost) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
                 response.put("login", user.getLogin());
@@ -141,12 +144,10 @@ public class AutenticacaoController {
         
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
         
-        // Verifica se é a conta mestre original
         if (!"fut_sumula_pro@hotmail.com".equals(usuarioLogado.getLogin())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado. Apenas o administrador mestre pode gerar o QR Code.");
         }
 
-        // BUSCA SEGURA: Agora busca pelo ID do usuário logado em vez da String de e-mail fixa, evitando bugs de salvamento
         Usuario admin = repository.findById(usuarioLogado.getId()).orElse(null);
         if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado no banco de dados!");
 
@@ -247,7 +248,6 @@ public class AutenticacaoController {
                                           user.getWhatsapp() == null || user.getWhatsapp().trim().isEmpty());
             perfil.put("cadastroIncompleto", cadastroIncompleto);
 
-            // Acesso mestre original
             if ("Administrador".equals(user.getNome()) || "fut_sumula_pro@hotmail.com".equals(user.getLogin())) {
                 perfil.put("nome", "Administrador"); perfil.put("status", "ATIVO"); perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999); perfil.put("acessoLiberado", true);

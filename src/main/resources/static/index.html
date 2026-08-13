@@ -39,7 +39,6 @@
 
         .login-side { flex: 0.8; background: #0b0b0f; display: flex; align-items: center; justify-content: center; position: relative; }
         
-        /* Brilhos otimizados para performance */
         .glow-circle { position: absolute; border-radius: 50%; opacity: 0.4; pointer-events: none; }
         .gc-1 { width: 300px; height: 300px; background: radial-gradient(circle, var(--primary-neon) 0%, transparent 70%); top: -50px; right: -50px; }
         .gc-2 { width: 200px; height: 200px; background: radial-gradient(circle, #0044ff 0%, transparent 70%); bottom: -50px; left: -50px; }
@@ -96,7 +95,8 @@
 
         <div class="login-form-container">
             
-            <div id="step-1">
+            <!-- OTIMIZAÇÃO: Substituição de div por form com preventDefault para blindar a tecla Enter -->
+            <form id="step-1" onsubmit="event.preventDefault(); fazerLogin();">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
                     <h2>Área do Organizador</h2>
@@ -120,7 +120,7 @@
                     <a href="#" class="forgot-link" onclick="abrirReenviarAtivacao()">Acesso não liberado?</a>
                 </div>
 
-                <button class="btn-submit" id="btnStep1" onclick="fazerLogin()">
+                <button type="submit" class="btn-submit" id="btnStep1">
                     ACESSAR PAINEL <i class="fas fa-arrow-right" style="margin-left:5px;"></i>
                 </button>
 
@@ -130,13 +130,14 @@
                     <a href="cadastro-usuario.html" class="btn-register btn-outline-light">
                         <i class="fas fa-user-plus"></i> Criar Nova Conta
                     </a>
-                    <button class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
+                    <!-- Importante: type="button" para não engatilhar o form ao clicar no WhatsApp -->
+                    <button type="button" class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
                         <i class="fab fa-whatsapp"></i> Fale com a Equipe
                     </button>
                 </div>
-            </div>
+            </form>
 
-            <div id="step-2" style="display: none;">
+            <form id="step-2" style="display: none;" onsubmit="event.preventDefault(); validarCodigo2FA();">
                 <div class="form-header">
                     <i class="fas fa-shield-alt auth-icon"></i>
                     <h2>Segurança 2FA</h2>
@@ -144,21 +145,20 @@
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
-                    <!-- AQUI MANTIVE TEXT E INPUTMODE NUMERIC PARA NÃO CORTAR ZEROS À ESQUERDA -->
-                    <input type="text" inputmode="numeric" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code" autofocus>
+                    <input type="text" inputmode="numeric" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code">
                     <label style="left: 15px;">Código de 6 dígitos</label>
                 </div>
 
-                <button class="btn-submit" id="btnStep2" onclick="validarCodigo2FA()">
+                <button type="submit" class="btn-submit" id="btnStep2">
                     CONFIRMAR ACESSO <i class="fas fa-check" style="margin-left:5px;"></i>
                 </button>
                 
                 <div style="text-align: center; margin-top: 20px;">
                     <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar e trocar usuário</a>
                 </div>
-            </div>
+            </form>
             
-            <div id="step-resend" style="display: none;">
+            <form id="step-resend" style="display: none;" onsubmit="event.preventDefault(); reenviarAtivacao();">
                 <div class="form-header">
                     <i class="fab fa-whatsapp auth-icon" style="color: #25D366;"></i>
                     <h2>Liberação de Acesso</h2>
@@ -171,16 +171,16 @@
                     <label>Seu e-mail cadastrado</label>
                 </div>
 
-                <button class="btn-submit" id="btnResend" onclick="reenviarAtivacao()" style="background: linear-gradient(90deg, #1ebea5, #00e676); box-shadow: 0 5px 20px rgba(37, 211, 102, 0.3);">
+                <button type="submit" class="btn-submit" id="btnResend" style="background: linear-gradient(90deg, #1ebea5, #00e676); box-shadow: 0 5px 20px rgba(37, 211, 102, 0.3);">
                     VERIFICAR AGORA <i class="fas fa-paper-plane" style="margin-left:5px;"></i>
                 </button>
                 
                 <div style="text-align: center; margin-top: 20px;">
                     <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
                 </div>
-            </div>
+            </form>
 
-            <div id="step-forgot" style="display: none;">
+            <form id="step-forgot" style="display: none;" onsubmit="event.preventDefault(); enviarRecuperacao();">
                 <div class="form-header">
                     <i class="fas fa-key auth-icon"></i>
                     <h2>Recuperar Senha</h2>
@@ -193,14 +193,14 @@
                     <label>Seu e-mail</label>
                 </div>
 
-                <button class="btn-submit" id="btnForgot" onclick="enviarRecuperacao()">
+                <button type="submit" class="btn-submit" id="btnForgot">
                     SOLICITAR SUPORTE <i class="fab fa-whatsapp" style="margin-left:5px;"></i>
                 </button>
                 
                 <div style="text-align: center; margin-top: 20px;">
                     <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar para o Login</a>
                 </div>
-            </div>
+            </form>
 
         </div>
     </div>
@@ -227,7 +227,6 @@
             btn.disabled = true;
 
             try {
-                // AQUI FOI REMOVIDO O 'credentials: include' QUE ESTAVA BLOQUEANDO A CONEXÃO COM CORS
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -273,7 +272,6 @@
             btn.disabled = true;
 
             try {
-                // AQUI TAMBÉM FOI REMOVIDO O 'credentials: include'
                 const res = await fetch('/api/auth/login/validar-2fa', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -394,15 +392,6 @@
                 btn.disabled = false;
             }
         }
-
-        document.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                if (document.getElementById('step-1').style.display !== 'none') fazerLogin();
-                else if (document.getElementById('step-2').style.display !== 'none') validarCodigo2FA();
-                else if (document.getElementById('step-forgot').style.display !== 'none') enviarRecuperacao();
-                else if (document.getElementById('step-resend').style.display !== 'none') reenviarAtivacao();
-            }
-        });
     </script>
 </body>
 </html>

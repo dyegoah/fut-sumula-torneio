@@ -63,8 +63,7 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // --- REGRA DO 2FA 100% RESTAURADA ---
-            // Se o usuário tem 2FA ativado ou possui uma chave gerada, o sistema OBRIGA a passar pela tela de Autenticação
+            // A REGRA DE OURO RESTAURADA: Se o usuário tem 2FA ativado no banco, EXIJA o código (Localhost ou Render).
             if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -72,7 +71,7 @@ public class AutenticacaoController {
                 return ResponseEntity.ok(response);
             }
 
-            // Se for um usuário comum SEM 2FA, entra direto
+            // Se for um usuário normal sem 2FA, gera o token direto
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -233,6 +232,7 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
+            // Acesso mestre original blindado
             if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
                 perfil.put("nome", "Administrador"); 
                 perfil.put("login", "fut_sumula_pro@hotmail.com"); 

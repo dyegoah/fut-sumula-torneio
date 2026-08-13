@@ -63,28 +63,16 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // --- INTELIGÊNCIA DO 2FA (Render vs Localhost) ---
-            String host = request.getHeader("Host");
-            String origin = request.getHeader("Origin");
-            String referer = request.getHeader("Referer");
-            
-            boolean isRender = (host != null && host.contains("onrender.com")) || 
-                               (origin != null && origin.contains("onrender.com")) ||
-                               (referer != null && referer.contains("onrender.com"));
-                               
-            boolean isAdmin = "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
-
-            // REGRA DEFINITIVA: Exige 2FA apenas se for ADMIN e estiver no RENDER
-            if (isAdmin && isRender) {
-                if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
-                    java.util.Map<String, Object> response = new java.util.HashMap<>();
-                    response.put("requires2FA", true);
-                    response.put("login", user.getLogin());
-                    return ResponseEntity.ok(response);
-                }
+            // --- REGRA DO 2FA 100% RESTAURADA ---
+            // Se o usuário tem 2FA ativado ou possui uma chave gerada, o sistema OBRIGA a passar pela tela de Autenticação
+            if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("requires2FA", true);
+                response.put("login", user.getLogin());
+                return ResponseEntity.ok(response);
             }
 
-            // Se for localhost OU for um usuário normal, passa direto e gera o Token!
+            // Se for um usuário comum SEM 2FA, entra direto
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -109,7 +97,7 @@ public class AutenticacaoController {
         String codigoStr = data.get("codigo");
 
         Usuario user = (Usuario) repository.findByLogin(login);
-        if (user == null || !Boolean.TRUE.equals(user.getUsar2fa())) {
+        if (user == null || (!Boolean.TRUE.equals(user.getUsar2fa()) && (user.getChave2fa() == null || user.getChave2fa().isEmpty()))) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário inválido ou 2FA não ativado.");
         }
 
@@ -245,10 +233,9 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
-            // Acesso mestre original blindado
             if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
                 perfil.put("nome", "Administrador"); 
-                perfil.put("login", "fut_sumula_pro@hotmail.com"); // Força o valor correto pro front-end não falhar
+                perfil.put("login", "fut_sumula_pro@hotmail.com"); 
                 perfil.put("status", "ATIVO"); 
                 perfil.put("plano", "PREMIUM");
                 perfil.put("diasRestantes", 9999); 

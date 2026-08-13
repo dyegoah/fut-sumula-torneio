@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <!-- REDIRECIONAMENTO INTELIGENTE: Força HTTPS no Render, mas ignora no Localhost -->
+    <!-- REDIRECIONAMENTO INTELIGENTE: Força HTTPS APENAS no Render. Ignora o localhost -->
     <script>
         if (window.location.hostname.includes('onrender.com') && window.location.protocol !== 'https:') {
             window.location.href = window.location.href.replace('http:', 'https:');
@@ -38,6 +38,8 @@
         .description { font-size: 1.1rem; color: #ccc; line-height: 1.6; margin-bottom: 40px; font-weight: 300; }
 
         .login-side { flex: 0.8; background: #0b0b0f; display: flex; align-items: center; justify-content: center; position: relative; }
+        
+        /* Brilhos otimizados para performance */
         .glow-circle { position: absolute; border-radius: 50%; opacity: 0.4; pointer-events: none; }
         .gc-1 { width: 300px; height: 300px; background: radial-gradient(circle, var(--primary-neon) 0%, transparent 70%); top: -50px; right: -50px; }
         .gc-2 { width: 200px; height: 200px; background: radial-gradient(circle, #0044ff 0%, transparent 70%); bottom: -50px; left: -50px; }
@@ -142,7 +144,7 @@
                 </div>
 
                 <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
-                    <!-- OTIMIZAÇÃO: type="text" para não perder zeros à esquerda, inputmode="numeric" para abrir teclado de celular -->
+                    <!-- AQUI MANTIVE TEXT E INPUTMODE NUMERIC PARA NÃO CORTAR ZEROS À ESQUERDA -->
                     <input type="text" inputmode="numeric" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code" autofocus>
                     <label style="left: 15px;">Código de 6 dígitos</label>
                 </div>
@@ -225,10 +227,10 @@
             btn.disabled = true;
 
             try {
+                // AQUI FOI REMOVIDO O 'credentials: include' QUE ESTAVA BLOQUEANDO A CONEXÃO COM CORS
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    credentials: 'include', // Essencial para Cookies HttpOnly
                     body: JSON.stringify({ login: email, senha: senha })
                 });
 
@@ -236,7 +238,7 @@
                     const data = await res.json();
                     
                     if (data.requires2FA) {
-                        userEmailTemporario = data.login || email; // Fallback seguro
+                        userEmailTemporario = data.login || email; 
                         document.getElementById('step-1').style.display = 'none';
                         document.getElementById('step-2').style.display = 'block';
                         document.getElementById('codigo2FA').focus();
@@ -271,10 +273,10 @@
             btn.disabled = true;
 
             try {
+                // AQUI TAMBÉM FOI REMOVIDO O 'credentials: include'
                 const res = await fetch('/api/auth/login/validar-2fa', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    credentials: 'include', // Essencial para o Cookie persistir a sessão
                     body: JSON.stringify({ login: userEmailTemporario, codigo: codigo })
                 });
 

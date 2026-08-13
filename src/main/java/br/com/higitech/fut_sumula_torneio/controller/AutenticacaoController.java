@@ -63,11 +63,13 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // IDENTIFICAÇÃO DO AMBIENTE E DO USUÁRIO
+            // --- INTELIGÊNCIA DO 2FA ---
+            // Verifica se a requisição está vindo do localhost
             boolean isLocalhost = request.getServerName().contains("localhost") || request.getServerName().contains("127.0.0.1");
+            // Verifica se o usuário logando é o Administrador
             boolean isAdmin = "fut_sumula_pro@hotmail.com".equals(user.getLogin()) || "Administrador".equals(user.getNome());
 
-            // REGRA DE OURO: 2FA APENAS para Administrador E APENAS no Render (Ignora no Localhost)
+            // REGRA: Só exige 2FA se for Administrador E NÃO estiver no localhost (Ou seja, no Render)
             if (Boolean.TRUE.equals(user.getUsar2fa()) && isAdmin && !isLocalhost) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -75,6 +77,7 @@ public class AutenticacaoController {
                 return ResponseEntity.ok(response);
             }
 
+            // Se for localhost OU for um usuário normal, gera o token direto!
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);

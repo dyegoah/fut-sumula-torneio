@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Admin | Fut-Súmula</title>
 
-    <!-- FONTES E CSS DO SISTEMA -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
 
-    <!-- BIBLIOTECA DE SEGURANÇA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
-    <!-- BLINDAGEM DE SESSÃO GLOBAL E INTERCEPTADOR -->
     <script>
         function getTokenGlobal() {
             return localStorage.getItem('futSumulaToken') || localStorage.getItem('token') || localStorage.getItem('jwtToken');
@@ -22,7 +19,7 @@
         async function validarAcesso() {
             const token = getTokenGlobal();
             if (!token) {
-                window.location.replace('login.html');
+                window.location.replace('index.html'); // CORRIGIDO: Era login.html
                 return;
             }
 
@@ -36,21 +33,19 @@
 
                 const perfil = await res.json();
                 
-                // SEGURANÇA EXTRA: Verifica no front-end se tem cargo de Admin
                 if (perfil.nome !== 'Administrador' && perfil.login !== 'fut_sumula_pro@hotmail.com') {
                     alert("Acesso Restrito: Apenas a conta Mestre pode acessar o painel administrativo.");
                     window.location.replace('index.html');
                     return;
                 }
 
-                // A tela só aparece se a API confirmar que é um usuário válido
                 document.documentElement.style.display = '';
 
             } catch (error) {
                 console.warn(error.message);
                 localStorage.removeItem('futSumulaToken');
                 localStorage.removeItem('token');
-                window.location.replace('login.html'); 
+                window.location.replace('index.html'); // CORRIGIDO: Era login.html
             }
         }
         validarAcesso();
@@ -65,7 +60,6 @@
                 let url = args[0];
                 let options = args[1] || {};
 
-                // Injeta o token em todas as chamadas para a API
                 if (url.includes('/api/') && !url.includes('/auth/me') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
                     options.headers = options.headers || {};
                     options.headers['Authorization'] = 'Bearer ' + token;
@@ -73,7 +67,6 @@
                 args[1] = options;
 
                 return originalFetch.apply(this, args).then(response => {
-                    // Tratamento Inteligente para o Admin
                     if (response.status === 403) {
                         alert("Acesso Negado: O seu e-mail não tem autorização no servidor (Obrigatório usar fut_sumula_pro@hotmail.com).");
                         window.location.href = 'index.html'; 
@@ -81,7 +74,7 @@
                         alert("Sessão expirada. Por favor, faça login novamente.");
                         localStorage.removeItem('futSumulaToken');
                         localStorage.removeItem('token');
-                        window.location.href = 'login.html';
+                        window.location.href = 'index.html'; // CORRIGIDO: Era login.html
                     }
                     return response;
                 }).catch(err => {
@@ -92,7 +85,6 @@
         })();
     </script>
 
-    <!-- ESTILOS EXCLUSIVOS DO PAINEL ADMIN -->
     <style>
         :root {
             --dev-color: #00eaff;
@@ -101,7 +93,6 @@
             --border-color: rgba(255, 255, 255, 0.1);
         }
         
-        /* FORÇANDO O FUNDO ESCURO */
         html, body { 
             background-color: var(--dev-bg) !important; 
             color: #fff !important; 
@@ -167,7 +158,6 @@
         .config-group input, .config-group textarea { width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; outline: none; transition: 0.3s; }
         .config-group input:focus, .config-group textarea:focus { border-color: var(--dev-color); box-shadow: 0 0 10px rgba(0,234,255,0.1); background: #000; }
         
-        /* Ajuste para dispositivos móveis */
         @media(max-width: 600px) {
             .config-grid { grid-template-columns: 1fr; }
             .admin-header { flex-direction: column; gap: 15px; text-align: center; }
@@ -177,7 +167,6 @@
 </head>
 <body>
 
-    <!-- O CONTAINER DE FUNDO REQUISITADO -->
     <div class="bg-carousel-container">
         <div class="bg-overlay" style="background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.8) 100%);"></div>
         <div class="bg-image" style="background-image: url('https://images.unsplash.com/photo-1550684376-efcbd6e3f031?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.2) grayscale(0.8);"></div> 
@@ -187,7 +176,7 @@
         <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
         <div class="admin-actions">
             <button class="btn-dev" onclick="abrirConfigGlobal()"><i class="fas fa-cogs"></i> CONFIGURAÇÕES</button>
-            <button class="btn-dev btn-logout" onclick="window.location.href='index.html'"><i class="fas fa-sign-out-alt"></i> SAIR</button>
+            <button class="btn-dev btn-logout" onclick="fazerLogout()"><i class="fas fa-sign-out-alt"></i> SAIR</button>
         </div>
     </header>
 
@@ -373,6 +362,14 @@
             aplicarMascaras(); 
         });
 
+        // OTIMIZAÇÃO: Limpa os dados do Admin ao deslogar
+        function fazerLogout() {
+            localStorage.removeItem('futSumulaToken');
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('futSumulaPerfil');
+            window.location.href = 'index.html';
+        }
+
         function aplicarMascaras() {
             const inputPixVal = document.getElementById('confPixValue');
             inputPixVal.addEventListener('input', function(e) {
@@ -442,7 +439,6 @@
             const paginatedData = data.slice(startIndex, endIndex);
 
 			paginatedData.forEach(u => {
-			                // --- BLINDAGEM DOMPURIFY ---
 			                const nomeSeguro = DOMPurify.sanitize(u.nome || 'Sem Nome');
 			                const ligaSegura = DOMPurify.sanitize(u.nomeLiga || '');
 			                const loginSeguro = DOMPurify.sanitize(u.login || '');

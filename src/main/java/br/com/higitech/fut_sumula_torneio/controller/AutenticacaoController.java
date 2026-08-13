@@ -63,18 +63,24 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // --- INTELIGÊNCIA DO 2FA ---
-            // Verifica se a requisição está vindo do localhost
-            boolean isLocalhost = request.getServerName().contains("localhost") || request.getServerName().contains("127.0.0.1");
-            // Verifica se o usuário logando é o Administrador
-            boolean isAdmin = "fut_sumula_pro@hotmail.com".equals(user.getLogin()) || "Administrador".equals(user.getNome());
+            // --- INTELIGÊNCIA DO 2FA (CORRIGIDA PARA PROXY DO RENDER) ---
+            String host = request.getHeader("Host");
+            String fwdHost = request.getHeader("X-Forwarded-Host");
+            
+            boolean isRender = (host != null && host.contains("onrender.com")) || 
+                               (fwdHost != null && fwdHost.contains("onrender.com")) || 
+                               request.getServerName().contains("onrender.com");
+                               
+            boolean isAdmin = "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
 
-            // REGRA: Só exige 2FA se for Administrador E NÃO estiver no localhost (Ou seja, no Render)
-            if (Boolean.TRUE.equals(user.getUsar2fa()) && isAdmin && !isLocalhost) {
-                java.util.Map<String, Object> response = new java.util.HashMap<>();
-                response.put("requires2FA", true);
-                response.put("login", user.getLogin());
-                return ResponseEntity.ok(response);
+            // REGRA: Só exige 2FA se for Administrador E estiver no Render. Ignora no Localhost.
+            if (isAdmin && isRender) {
+                if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
+                    java.util.Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("requires2FA", true);
+                    response.put("login", user.getLogin());
+                    return ResponseEntity.ok(response);
+                }
             }
 
             // Se for localhost OU for um usuário normal, gera o token direto!

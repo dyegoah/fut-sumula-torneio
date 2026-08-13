@@ -95,7 +95,6 @@
 
         <div class="login-form-container">
             
-            <!-- BLINDAGEM DA TECLA ENTER: form nativo passando o evento (event) para a função -->
             <form id="step-1" onsubmit="fazerLogin(event)">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
@@ -215,8 +214,7 @@
         }
 
         async function fazerLogin(event) {
-            // EVITA O RECARREGAMENTO DA PÁGINA COM A TECLA ENTER
-            if (event) event.preventDefault();
+            if (event) event.preventDefault(); // MATA o reload nativo do Enter
 
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
             const senha = document.getElementById('loginSenha').value.substring(0, 64);
@@ -249,11 +247,10 @@
                         const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
                         sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
 
-                        // REDIRECIONAMENTO CORRETO: Admin vai pro Painel. Resto vai pro Index (Home)
-                        if (email === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
+                        // Se for Admin, vai pro Painel. Se for usuário normal, vai pra listagem de Torneios
+                        if (email.toLowerCase() === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
                             window.location.href = 'admin-panel.html';
                         } else {
-                            // Prevenção de loop infinito: caso o arquivo se chame index.html, envia para a home de torneios
                             if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
                                 window.location.href = 'torneios.html';
                             } else {
@@ -275,8 +272,7 @@
         }
 
         async function validarCodigo2FA(event) {
-            // EVITA O RECARREGAMENTO DA PÁGINA COM A TECLA ENTER
-            if (event) event.preventDefault();
+            if (event) event.preventDefault(); // MATA o reload nativo do Enter
 
             const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
             const btn = document.getElementById('btnStep2');
@@ -301,8 +297,7 @@
                     const perfil = { nome: data.nome, email: userEmailTemporario, liga: "LIGA PRO" };
                     sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
 
-                    // Como só o Admin usa 2FA agora, manda ele direto pro Painel.
-                    if (userEmailTemporario === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
+                    if (userEmailTemporario.toLowerCase() === 'fut_sumula_pro@hotmail.com' || data.nome === 'Administrador') {
                         window.location.href = 'admin-panel.html';
                     } else {
                         if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {

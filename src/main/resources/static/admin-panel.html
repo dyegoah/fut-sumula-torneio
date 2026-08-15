@@ -42,15 +42,7 @@
                     return;
                 }
 
-                // O pulo do Gato: Exibe o HTML, mas esconde tudo e invoca o Cadeado 2FA!
                 document.documentElement.style.display = '';
-                
-                if (sessionStorage.getItem('futSumula2FA_Verified') !== 'true') {
-                    document.getElementById('painel-wrapper').style.display = 'none';
-                    acionarCadeado2FA(); 
-                } else {
-                    iniciarCarregamentoDeDados();
-                }
 
             } catch (error) {
                 console.warn(error.message);
@@ -95,8 +87,21 @@
     </script>
 
     <style>
-        :root { --dev-color: #00eaff; --dev-bg: #050505; --panel-bg: rgba(20, 20, 20, 0.95); --border-color: rgba(255, 255, 255, 0.1); }
-        html, body { background-color: var(--dev-bg) !important; color: #fff !important; font-family: 'Montserrat', sans-serif; margin: 0; padding-bottom: 50px; min-height: 100vh; }
+        :root {
+            --dev-color: #00eaff;
+            --dev-bg: #050505;
+            --panel-bg: rgba(20, 20, 20, 0.95);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        html, body { 
+            background-color: var(--dev-bg) !important; 
+            color: #fff !important; 
+            font-family: 'Montserrat', sans-serif; 
+            margin: 0; 
+            padding-bottom: 50px; 
+            min-height: 100vh;
+        }
         
         .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--dev-color); box-shadow: 0 4px 15px rgba(0, 234, 255, 0.2); position: relative; z-index: 10; backdrop-filter: blur(5px); }
         .brand-dev { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
@@ -168,76 +173,47 @@
         <div class="bg-image" style="background-image: url('https://images.unsplash.com/photo-1550684376-efcbd6e3f031?q=80&w=2000&auto=format&fit=crop'); filter: brightness(0.2) grayscale(0.8);"></div> 
     </div>
 
-    <!-- TELA DE BLOQUEIO 2FA INTRANSPONÍVEL (SOMENTE ADMIN) -->
-    <div id="modal2FA-Admin" class="modal-overlay" style="background: rgba(5,5,5,0.98); z-index: 99999; backdrop-filter: blur(20px);">
-        <form onsubmit="event.preventDefault(); validar2FAPainel();" class="config-panel" style="border-color: var(--dev-color); text-align: center; max-width: 450px; box-shadow: 0 0 50px rgba(0, 234, 255, 0.2);">
-            <i class="fas fa-fingerprint" style="font-size: 4rem; color: var(--dev-color); margin-bottom: 15px;"></i>
-            <h2 style="color: #fff; margin-bottom: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px;">Acesso Restrito</h2>
-            <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 25px;">O <b>God Mode</b> exige Autenticação em 2 Fatores.</p>
-            
-            <div id="qr-code-area" style="background: #fff; padding: 15px; border-radius: 10px; display: inline-block; margin-bottom: 20px;">
-                <img id="qr-code-img" src="" alt="Gerando Segurança..." style="width: 180px; height: 180px; display: block; margin: 0 auto;">
-                <div style="color: #000; font-family: monospace; font-weight: bold; margin-top: 10px; font-size: 1.1rem; letter-spacing: 2px; text-align: center;" id="txt-chave-secreta">AGUARDE...</div>
-            </div>
-            <p style="color: var(--dev-color); font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;"><b>Primeiro acesso?</b> Escaneie o QR Code no seu Google Authenticator.</p>
+    <header class="admin-header">
+        <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
+        <div class="admin-actions">
+            <button class="btn-dev" onclick="abrirConfigGlobal()"><i class="fas fa-cogs"></i> CONFIGURAÇÕES</button>
+            <button class="btn-dev btn-logout" onclick="fazerLogout()"><i class="fas fa-sign-out-alt"></i> SAIR</button>
+        </div>
+    </header>
 
-            <div style="margin-bottom: 20px;">
-                <input type="text" inputmode="numeric" id="codigo2FA-admin" placeholder="000000" style="width: 100%; padding: 15px; background: rgba(0,0,0,0.8); border: 2px solid #333; color: var(--dev-color); font-size: 2rem; text-align: center; letter-spacing: 15px; border-radius: 8px; outline: none; font-family: monospace; font-weight: 900;" maxlength="6" autofocus required>
-            </div>
-
-            <button type="submit" id="btn-2fa-painel" style="width: 100%; border: none; cursor: pointer; border-radius: 8px; padding: 15px; font-size: 1.1rem; font-weight: 900; background: var(--dev-color); color: #000; transition: 0.3s;">
-                DESBLOQUEAR PAINEL <i class="fas fa-unlock" style="margin-left: 8px;"></i>
-            </button>
-            <div style="margin-top: 15px;">
-                <a href="#" onclick="fazerLogout()" style="color: #ff4444; font-size: 0.8rem; text-decoration: none;">&larr; Voltar para Login</a>
-            </div>
-        </form>
+    <div class="stats-container">
+        <div class="stat-card"><div class="stat-label">Total Cadastrados</div><div class="stat-value" id="total-users">--</div></div>
+        <div class="stat-card"><div class="stat-label">Ativos</div><div class="stat-value" id="active-users" style="color: #00ff88;">--</div></div>
+        <div class="stat-card"><div class="stat-label">Origem</div><div class="stat-value" id="origin-stats" style="font-size:1.2rem; margin-top:15px;">--</div></div>
+        <div class="stat-card"><div class="stat-label">Top Localização</div><div class="stat-value" id="top-location" style="font-size:1.5rem; margin-top:15px;">--</div></div>
     </div>
 
-    <!-- O PAINEL DE FATO FICA ESCONDIDO ATÉ A SENHA ESTAR CORRETA -->
-    <div id="painel-wrapper" style="display: none;">
-        <header class="admin-header">
-            <div class="brand-dev"><i class="fas fa-code"></i> FUT-SÚMULA <span>GOD MODE</span></div>
-            <div class="admin-actions">
-                <button class="btn-dev" onclick="abrirConfigGlobal()"><i class="fas fa-cogs"></i> CONFIGURAÇÕES</button>
-                <button class="btn-dev btn-logout" onclick="fazerLogout()"><i class="fas fa-sign-out-alt"></i> SAIR</button>
-            </div>
-        </header>
-
-        <div class="stats-container">
-            <div class="stat-card"><div class="stat-label">Total Cadastrados</div><div class="stat-value" id="total-users">--</div></div>
-            <div class="stat-card"><div class="stat-label">Ativos</div><div class="stat-value" id="active-users" style="color: #00ff88;">--</div></div>
-            <div class="stat-card"><div class="stat-label">Origem</div><div class="stat-value" id="origin-stats" style="font-size:1.2rem; margin-top:15px;">--</div></div>
-            <div class="stat-card"><div class="stat-label">Top Localização</div><div class="stat-value" id="top-location" style="font-size:1.5rem; margin-top:15px;">--</div></div>
-        </div>
-
-        <div class="table-section">
-            <div class="panel-box">
-                <div class="panel-header">
-                    <h3 style="margin:0; font-size:1rem;">BASE DE USUÁRIOS</h3>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="currentPage = 1; filtrarTabela()">
-                    </div>
+    <div class="table-section">
+        <div class="panel-box">
+            <div class="panel-header">
+                <h3 style="margin:0; font-size:1rem;">BASE DE USUÁRIOS</h3>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchUser" placeholder="Buscar em todos os campos..." oninput="currentPage = 1; filtrarTabela()">
                 </div>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>ORGANIZADOR / LIGA</th>
-                                <th>EMAIL</th>
-                                <th>INFO (CADASTRO)</th>
-                                <th>STATUS</th>
-                                <th>PLANO</th>
-                                <th>AÇÕES</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table-body"></tbody>
-                    </table>
-                </div>
-                <div id="pagination-controls" class="pagination-container"></div>
             </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ORGANIZADOR / LIGA</th>
+                            <th>EMAIL</th>
+                            <th>INFO (CADASTRO)</th>
+                            <th>STATUS</th>
+                            <th>PLANO</th>
+                            <th>AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
+            </div>
+            <div id="pagination-controls" class="pagination-container"></div>
         </div>
     </div>
 
@@ -381,69 +357,16 @@
         let currentPage = 1;
         const itemsPerPage = 10; 
 
-        // O sistema de 2FA
-        async function acionarCadeado2FA() {
-            document.getElementById('modal2FA-Admin').classList.add('active');
-            try {
-                const token = getTokenGlobal();
-                const res = await fetch('/api/auth/gerar-2fa-admin', { headers: { 'Authorization': 'Bearer ' + token } });
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.urlAplicativo)}`;
-                    document.getElementById('txt-chave-secreta').innerText = data.chaveSecreta;
-                } else {
-                    document.getElementById('txt-chave-secreta').innerText = "ERRO DE GERAÇÃO";
-                }
-            } catch (e) {
-                console.error("Falha no QR Code", e);
-            }
-        }
-
-        async function validar2FAPainel() {
-            const codigo = document.getElementById('codigo2FA-admin').value.trim();
-            if (codigo.length !== 6) return alert("Digite os 6 números do seu Autenticador.");
-            
-            const btn = document.getElementById('btn-2fa-painel');
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> LIBERANDO...';
-            btn.disabled = true;
-
-            try {
-                const token = getTokenGlobal();
-                const res = await fetch('/api/auth/validar-2fa-painel', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                    body: JSON.stringify({ codigo: codigo })
-                });
-
-                if (res.ok) {
-                    sessionStorage.setItem('futSumula2FA_Verified', 'true');
-                    document.getElementById('modal2FA-Admin').classList.remove('active');
-                    document.getElementById('painel-wrapper').style.display = 'block';
-                    iniciarCarregamentoDeDados(); // SÓ CARREGA OS DADOS SE A SENHA PASSAR!
-                } else {
-                    alert("❌ Código Inválido! Tente novamente.");
-                    document.getElementById('codigo2FA-admin').value = "";
-                }
-            } catch(e) {
-                alert("Erro ao conectar no servidor.");
-            } finally {
-                btn.innerHTML = 'DESBLOQUEAR PAINEL <i class="fas fa-unlock" style="margin-left: 8px;"></i>';
-                btn.disabled = false;
-            }
-        }
-
-        // Só executa o carregamento pesado depois de passar do cadeado 2FA
-        function iniciarCarregamentoDeDados() {
+        document.addEventListener("DOMContentLoaded", () => {
             carregarUsuarios();
             carregarConfigs();
             aplicarMascaras(); 
-        }
+        });
 
         function fazerLogout() {
             localStorage.removeItem('futSumulaToken');
             localStorage.removeItem('token');
             sessionStorage.removeItem('futSumulaPerfil');
-            sessionStorage.removeItem('futSumula2FA_Verified');
             window.location.href = 'index.html';
         }
 

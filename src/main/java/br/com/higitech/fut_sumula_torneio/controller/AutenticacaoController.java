@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.warrenstrange.googleauth.GoogleAuthenticator;
 import com.warrenstrange.googleauth.GoogleAuthenticatorConfig;
-import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
 
 import br.com.higitech.fut_sumula_torneio.dto.AuthenticationDTO;
 import br.com.higitech.fut_sumula_torneio.dto.LoginResponseDTO;
@@ -63,7 +62,26 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // O Login agora é limpo e direto, transfere a responsabilidade do 2FA para o Painel Admin!
+            boolean isAdmin = "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
+
+            // A REGRA CLÁSSICA: Se for Administrador, trava o fluxo e manda abrir a tela de 2FA.
+            if (isAdmin) {
+                // Segurança extra: Se a chave tiver sido apagada do banco sem querer, recria automaticamente.
+                if (user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
+                    GoogleAuthenticator gAuth = new GoogleAuthenticator();
+                    user.setChave2fa(gAuth.createCredentials().getKey());
+                    user.setUsar2fa(true);
+                    repository.save(user);
+                    System.out.println("AVISO DE SISTEMA: Chave 2FA recriada automaticamente: " + user.getChave2fa());
+                }
+
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("requires2FA", true);
+                response.put("login", user.getLogin());
+                return ResponseEntity.ok(response);
+            }
+
+            // Se for um usuário comum, gera o token e entra direto
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -82,34 +100,46 @@ public class AutenticacaoController {
         }
     }
 
-    // NOVA ROTA BLINDADA: Valida o código 2FA direto de dentro do Admin Panel
-    @PostMapping("/validar-2fa-painel")
-    public ResponseEntity<?> validar2FAPainel(@RequestBody Map<String, String> data, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
-        }
-        
-        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
-        Usuario user = repository.findById(usuarioLogado.getId()).orElse(null);
-        
-        if (user == null || user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Chave 2FA não configurada no banco.");
+    @PostMapping("/login/validar-2fa")
+    public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
+        String login = data.get("login");
+        String senha = data.get("senha"); // BLINDAGEM: Recebe a senha para impedir Força Bruta
+        String codigoStr = data.get("codigo");
+
+        // Reautentica para garantir que ninguém chamou a rota direto sem a senha
+        try {
+            var usernamePassword = new UsernamePasswordAuthenticationToken(login, senha);
+            authenticationManager.authenticate(usernamePassword);
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sessão ou senha inválida. Refaça o login.");
         }
 
-        String codigoStr = data.get("codigo");
+        Usuario user = (Usuario) repository.findByLogin(login);
+        if (user == null || user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário inválido ou 2FA não configurado.");
+        }
 
         try {
             int codigo = Integer.parseInt(codigoStr);
             GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
-                .setWindowSize(3).build();
+                .setWindowSize(3) 
+                .build();
             GoogleAuthenticator gAuth = new GoogleAuthenticator(config);
             
             boolean isValid = gAuth.authorize(user.getChave2fa(), codigo);
 
             if (isValid) {
-                user.setUsar2fa(true); // Se acertou o código, trava o uso como TRUE no banco
-                repository.save(user);
-                return ResponseEntity.ok(Map.of("status", "sucesso"));
+                var token = tokenService.gerarToken(user);
+                boolean isSecure = isRequestSecure(request);
+                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
+                        .httpOnly(true)
+                        .secure(isSecure)
+                        .path("/")
+                        .maxAge(4 * 60 * 60)
+                        .sameSite(isSecure ? "None" : "Lax")
+                        .build();
+                        
+                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
             }
@@ -134,16 +164,6 @@ public class AutenticacaoController {
         if (admin == null) return ResponseEntity.badRequest().body("Admin mestre não encontrado no banco de dados!");
 
         String secretKey = admin.getChave2fa();
-        if (secretKey == null || secretKey.isEmpty()) {
-            GoogleAuthenticator gAuth = new GoogleAuthenticator();
-            GoogleAuthenticatorKey key = gAuth.createCredentials();
-            secretKey = key.getKey();
-            
-            admin.setChave2fa(secretKey);
-            admin.setUsar2fa(true); 
-            repository.save(admin);
-        }
-
         String qrCodeUrl = String.format("otpauth://totp/Fut-Sumula-Pro:%s?secret=%s&issuer=Fut-Sumula-Pro", admin.getLogin(), secretKey);
 
         java.util.Map<String, String> resposta = new java.util.HashMap<>();
@@ -217,6 +237,7 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
+            // Acesso mestre original blindado
             if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
                 perfil.put("nome", "Administrador"); 
                 perfil.put("login", "fut_sumula_pro@hotmail.com"); 
@@ -307,5 +328,37 @@ public class AutenticacaoController {
         resposta.put("textoPronto", "Olá Suporte! Solicitei a recuperação de senha para o e-mail: " + user.getLogin());
 
         return ResponseEntity.ok(resposta);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> data) {
+        String tokenRecebido = data.get("token");
+        String novaSenha = data.get("novaSenha");
+
+        if (tokenRecebido == null || tokenRecebido.trim().isEmpty()) return ResponseEntity.badRequest().body("Token ausente na requisição.");
+
+        String cleanToken = tokenRecebido.trim();
+        TokenRecuperacao tokenValido = null;
+        
+        Iterable<TokenRecuperacao> todosTokens = tokenRecuperacaoRepository.findAll();
+        for (TokenRecuperacao t : todosTokens) {
+            if (t.getToken() != null && t.getToken().trim().equals(cleanToken)) {
+                tokenValido = t;
+                break;
+            }
+        }
+        
+        if (tokenValido == null) return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
+        if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
+            tokenRecuperacaoRepository.delete(tokenValido); 
+            return ResponseEntity.badRequest().body("Este link de recuperação expirou.");
+        }
+        
+        Usuario user = tokenValido.getUsuario();
+        user.setSenha(new BCryptPasswordEncoder().encode(novaSenha));
+        repository.save(user);
+        tokenRecuperacaoRepository.delete(tokenValido);
+        
+        return ResponseEntity.ok("Senha redefinida com sucesso!");
     }
 }

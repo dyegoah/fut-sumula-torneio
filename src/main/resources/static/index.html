@@ -69,6 +69,7 @@
         .btn-whatsapp:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.15); color: #fff; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.2); }
 
         .auth-icon { font-size: 3rem !important; color: var(--primary-neon); margin-bottom: 10px; }
+        .input-2fa { font-family: monospace; font-size: 1.5rem !important; letter-spacing: 15px; text-align: center; padding-left: 15px !important; }
         
         .forgot-link { display: inline-block; color: var(--primary-neon); font-size: 0.8rem; text-decoration: none; font-weight: 600; transition: 0.3s; }
         .forgot-link:hover { text-decoration: underline; color: #fff; }
@@ -93,7 +94,7 @@
 
         <div class="login-form-container">
             
-            <form id="step-1" onsubmit="event.preventDefault(); fazerLogin();">
+            <form id="step-1" onsubmit="fazerLogin(event)">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
                     <h2>Área do Organizador</h2>
@@ -132,8 +133,30 @@
                     </button>
                 </div>
             </form>
+
+            <!-- TELA DO 2FA ORIGINAL E CLÁSSICA -->
+            <form id="step-2" style="display: none;" onsubmit="validarCodigo2FA(event)">
+                <div class="form-header">
+                    <i class="fas fa-shield-alt auth-icon"></i>
+                    <h2>Segurança 2FA</h2>
+                    <p>Digite o código gerado no seu aplicativo</p>
+                </div>
+
+                <div class="input-box" style="margin-top: 30px; margin-bottom: 30px;">
+                    <input type="text" inputmode="numeric" id="codigo2FA" class="input-2fa" placeholder=" " required maxlength="6" autocomplete="one-time-code">
+                    <label style="left: 15px;">Código de 6 dígitos</label>
+                </div>
+
+                <button type="submit" class="btn-submit" id="btnStep2">
+                    CONFIRMAR ACESSO <i class="fas fa-check" style="margin-left:5px;"></i>
+                </button>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" onclick="voltarEtapa1()" style="color: #666; font-size:0.8rem; text-decoration:none;">&larr; Voltar e trocar usuário</a>
+                </div>
+            </form>
             
-            <form id="step-resend" style="display: none;" onsubmit="event.preventDefault(); reenviarAtivacao();">
+            <form id="step-resend" style="display: none;" onsubmit="reenviarAtivacao(event)">
                 <div class="form-header">
                     <i class="fab fa-whatsapp auth-icon" style="color: #25D366;"></i>
                     <h2>Liberação de Acesso</h2>
@@ -155,7 +178,7 @@
                 </div>
             </form>
 
-            <form id="step-forgot" style="display: none;" onsubmit="event.preventDefault(); enviarRecuperacao();">
+            <form id="step-forgot" style="display: none;" onsubmit="enviarRecuperacao(event)">
                 <div class="form-header">
                     <i class="fas fa-key auth-icon"></i>
                     <h2>Recuperar Senha</h2>
@@ -181,6 +204,9 @@
     </div>
 
     <script>
+        let userEmailTemporario = "";
+        let userSenhaTemporaria = "";
+
         function solicitarAcessoWhatsApp() {
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
             const numero = cfg.whatsApp || "5511999999999";
@@ -188,7 +214,9 @@
             window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
         }
 
-        async function fazerLogin() {
+        async function fazerLogin(event) {
+            if (event) event.preventDefault(); 
+
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
             const senha = document.getElementById('loginSenha').value.substring(0, 64);
             const btn = document.getElementById('btnStep1');
@@ -209,21 +237,31 @@
                 if (res.ok) {
                     const data = await res.json();
                     
-                    if (data.token) localStorage.setItem('futSumulaToken', data.token);
-                    
-                    const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
-                    sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
-
-                    const isEmailAdmin = email.toLowerCase() === 'fut_sumula_pro@hotmail.com';
-                    const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
-
-                    if (isEmailAdmin || isNomeAdmin) {
-                        window.location.replace('admin-panel.html');
+                    // SE O BACKEND DISSER QUE PRECISA DE 2FA (Como é o caso do Admin), ELE ABRE O PASSO 2!
+                    if (data.requires2FA) {
+                        userEmailTemporario = data.login || email; 
+                        userSenhaTemporaria = senha; // Guarda a senha temporariamente para o 2FA blindado
+                        document.getElementById('step-1').style.display = 'none';
+                        document.getElementById('step-2').style.display = 'block'; // AQUI A TELA MUDA!
+                        document.getElementById('codigo2FA').focus();
                     } else {
-                        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
-                            window.location.replace('torneios.html');
+                        // Se não for Admin (usuário comum sem 2FA), loga e vai direto
+                        if (data.token) localStorage.setItem('futSumulaToken', data.token);
+                        
+                        const perfil = { nome: data.nome, email: email, liga: data.liga || "LIGA PRO" };
+                        sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
+
+                        const isEmailAdmin = email.toLowerCase() === 'fut_sumula_pro@hotmail.com';
+                        const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
+
+                        if (isEmailAdmin || isNomeAdmin) {
+                            window.location.replace('admin-panel.html');
                         } else {
-                            window.location.replace('index.html'); 
+                            if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+                                window.location.replace('torneios.html');
+                            } else {
+                                window.location.replace('index.html'); 
+                            }
                         }
                     }
                 } else {
@@ -239,28 +277,88 @@
             }
         }
 
+        async function validarCodigo2FA(event) {
+            if (event) event.preventDefault();
+
+            const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
+            const btn = document.getElementById('btnStep2');
+
+            if(!codigo || codigo.length !== 6) { alert("Digite os 6 números gerados no aplicativo."); return; }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> AUTENTICANDO...';
+            btn.disabled = true;
+
+            try {
+                // AGORA ENVIA A SENHA JUNTO COM O CÓDIGO (100% BLINDADO)
+                const res = await fetch('/api/auth/login/validar-2fa', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ login: userEmailTemporario, codigo: codigo, senha: userSenhaTemporaria })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.token) localStorage.setItem('futSumulaToken', data.token);
+                    
+                    const perfil = { nome: data.nome, email: userEmailTemporario, liga: "LIGA PRO" };
+                    sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
+                    
+                    userSenhaTemporaria = ""; // Limpa a senha da memória após o uso
+
+                    const isEmailAdmin = userEmailTemporario.toLowerCase() === 'fut_sumula_pro@hotmail.com';
+                    const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
+
+                    // Após o 2FA, se for Admin, vai direto pro Painel.
+                    if (isEmailAdmin || isNomeAdmin) {
+                        window.location.replace('admin-panel.html');
+                    } else {
+                        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+                            window.location.replace('torneios.html');
+                        } else {
+                            window.location.replace('index.html'); 
+                        }
+                    }
+                } else {
+                    alert("❌ Código de segurança ou sessão inválidos!");
+                }
+            } catch(e) {
+                alert("Erro ao validar código.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                document.getElementById('codigo2FA').value = ""; 
+            }
+        }
+
         function abrirEsqueciSenha() {
             document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-resend').style.display = 'none';
             document.getElementById('step-forgot').style.display = 'block';
         }
 
         function abrirReenviarAtivacao() {
             document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-forgot').style.display = 'none';
             document.getElementById('step-resend').style.display = 'block';
         }
 
         function voltarEtapa1() {
+            document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-forgot').style.display = 'none';
             document.getElementById('step-resend').style.display = 'none';
             document.getElementById('step-1').style.display = 'block';
             
+            document.getElementById('codigo2FA').value = "";
             document.getElementById('forgotEmail').value = "";
             document.getElementById('resendEmail').value = "";
+            userSenhaTemporaria = "";
         }
 
-        async function enviarRecuperacao() {
+        async function enviarRecuperacao(event) {
+            if (event) { event.preventDefault(); }
             const email = document.getElementById('forgotEmail').value.trim();
             if(!email) { alert("Preencha seu e-mail."); return; }
 
@@ -295,7 +393,8 @@
             }
         }
 
-        async function reenviarAtivacao() {
+        async function reenviarAtivacao(event) {
+            if (event) { event.preventDefault(); }
             const email = document.getElementById('resendEmail').value.trim();
             if(!email) { alert("Preencha seu e-mail."); return; }
 

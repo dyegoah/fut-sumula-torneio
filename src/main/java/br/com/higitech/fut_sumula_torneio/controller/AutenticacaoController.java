@@ -63,14 +63,7 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // Exige o código 2FA
-            if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
-                java.util.Map<String, Object> response = new java.util.HashMap<>();
-                response.put("requires2FA", true);
-                response.put("login", user.getLogin());
-                return ResponseEntity.ok(response);
-            }
-
+            // O Login agora é limpo e direto, transfere a responsabilidade do 2FA para o Painel Admin!
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -89,50 +82,34 @@ public class AutenticacaoController {
         }
     }
 
-    @PostMapping("/login/validar-2fa")
-    public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
-        String login = data.get("login");
-        String senha = data.get("senha"); // AGORA EXIGE A SENHA AQUI TAMBÉM
+    // NOVA ROTA BLINDADA: Valida o código 2FA direto de dentro do Admin Panel
+    @PostMapping("/validar-2fa-painel")
+    public ResponseEntity<?> validar2FAPainel(@RequestBody Map<String, String> data, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
+        }
+        
+        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
+        Usuario user = repository.findById(usuarioLogado.getId()).orElse(null);
+        
+        if (user == null || user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Chave 2FA não configurada no banco.");
+        }
+
         String codigoStr = data.get("codigo");
-
-        try {
-            // BLINDAGEM: O sistema testa a senha DE NOVO antes de validar o 2FA
-            var usernamePassword = new UsernamePasswordAuthenticationToken(login, senha);
-            authenticationManager.authenticate(usernamePassword);
-        } catch (org.springframework.security.core.AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sessão inválida. Volte ao início e tente novamente.");
-        }
-
-        Usuario user = (Usuario) repository.findByLogin(login);
-        if (user == null || (!Boolean.TRUE.equals(user.getUsar2fa()) && (user.getChave2fa() == null || user.getChave2fa().isEmpty()))) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário inválido ou 2FA não ativado.");
-        }
-
-        if ("PENDENTE".equals(user.getStatus())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Conta pendente de liberação.");
-        }
 
         try {
             int codigo = Integer.parseInt(codigoStr);
             GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
-                .setWindowSize(3) 
-                .build();
+                .setWindowSize(3).build();
             GoogleAuthenticator gAuth = new GoogleAuthenticator(config);
             
             boolean isValid = gAuth.authorize(user.getChave2fa(), codigo);
 
             if (isValid) {
-                var token = tokenService.gerarToken(user);
-                boolean isSecure = isRequestSecure(request);
-                ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
-                        .httpOnly(true)
-                        .secure(isSecure)
-                        .path("/")
-                        .maxAge(4 * 60 * 60)
-                        .sameSite(isSecure ? "None" : "Lax")
-                        .build();
-                        
-                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
+                user.setUsar2fa(true); // Se acertou o código, trava o uso como TRUE no banco
+                repository.save(user);
+                return ResponseEntity.ok(Map.of("status", "sucesso"));
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
             }
@@ -330,60 +307,5 @@ public class AutenticacaoController {
         resposta.put("textoPronto", "Olá Suporte! Solicitei a recuperação de senha para o e-mail: " + user.getLogin());
 
         return ResponseEntity.ok(resposta);
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> data) {
-        String tokenRecebido = data.get("token");
-        String novaSenha = data.get("novaSenha");
-
-        if (tokenRecebido == null || tokenRecebido.trim().isEmpty()) return ResponseEntity.badRequest().body("Token ausente na requisição.");
-
-        String cleanToken = tokenRecebido.trim();
-        TokenRecuperacao tokenValido = null;
-        
-        Iterable<TokenRecuperacao> todosTokens = tokenRecuperacaoRepository.findAll();
-        for (TokenRecuperacao t : todosTokens) {
-            if (t.getToken() != null && t.getToken().trim().equals(cleanToken)) {
-                tokenValido = t;
-                break;
-            }
-        }
-        
-        if (tokenValido == null) return ResponseEntity.badRequest().body("Token inválido ou não encontrado no sistema.");
-        if (tokenValido.getDataExpiracao().isBefore(LocalDateTime.now())) {
-            tokenRecuperacaoRepository.delete(tokenValido); 
-            return ResponseEntity.badRequest().body("Este link de recuperação expirou.");
-        }
-        
-        Usuario user = tokenValido.getUsuario();
-        user.setSenha(new BCryptPasswordEncoder().encode(novaSenha));
-        repository.save(user);
-        tokenRecuperacaoRepository.delete(tokenValido);
-        
-        return ResponseEntity.ok("Senha redefinida com sucesso!");
-    }
-    
-    @PutMapping("/admin/ativar-usuario")
-    public ResponseEntity<?> ativarUsuarioAdmin(@RequestBody Map<String, String> data, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Acesso negado.");
-        }
-
-        Usuario adminLogado = (Usuario) authentication.getPrincipal();
-        if (!"fut_sumula_pro@hotmail.com".equals(adminLogado.getLogin())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
-        }
-
-        String emailUsuario = data.get("email");
-        if (emailUsuario == null || emailUsuario.trim().isEmpty()) return ResponseEntity.badRequest().body("E-mail não fornecido.");
-
-        Usuario user = (Usuario) repository.findByLogin(emailUsuario.trim());
-        if (user == null) return ResponseEntity.badRequest().body("Usuário não encontrado.");
-
-        user.setStatus("ATIVO");
-        repository.save(user);
-
-        return ResponseEntity.ok("O usuário " + user.getNome() + " (" + user.getLogin() + ") foi ATIVADO com sucesso e já pode fazer login.");
     }
 }

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <!-- REDIRECIONAMENTO INTELIGENTE: Força HTTPS APENAS no Render. Ignora o localhost -->
     <script>
         if (window.location.hostname.includes('onrender.com') && window.location.protocol !== 'https:') {
             window.location.href = window.location.href.replace('http:', 'https:');
@@ -95,7 +94,6 @@
 
         <div class="login-form-container">
             
-          
             <form id="step-1" onsubmit="fazerLogin(event)">
                 <div class="form-header">
                     <i class="fas fa-trophy" style="color:var(--primary-neon)"></i>
@@ -130,7 +128,6 @@
                     <a href="cadastro-usuario.html" class="btn-register btn-outline-light">
                         <i class="fas fa-user-plus"></i> Criar Nova Conta
                     </a>
-                    <!-- BOTAO DO WHATSAPP DEVE TER type="button" PARA NÃO ENVIAR O FORM -->
                     <button type="button" class="btn-register btn-whatsapp" onclick="solicitarAcessoWhatsApp()">
                         <i class="fab fa-whatsapp"></i> Fale com a Equipe
                     </button>
@@ -207,6 +204,7 @@
 
     <script>
         let userEmailTemporario = "";
+        let userSenhaTemporaria = ""; // Nova variável para a blindagem do 2FA
 
         function solicitarAcessoWhatsApp() {
             const cfg = JSON.parse(localStorage.getItem('futSumulaSysConfig')) || {};
@@ -216,8 +214,7 @@
         }
 
         async function fazerLogin(event) {
-            // AQUI ESTÁ O BLOQUEIO DA TECLA ENTER (IMPEDE O REFRESH DA TELA)
-            if (event) { event.preventDefault(); }
+            if (event) event.preventDefault(); 
 
             const email = document.getElementById('loginEmail').value.trim().substring(0, 100);
             const senha = document.getElementById('loginSenha').value.substring(0, 64);
@@ -241,6 +238,7 @@
                     
                     if (data.requires2FA) {
                         userEmailTemporario = data.login || email; 
+                        userSenhaTemporaria = senha; // Guarda a senha temporariamente para o 2FA blindado
                         document.getElementById('step-1').style.display = 'none';
                         document.getElementById('step-2').style.display = 'block';
                         document.getElementById('codigo2FA').focus();
@@ -277,8 +275,7 @@
         }
 
         async function validarCodigo2FA(event) {
-            // AQUI ESTÁ O BLOQUEIO DA TECLA ENTER (IMPEDE O REFRESH DA TELA)
-            if (event) { event.preventDefault(); }
+            if (event) event.preventDefault();
 
             const codigo = document.getElementById('codigo2FA').value.trim().substring(0, 6);
             const btn = document.getElementById('btnStep2');
@@ -290,10 +287,11 @@
             btn.disabled = true;
 
             try {
+                // AGORA ENVIA A SENHA JUNTO COM O CÓDIGO
                 const res = await fetch('/api/auth/login/validar-2fa', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ login: userEmailTemporario, codigo: codigo })
+                    body: JSON.stringify({ login: userEmailTemporario, codigo: codigo, senha: userSenhaTemporaria })
                 });
 
                 if (res.ok) {
@@ -302,6 +300,8 @@
                     
                     const perfil = { nome: data.nome, email: userEmailTemporario, liga: "LIGA PRO" };
                     sessionStorage.setItem('futSumulaPerfil', JSON.stringify(perfil));
+                    
+                    userSenhaTemporaria = ""; // Limpa a senha da memória por segurança
 
                     const isEmailAdmin = userEmailTemporario.toLowerCase() === 'fut_sumula_pro@hotmail.com';
                     const isNomeAdmin = data.nome && data.nome.toLowerCase() === 'administrador';
@@ -316,7 +316,7 @@
                         }
                     }
                 } else {
-                    alert("❌ Código inválido ou expirado! Verifique o aplicativo.");
+                    alert("❌ Código de segurança ou sessão inválidos!");
                 }
             } catch(e) {
                 alert("Erro ao validar código.");
@@ -350,6 +350,7 @@
             document.getElementById('codigo2FA').value = "";
             document.getElementById('forgotEmail').value = "";
             document.getElementById('resendEmail').value = "";
+            userSenhaTemporaria = "";
         }
 
         async function enviarRecuperacao(event) {

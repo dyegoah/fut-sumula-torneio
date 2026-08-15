@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,15 +29,26 @@ public class AdminController {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
+    // BLINDAGEM DE HIERARQUIA: Verifica se a requisição vem do dono do sistema
+    private boolean isAdministrador(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) return false;
+        Usuario user = (Usuario) authentication.getPrincipal();
+        return "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
+    }
+
     @GetMapping("/users")
-    public ResponseEntity<List<Usuario>> listarTodos() {
+    public ResponseEntity<?> listarTodos(Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+        
         List<Usuario> usuarios = usuarioRepository.findAll();
         usuarios.forEach(u -> u.setSenha(null)); 
         return ResponseEntity.ok(usuarios);
     }
 
     @PutMapping("/users/{id}/status")
-    public ResponseEntity<Usuario> alternarStatus(@PathVariable Long id) {
+    public ResponseEntity<?> alternarStatus(@PathVariable Long id, Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
         return usuarioRepository.findById(id).map(user -> {
             String novoStatus = "ATIVO".equals(user.getStatus()) ? "INATIVO" : "ATIVO";
             user.setStatus(novoStatus);
@@ -45,7 +58,9 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/premium")
-    public ResponseEntity<Usuario> alternarPremium(@PathVariable Long id) {
+    public ResponseEntity<?> alternarPremium(@PathVariable Long id, Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
         return usuarioRepository.findById(id).map(user -> {
             if ("PREMIUM".equals(user.getPlano())) {
                 user.setPlano("FREE");
@@ -59,7 +74,9 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/update")
-    public ResponseEntity<Usuario> atualizarDadosCompletos(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> atualizarDadosCompletos(@PathVariable Long id, @RequestBody Map<String, Object> payload, Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
         return usuarioRepository.findById(id).map(user -> {
             if(payload.containsKey("nome")) user.setNome((String) payload.get("nome"));
             if(payload.containsKey("login")) user.setLogin((String) payload.get("login"));
@@ -95,7 +112,9 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/cortesia")
-    public ResponseEntity<Usuario> gerenciarCortesia(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> gerenciarCortesia(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
         return usuarioRepository.findById(id).map(user -> {
             String acao = payload.get("acao");
             if ("CONCEDER".equals(acao)) {
@@ -114,7 +133,9 @@ public class AdminController {
     }
     
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<Void> excluirUsuario(@PathVariable Long id) {
+    public ResponseEntity<?> excluirUsuario(@PathVariable Long id, Authentication auth) {
+        if (!isAdministrador(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
         if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
         usuarioRepository.deleteById(id);
         return ResponseEntity.noContent().build();

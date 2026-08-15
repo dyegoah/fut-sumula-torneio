@@ -63,7 +63,7 @@ public class AutenticacaoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Sua conta está em análise. Entre em contato via WhatsApp para liberação.");
             }
 
-            // A REGRA DE OURO RESTAURADA: Se o usuário tem 2FA ativado no banco, EXIJA o código (Localhost ou Render).
+            // Exige o código 2FA
             if (Boolean.TRUE.equals(user.getUsar2fa()) || (user.getChave2fa() != null && !user.getChave2fa().isEmpty())) {
                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                 response.put("requires2FA", true);
@@ -71,7 +71,6 @@ public class AutenticacaoController {
                 return ResponseEntity.ok(response);
             }
 
-            // Se for um usuário normal sem 2FA, gera o token direto
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -93,7 +92,16 @@ public class AutenticacaoController {
     @PostMapping("/login/validar-2fa")
     public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
         String login = data.get("login");
+        String senha = data.get("senha"); // AGORA EXIGE A SENHA AQUI TAMBÉM
         String codigoStr = data.get("codigo");
+
+        try {
+            // BLINDAGEM: O sistema testa a senha DE NOVO antes de validar o 2FA
+            var usernamePassword = new UsernamePasswordAuthenticationToken(login, senha);
+            authenticationManager.authenticate(usernamePassword);
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sessão inválida. Volte ao início e tente novamente.");
+        }
 
         Usuario user = (Usuario) repository.findByLogin(login);
         if (user == null || (!Boolean.TRUE.equals(user.getUsar2fa()) && (user.getChave2fa() == null || user.getChave2fa().isEmpty()))) {
@@ -232,7 +240,6 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
-            // Acesso mestre original blindado
             if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
                 perfil.put("nome", "Administrador"); 
                 perfil.put("login", "fut_sumula_pro@hotmail.com"); 

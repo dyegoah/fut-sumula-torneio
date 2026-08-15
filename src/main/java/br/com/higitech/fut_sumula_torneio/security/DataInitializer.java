@@ -28,7 +28,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // CORREÇÃO AQUI: Adicionado o cast (Usuario) para converter o UserDetails
         Usuario admin = (Usuario) repository.findByLogin(adminEmail);
         
         if (admin == null) {
@@ -40,24 +39,32 @@ public class DataInitializer implements CommandLineRunner {
         }
         
         // ====================================================================
-        // SCRIPT DE EMERGÊNCIA: ZERA E GERA UMA NOVA CHAVE 2FA PARA O ADMIN
+        // GESTÃO SEGURA DO 2FA DO ADMINISTRADOR
         // ====================================================================
-        GoogleAuthenticator gAuth = new GoogleAuthenticator();
-        String novaChave = gAuth.createCredentials().getKey();
+        if (admin.getChave2fa() == null || admin.getChave2fa().trim().isEmpty()) {
+            // SÓ GERA UMA CHAVE NOVA SE O BANCO ESTIVER VAZIO!
+            GoogleAuthenticator gAuth = new GoogleAuthenticator();
+            String novaChave = gAuth.createCredentials().getKey();
+            admin.setChave2fa(novaChave);
+            admin.setUsar2fa(true);
+            repository.save(admin);
+            System.out.println("\n🚨 NOVA CHAVE 2FA GERADA E SALVA NO BANCO 🚨");
+        } else {
+            System.out.println("\n✅ CHAVE 2FA JÁ EXISTENTE DETECTADA.");
+            // Garante que o uso está ativado
+            if (!Boolean.TRUE.equals(admin.getUsar2fa())) {
+                admin.setUsar2fa(true);
+                repository.save(admin);
+            }
+        }
         
-        admin.setChave2fa(novaChave);
-        admin.setUsar2fa(true);
-        repository.save(admin);
+        // Imprime o link do QR Code da chave atual (seja ela nova ou antiga)
+        String linkQrCode = String.format("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=otpauth://totp/Fut-Sumula-Pro:Admin?secret=%s&issuer=Fut-Sumula-Pro", admin.getChave2fa());
         
-        String linkQrCode = String.format("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=otpauth://totp/Fut-Sumula-Pro:Admin?secret=%s&issuer=Fut-Sumula-Pro", novaChave);
-        
-        System.out.println("\n========================================================");
-        System.out.println("🚨 ATENÇÃO: SEU AUTENTICADOR 2FA FOI ZERADO E RECRIADO 🚨");
         System.out.println("========================================================");
-        System.out.println("Abra o Google Authenticator no seu celular e adicione a chave abaixo:");
-        System.out.println("Chave Manual: " + novaChave);
-        System.out.println("\nOU CLIQUE NO LINK ABAIXO PARA VER O QR CODE NO NAVEGADOR E ESCANEAR:");
+        System.out.println("Abra o Google Authenticator e escaneie o link abaixo:");
         System.out.println(linkQrCode);
+        System.out.println("Ou digite a chave manual: " + admin.getChave2fa());
         System.out.println("========================================================\n");
     }
 }

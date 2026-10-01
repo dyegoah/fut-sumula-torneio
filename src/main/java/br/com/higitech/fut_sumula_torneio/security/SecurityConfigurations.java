@@ -40,6 +40,7 @@ public class SecurityConfigurations {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
+                    // A rota principal do auth já engloba o validar-2fa, mantendo o código limpo
                     req.requestMatchers("/api/auth/**").permitAll();       
                     req.requestMatchers("/api/integracao/**").permitAll(); 
                     req.requestMatchers(HttpMethod.GET, "/api/torneios/**").permitAll();
@@ -68,7 +69,7 @@ public class SecurityConfigurations {
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
-        configuration.setAllowCredentials(true); // Permitido agora que as origens estão restritas!
+        configuration.setAllowCredentials(true); 
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

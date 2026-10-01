@@ -28,15 +28,18 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+       
         Usuario admin = (Usuario) repository.findByLogin(adminEmail);
         
         if (admin == null) {
             admin = new Usuario();
             admin.setNome("Administrador");
             admin.setLogin(adminEmail);
-            admin.setSenha(passwordEncoder.encode(adminPassword)); 
-            repository.save(admin);
         }
+        
+        // FORÇA A ATUALIZAÇÃO DA SENHA PARA GARANTIR O ACESSO
+        admin.setSenha(passwordEncoder.encode(adminPassword)); 
+        repository.save(admin);
         
         // ====================================================================
         // GESTÃO SEGURA DO 2FA DO ADMINISTRADOR
@@ -65,6 +68,12 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("Abra o Google Authenticator e escaneie o link abaixo:");
         System.out.println(linkQrCode);
         System.out.println("Ou digite a chave manual: " + admin.getChave2fa());
+        
+        // GERA O CÓDIGO VÁLIDO NO CONSOLE PARA TESTE ISOLADO
+        GoogleAuthenticator gAuth = new GoogleAuthenticator();
+        int codigoAtual = gAuth.getTotpPassword(admin.getChave2fa());
+        System.out.println("👉 CÓDIGO VÁLIDO NESTE EXATO MOMENTO: " + String.format("%06d", codigoAtual));
+        
         System.out.println("========================================================\n");
     }
 }

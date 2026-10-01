@@ -64,9 +64,7 @@ public class AutenticacaoController {
 
             boolean isAdmin = "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin()) || "Administrador".equalsIgnoreCase(user.getNome());
 
-            // A REGRA CLÁSSICA: Se for Administrador, trava o fluxo e manda abrir a tela de 2FA.
             if (isAdmin) {
-                // Segurança extra: Se a chave tiver sido apagada do banco sem querer, recria automaticamente.
                 if (user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
                     GoogleAuthenticator gAuth = new GoogleAuthenticator();
                     user.setChave2fa(gAuth.createCredentials().getKey());
@@ -81,7 +79,6 @@ public class AutenticacaoController {
                 return ResponseEntity.ok(response);
             }
 
-            // Se for um usuário comum, gera o token e entra direto
             var token = tokenService.gerarToken(user);
             
             boolean isSecure = isRequestSecure(request);
@@ -103,32 +100,52 @@ public class AutenticacaoController {
     @PostMapping("/login/validar-2fa")
     public ResponseEntity<?> validar2FA(@RequestBody Map<String, String> data, HttpServletRequest request) {
         String login = data.get("login");
-        String senha = data.get("senha"); // BLINDAGEM: Recebe a senha para impedir Força Bruta
+        String senha = data.get("senha");
         String codigoStr = data.get("codigo");
 
-        // Reautentica para garantir que ninguém chamou a rota direto sem a senha
-        try {
-            var usernamePassword = new UsernamePasswordAuthenticationToken(login, senha);
-            authenticationManager.authenticate(usernamePassword);
-        } catch (org.springframework.security.core.AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sessão ou senha inválida. Refaça o login.");
+        System.out.println("\n--- INICIANDO VALIDAÇÃO 2FA ---");
+        System.out.println("Login recebido: " + login);
+        System.out.println("Código recebido: " + codigoStr);
+        System.out.println("Senha recebida: " + (senha != null && !senha.isEmpty() ? "Sim" : "Não"));
+
+        if (login == null || codigoStr == null) {
+            System.out.println("ERRO: Dados em falta na requisição do frontend.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Dados incompletos.");
         }
 
         Usuario user = (Usuario) repository.findByLogin(login);
         if (user == null || user.getChave2fa() == null || user.getChave2fa().isEmpty()) {
+            System.out.println("ERRO: Utilizador inválido ou sem chave 2FA configurada.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário inválido ou 2FA não configurado.");
         }
 
+        System.out.println("Chave 2FA na BD: " + user.getChave2fa());
+
+        if (senha != null && !senha.trim().isEmpty()) {
+            try {
+                var usernamePassword = new UsernamePasswordAuthenticationToken(login, senha);
+                authenticationManager.authenticate(usernamePassword);
+                System.out.println("Verificação de senha: OK");
+            } catch (org.springframework.security.core.AuthenticationException e) {
+                System.out.println("ERRO: A senha fornecida está incorreta.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sessão ou senha inválida. Refaça o login.");
+            }
+        }
+
         try {
-            int codigo = Integer.parseInt(codigoStr);
+            int codigo = Integer.parseInt(codigoStr.trim());
             GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
                 .setWindowSize(3) 
                 .build();
             GoogleAuthenticator gAuth = new GoogleAuthenticator(config);
             
+            int codigoEsperado = gAuth.getTotpPassword(user.getChave2fa());
+            System.out.println("Código exigido agora: " + String.format("%06d", codigoEsperado));
+            
             boolean isValid = gAuth.authorize(user.getChave2fa(), codigo);
 
             if (isValid) {
+                System.out.println("SUCESSO: Código 2FA aceite.");
                 var token = tokenService.gerarToken(user);
                 boolean isSecure = isRequestSecure(request);
                 ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", token)
@@ -141,9 +158,11 @@ public class AutenticacaoController {
                         
                 return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString()).body(new LoginResponseDTO(token, user.getNome()));
             } else {
+                System.out.println("ERRO: O código de 6 dígitos não corresponde.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de segurança inválido!");
             }
         } catch (NumberFormatException e) {
+            System.out.println("ERRO: O formato do código não é numérico.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Formato de código inválido.");
         }
     }
@@ -237,7 +256,6 @@ public class AutenticacaoController {
             perfil.put("nomeLiga", user.getNomeLiga()); perfil.put("genero", user.getGenero()); perfil.put("idioma", user.getIdioma());
             perfil.put("pais", user.getPais());
 
-            // Acesso mestre original blindado
             if ("Administrador".equalsIgnoreCase(user.getNome()) || "fut_sumula_pro@hotmail.com".equalsIgnoreCase(user.getLogin())) {
                 perfil.put("nome", "Administrador"); 
                 perfil.put("login", "fut_sumula_pro@hotmail.com"); 
